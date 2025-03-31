@@ -4,9 +4,9 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; script-src-elem 'self';"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self';"
     />
-    <!-- Adjusted CSP slightly -->
+    <!-- data: in font-src, connect-src self -->
     <title>Todo Wallpaper</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -15,7 +15,6 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <!-- Using Inter font -->
   </head>
   <body>
     <div class="app-shell">
@@ -32,16 +31,16 @@
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
+              viewBox="0 0 16 16"
               fill="currentColor"
-              width="18"
-              height="18"
+              width="16"
+              height="16"
             >
               <path
-                d="M9.25 13.25a.75.75 0 001.5 0V4.636l2.955 3.129a.75.75 0 001.09-1.03l-4.25-4.5a.75.75 0 00-1.09 0l-4.25 4.5a.75.75 0 101.09 1.03L9.25 4.636v8.614z"
+                d="M8.75 2.75a.75.75 0 0 0-1.5 0v7.14L4.53 7.119a.75.75 0 0 0-1.06 1.06l3.25 3.25a.75.75 0 0 0 1.06 0l3.25-3.25a.75.75 0 1 0-1.06-1.06L8.75 9.889V2.75Z"
               />
               <path
-                d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"
+                d="M3.5 12.75a.75.75 0 0 0-1.5 0v.5A2.75 2.75 0 0 0 4.75 16h6.5A2.75 2.75 0 0 0 14 13.25v-.5a.75.75 0 0 0-1.5 0v.5c0 .69-.56 1.25-1.25 1.25h-6.5c-.69 0-1.25-.56-1.25-1.25v-.5Z"
               />
             </svg>
             <span>Apply Wallpaper</span>
@@ -49,63 +48,74 @@
           <button
             id="toggle-settings-btn"
             class="button button-secondary button-icon"
-            title="Toggle Settings Panel"
+            title="Toggle Settings Panel (Alt+S)"
+            aria-label="Toggle Settings Panel"
+            aria-expanded="true"
           >
             <svg
               id="settings-icon-open"
               xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
+              viewBox="0 0 16 16"
               fill="currentColor"
-              width="20"
-              height="20"
+              width="16"
+              height="16"
             >
               <path
                 fill-rule="evenodd"
-                d="M11.49 3.17a.75.75 0 01.75.75v1.25a.75.75 0 01-1.5 0V4.17h-.24a6.75 6.75 0 00-7.5 7.5v.24a.75.75 0 01-1.5 0V11.67a8.25 8.25 0 015.94-7.93.75.75 0 01.81.33zM8.51 16.83a.75.75 0 01-.75-.75v-1.25a.75.75 0 011.5 0v1.08a6.73 6.73 0 004.49 1.42h.24a.75.75 0 011.5 0h.24a6.75 6.75 0 007.5-7.5v-.24a.75.75 0 011.5 0V8.33a8.25 8.25 0 01-5.94 7.93.75.75 0 01-.81-.33z"
-                clip-rule="evenodd"
-              />
-              <path
-                fill-rule="evenodd"
-                d="M10 3a.75.75 0 01.75.75v.94a8.31 8.31 0 013.81 1.35l.79-.4a.75.75 0 01.97.44l.5 1a.75.75 0 01-.34.93l-.8.4a8.18 8.18 0 010 2.18l.8.4a.75.75 0 01.34.93l-.5 1a.75.75 0 01-.97.44l-.79-.4a8.31 8.31 0 01-3.81 1.35v.94a.75.75 0 01-1.5 0v-.94a8.31 8.31 0 01-3.81-1.35l-.79.4a.75.75 0 01-.97-.44l-.5-1a.75.75 0 01.34-.93l.8-.4a8.18 8.18 0 010-2.18l-.8-.4a.75.75 0 01-.34-.93l.5-1a.75.75 0 01.97-.44l.79.4A8.31 8.31 0 019.25 4.69v-.94A.75.75 0 0110 3zM11.5 10a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"
+                d="M6.94 4.036c.276 0 .524.105.71.291l.355.355A4.001 4.001 0 0 1 10.25 4a.75.75 0 0 1 .75.75V6h.944c.39 0 .74.21.92.533l.247.433a.75.75 0 0 1 0 .798l-.247.433a1.23 1.23 0 0 1-.92.533H11v1.207a4.013 4.013 0 0 1-2.24 3.453l-.355.355a.999.999 0 0 1-.71.291H7.5a1 1 0 0 1-1-1V4.536a.5.5 0 0 1 .44-.499Zm1.06 1.464v7.25h.25a.75.75 0 0 1 .75-.75 2.5 2.5 0 0 0 0-5 .75.75 0 0 1-.75-.75h-.25Z"
                 clip-rule="evenodd"
               />
             </svg>
             <svg
               id="settings-icon-close"
               xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
+              viewBox="0 0 16 16"
               fill="currentColor"
-              width="20"
-              height="20"
+              width="16"
+              height="16"
               class="hidden"
             >
               <path
-                d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"
+                d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
               />
             </svg>
           </button>
         </div>
       </header>
 
-      <!-- Main Content Area (3 Columns) -->
+      <!-- Main Content Area -->
       <main class="app-main">
-        <!-- Todos Column (Left) -->
+        <!-- Todos Column -->
         <aside class="column column-todos">
-          <h2 class="column-title">Tasks</h2>
-          <p class="add-hint">Press Ctrl+N to add a new task</p>
+          <div class="column-header">
+            <h2 class="column-title">Tasks</h2>
+            <button
+              id="open-add-todo-modal-btn"
+              class="button button-secondary button-icon"
+              title="Add New Task (Ctrl+N)"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                width="16"
+                height="16"
+              >
+                <path
+                  d="M8.75 3.75a.75.75 0 0 0-1.5 0v3.5h-3.5a.75.75 0 0 0 0 1.5h3.5v3.5a.75.75 0 0 0 1.5 0v-3.5h3.5a.75.75 0 0 0 0-1.5h-3.5v-3.5Z"
+                />
+              </svg>
+            </button>
+          </div>
           <div class="todo-list-container scrollable-content">
-            <ul id="todo-list">
-              <!-- Todo items render here -->
-            </ul>
+            <ul id="todo-list"></ul>
           </div>
         </aside>
 
-        <!-- Preview Column (Middle) -->
+        <!-- Preview Column -->
         <section class="column column-preview">
-          <h2 class="column-title">Preview</h2>
-          <div class="preview-area-container">
+          <div class="preview-area-container" id="preview-container">
             <img id="preview-area" alt="Wallpaper Preview" src="" />
-            <!-- Hidden canvas for generation -->
             <canvas
               id="image-canvas"
               width="1920"
@@ -115,15 +125,16 @@
           </div>
         </section>
 
-        <!-- Settings Column (Right - Collapsible) -->
+        <!-- Settings Column -->
         <aside
           class="column column-settings"
           id="settings-column"
           data-collapsed="false"
         >
-          <h2 class="column-title">Settings</h2>
+          <div class="column-header">
+            <h2 class="column-title">Settings</h2>
+          </div>
           <div class="scrollable-content">
-            <!-- Text Settings Section -->
             <div class="setting-section">
               <h3>Text & Layout</h3>
               <div class="input-group">
@@ -132,7 +143,7 @@
                   type="text"
                   id="wallpaper-title-input"
                   class="input"
-                  value="My To-Do List"
+                  value="My Tasks"
                 />
               </div>
               <div class="input-group">
@@ -141,7 +152,7 @@
                   type="color"
                   id="text-color"
                   class="input-color"
-                  value="#FFFFFF"
+                  value="#f3f4f6"
                 />
               </div>
               <div class="input-group">
@@ -154,6 +165,14 @@
                   min="10"
                   max="200"
                 />
+              </div>
+              <div class="input-group">
+                <label for="list-style-select">List Style</label>
+                <select id="list-style-select" class="select">
+                  <option value="bullet">Bullet (•)</option>
+                  <option value="dash">Dash (-)</option>
+                  <option value="number">Number (1.)</option>
+                </select>
               </div>
               <div class="input-group">
                 <label for="text-position">Position</label>
@@ -197,6 +216,62 @@
               </div>
             </div>
 
+            <!-- Font Settings Section -->
+            <div class="setting-section">
+              <h3>Font</h3>
+              <div class="input-group">
+                <label>Source</label>
+                <div class="radio-group">
+                  <label>
+                    <input
+                      type="radio"
+                      name="font-source"
+                      value="default"
+                      id="font-source-default"
+                      checked
+                    />
+                    Default
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="font-source"
+                      value="google"
+                      id="font-source-google"
+                    />
+                    Google Font
+                  </label>
+                </div>
+              </div>
+              <div id="google-font-controls" class="hidden">
+                <!-- Content flows into parent grid -->
+                <div class="input-group">
+                  <label for="google-font-url">URL</label>
+                  <input
+                    type="url"
+                    id="google-font-url"
+                    class="input"
+                    placeholder="https://fonts.googleapis.com/css2?family=..."
+                  />
+                </div>
+                <div class="input-group">
+                  <!-- Button Group -->
+                  <label></label>
+                  <!-- Spacer -->
+                  <button id="load-font-btn" class="button button-secondary">
+                    Load Font
+                  </button>
+                </div>
+                <div class="input-group">
+                  <!-- Status Display -->
+                  <label>Status</label>
+                  <span id="font-status" class="font-status-display"
+                    >Default: Inter</span
+                  >
+                </div>
+              </div>
+            </div>
+
             <!-- Background Settings Section -->
             <div class="setting-section">
               <h3>Background</h3>
@@ -224,19 +299,15 @@
                   </label>
                 </div>
               </div>
-
-              <!-- Background Color Controls -->
               <div id="bg-color-controls" class="input-group">
                 <label for="bg-color">Color</label>
                 <input
                   type="color"
                   id="bg-color"
                   class="input-color"
-                  value="#1a1a1d"
+                  value="#111827"
                 />
               </div>
-
-              <!-- Background Image Controls -->
               <div id="bg-image-controls" class="input-group hidden">
                 <label>Image</label>
                 <span id="image-filename" class="filename-display"
@@ -283,7 +354,7 @@
           <button
             id="modal-close-btn"
             class="modal-close-button button button-ghost button-icon"
-            title="Close"
+            title="Close (Esc)"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
