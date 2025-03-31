@@ -8,6 +8,7 @@ const textPositionSelect = document.getElementById("text-position")
 const fontSizeInput = document.getElementById("font-size") // New
 const offsetXInput = document.getElementById("offset-x") // New
 const offsetYInput = document.getElementById("offset-y") // New
+const textAlignSelect = document.getElementById("text-align-select") // New alignment select
 const previewAreaImg = document.getElementById("preview-area")
 const applyWallpaperBtn = document.getElementById("apply-wallpaper-btn")
 
@@ -21,6 +22,7 @@ let state = {
   textColor: "#eeeeee", // Default light text
   textPosition: "top-left", // default
   fontSize: 48, // Default font size
+  textAlign: "left", // Default alignment
   offsetX: 0, // Default offset X
   offsetY: 0, // Default offset Y
   lastGeneratedImageDataUrl: null, // Store the latest generated image data
@@ -35,6 +37,7 @@ function initialize() {
   textColorInput.value = state.textColor
   fontSizeInput.value = state.fontSize
   textPositionSelect.value = state.textPosition
+  textAlignSelect.value = state.textAlign // Set initial alignment dropdown value
   offsetXInput.value = state.offsetX
   offsetYInput.value = state.offsetY
 
@@ -53,6 +56,7 @@ function initialize() {
   textColorInput.addEventListener("input", handleSettingChange)
   fontSizeInput.addEventListener("input", handleSettingChange)
   textPositionSelect.addEventListener("change", handleSettingChange)
+  textAlignSelect.addEventListener("change", handleSettingChange) // Add listener for alignment
   offsetXInput.addEventListener("input", handleSettingChange)
   offsetYInput.addEventListener("input", handleSettingChange)
   // Button to apply wallpaper
@@ -167,6 +171,7 @@ function generateTodoImageAndUpdatePreview() {
   // Read current settings from state
   const bgColor = state.bgColor
   const textColor = state.textColor
+  const align = state.textAlign // Use state alignment
   const position = state.textPosition
   const itemFontSize = parseInt(state.fontSize, 10) || 48 // Use state font size, fallback to 48
   const offsetX = parseInt(state.offsetX, 10) || 0 // Use state offset X, fallback to 0
@@ -192,7 +197,7 @@ function generateTodoImageAndUpdatePreview() {
 
   // --- Calculate Text Position ---
   let startX, startY
-  let textAlign = "left"
+  // We'll set ctx.textAlign later based on state.textAlign
   let textBaseline = "top" // Use 'top' for consistent positioning calculation
 
   // Estimate total text height required for positioning calculations
@@ -204,42 +209,34 @@ function generateTodoImageAndUpdatePreview() {
     case "top-left":
       startX = padding
       startY = padding
-      textAlign = "left"
       break
     case "top-center":
       startX = canvasWidth / 2
       startY = padding
-      textAlign = "center"
       break
     case "center-left":
       startX = padding
       startY = canvasHeight / 2 - totalTextHeight / 2
-      textAlign = "left"
       break
     case "center":
       startX = canvasWidth / 2
       startY = canvasHeight / 2 - totalTextHeight / 2
-      textAlign = "center"
       break
     case "bottom-left":
       startX = padding
       startY = canvasHeight - padding - totalTextHeight
-      textAlign = "left"
       break
     case "bottom-center":
       startX = canvasWidth / 2
       startY = canvasHeight - padding - totalTextHeight
-      textAlign = "center"
       break
     case "bottom-right":
       startX = canvasWidth - padding
       startY = canvasHeight - padding - totalTextHeight
-      textAlign = "right"
       break
     default:
-      startX = padding
+      startX = padding // Default to top-left position calculation
       startY = padding
-      textAlign = "left" // Default to top-left
   }
 
   // Apply User-Defined Offsets
@@ -247,7 +244,7 @@ function generateTodoImageAndUpdatePreview() {
   startY += offsetY
 
   // Set canvas context properties for text drawing
-  ctx.textAlign = textAlign
+  ctx.textAlign = align // Use the alignment from the state
   ctx.textBaseline = textBaseline // Draw text starting from the top edge
 
   // --- Draw Text ---
@@ -269,21 +266,23 @@ function generateTodoImageAndUpdatePreview() {
     if (item.done) {
       currentTextColor = "#999999" // Use a dimmer color for done items (adjust for theme)
       // Strikethrough (Optional): Draw a line manually if desired
-      // const textMetrics = ctx.measureText(itemText);
-      // const textWidth = textMetrics.width;
-      // ctx.save();
-      // ctx.strokeStyle = currentTextColor;
-      // ctx.lineWidth = Math.max(1, Math.round(itemFontSize / 20));
-      // let lineX = startX;
-      // if (textAlign === 'center') lineX = startX - textWidth / 2;
-      // else if (textAlign === 'right') lineX = startX - textWidth;
-      // ctx.beginPath();
-      // // Adjust Y position for strikethrough based on baseline and font size
-      // const strikeY = currentY + itemFontSize * 0.6; // Approximation for middle
-      // ctx.moveTo(lineX, strikeY);
-      // ctx.lineTo(lineX + textWidth, strikeY);
-      // ctx.stroke();
-      // ctx.restore();
+      const textMetrics = ctx.measureText(itemText)
+      const textWidth = textMetrics.width
+      ctx.save()
+      ctx.strokeStyle = currentTextColor
+      ctx.lineWidth = Math.max(1, Math.round(itemFontSize / 20))
+      let lineX = startX
+      if (align === "center")
+        lineX =
+          startX - textWidth / 2 // Adjust strikethrough based on alignment
+      else if (align === "right") lineX = startX - textWidth // Adjust strikethrough based on alignment
+      ctx.beginPath()
+      // Adjust Y position for strikethrough based on baseline and font size
+      const strikeY = currentY + itemFontSize * 0.6 // Approximation for middle
+      ctx.moveTo(lineX, strikeY)
+      ctx.lineTo(lineX + textWidth, strikeY)
+      ctx.stroke()
+      ctx.restore()
     }
 
     ctx.fillStyle = currentTextColor // Set the fill color (handles 'done' state)
@@ -329,6 +328,7 @@ function handleSettingChange() {
   state.textColor = textColorInput.value
   state.fontSize = parseInt(fontSizeInput.value, 10) || 48 // Parse int, provide fallback
   state.textPosition = textPositionSelect.value
+  state.textAlign = textAlignSelect.value // Read alignment value
   state.offsetX = parseInt(offsetXInput.value, 10) || 0 // Parse int, provide fallback
   state.offsetY = parseInt(offsetYInput.value, 10) || 0 // Parse int, provide fallback
 
