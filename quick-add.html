@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';"
+    />
+    <title>Quick Add Task</title>
+    <link rel="stylesheet" href="quick-add-style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <form id="quick-add-form">
+        <input
+          type="text"
+          id="quick-add-input"
+          placeholder="Enter new task..."
+          autofocus
+          required
+        />
+        <div class="actions">
+          <button
+            type="button"
+            id="quick-cancel-btn"
+            class="button button-secondary"
+          >
+            Cancel (Esc)
+          </button>
+          <button type="submit" class="button button-primary">
+            Add Task (Enter)
+          </button>
+        </div>
+      </form>
+    </div>
+    <script src="./quick-add-renderer.js"></script>
+  </body>
+</html>

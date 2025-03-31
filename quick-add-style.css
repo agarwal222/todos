@@ -1,0 +1,74 @@
+/* quick-add-style.css */
+:root {
+    --background: 240 10% 5.9%; /* Slightly lighter than main bg */
+    --foreground: 0 0% 98%;
+    --secondary-bg: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --border: 240 3.7% 20.9%; /* Slightly more visible border */
+    --primary: 262.1 83.3% 57.8%;
+    --primary-foreground: 210 40% 98%;
+    --ring: 262.1 83.3% 57.8%;
+    --radius: 0.5rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 0.75rem;
+    --font-sans: sans-serif; /* Use system default */
+    --transition-speed: 0.15s;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; border: 0 solid hsl(var(--border));}
+
+body {
+    font-family: var(--font-sans);
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    padding: var(--spacing-md);
+    border-radius: var(--radius);
+    overflow: hidden; /* Prevent scrollbars */
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+}
+
+#quick-add-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+#quick-add-input {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid hsl(var(--input));
+    border-radius: var(--radius);
+    background-color: hsl(var(--input) / 0.8);
+    color: hsl(var(--foreground));
+    font-size: 1rem; /* Larger font for quick add */
+    outline: none;
+    transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
+    width: 100%;
+}
+#quick-add-input:focus {
+    border-color: hsl(var(--ring));
+    box-shadow: 0 0 0 1px hsl(var(--ring));
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-sm);
+}
+
+.button {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: var(--spacing-sm) var(--spacing-md); border-radius: var(--radius); cursor: pointer;
+    font-size: 0.85rem; font-weight: 500; transition: background-color var(--transition-speed);
+    outline: none; white-space: nowrap; height: 32px;
+}
+.button:focus-visible { box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring)); }
+.button-primary { background-color: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.button-primary:hover { background-color: hsl(var(--primary) / 0.9); }
+.button-secondary { background-color: hsl(var(--secondary-bg)); color: hsl(var(--foreground)); border: 1px solid hsl(var(--input)); }
+.button-secondary:hover { background-color: hsl(var(--muted, 240 3.7% 20.9%)); } /* Define muted if needed */

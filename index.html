@@ -6,7 +6,6 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self';"
     />
-    <!-- data: in font-src, connect-src self -->
     <title>Todo Wallpaper</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -88,7 +87,7 @@
         <!-- Todos Column -->
         <aside class="column column-todos">
           <div class="column-header">
-            <h2 class="column-title">Tasks</h2>
+            <h2 class="column-title">Active Tasks</h2>
             <button
               id="open-add-todo-modal-btn"
               class="button button-secondary button-icon"
@@ -109,6 +108,12 @@
           </div>
           <div class="todo-list-container scrollable-content">
             <ul id="todo-list"></ul>
+          </div>
+          <h2 class="column-title completed-title hidden">Completed</h2>
+          <div
+            class="todo-list-container completed-list-container scrollable-content hidden"
+          >
+            <ul id="completed-todo-list"></ul>
           </div>
         </aside>
 
@@ -135,216 +140,350 @@
             <h2 class="column-title">Settings</h2>
           </div>
           <div class="scrollable-content">
-            <div class="setting-section">
-              <h3>Text & Layout</h3>
-              <div class="input-group">
-                <label for="wallpaper-title-input">Title</label>
-                <input
-                  type="text"
-                  id="wallpaper-title-input"
-                  class="input"
-                  value="My Tasks"
-                />
-              </div>
-              <div class="input-group">
-                <label for="text-color">Text Color</label>
-                <input
-                  type="color"
-                  id="text-color"
-                  class="input-color"
-                  value="#f3f4f6"
-                />
-              </div>
-              <div class="input-group">
-                <label for="font-size">Font Size</label>
-                <input
-                  type="number"
-                  id="font-size"
-                  class="input input-number"
-                  value="48"
-                  min="10"
-                  max="200"
-                />
-              </div>
-              <div class="input-group">
-                <label for="list-style-select">List Style</label>
-                <select id="list-style-select" class="select">
-                  <option value="bullet">Bullet (•)</option>
-                  <option value="dash">Dash (-)</option>
-                  <option value="number">Number (1.)</option>
-                </select>
-              </div>
-              <div class="input-group">
-                <label for="text-position">Position</label>
-                <select id="text-position" class="select">
-                  <option value="top-left">Top Left</option>
-                  <option value="top-center">Top Center</option>
-                  <option value="center-left">Center Left</option>
-                  <option value="center">Center</option>
-                  <option value="bottom-left">Bottom Left</option>
-                  <option value="bottom-center">Bottom Center</option>
-                  <option value="bottom-right">Bottom Right</option>
-                </select>
-              </div>
-              <div class="input-group">
-                <label for="text-align-select">Alignment</label>
-                <select id="text-align-select" class="select">
-                  <option value="left">Left</option>
-                  <option value="center">Center</option>
-                  <option value="right">Right</option>
-                </select>
-              </div>
-              <div class="input-group">
-                <label for="offset-x">Offset X</label>
-                <input
-                  type="number"
-                  id="offset-x"
-                  class="input input-number"
-                  value="0"
-                  step="5"
-                />
-              </div>
-              <div class="input-group">
-                <label for="offset-y">Offset Y</label>
-                <input
-                  type="number"
-                  id="offset-y"
-                  class="input input-number"
-                  value="0"
-                  step="5"
-                />
-              </div>
-            </div>
-
-            <!-- Font Settings Section -->
-            <div class="setting-section">
-              <h3>Font</h3>
-              <div class="input-group">
-                <label>Source</label>
-                <div class="radio-group">
-                  <label>
-                    <input
-                      type="radio"
-                      name="font-source"
-                      value="default"
-                      id="font-source-default"
-                      checked
-                    />
-                    Default
-                  </label>
-                  <label>
-                    <input
-                      type="radio"
-                      name="font-source"
-                      value="google"
-                      id="font-source-google"
-                    />
-                    Google Font
-                  </label>
-                </div>
-              </div>
-              <div id="google-font-controls" class="hidden">
-                <!-- Content flows into parent grid -->
+            <!-- Text & Layout Section -->
+            <div
+              class="setting-section collapsible"
+              data-section-id="text-layout"
+            >
+              <button
+                class="setting-section-toggle"
+                aria-expanded="true"
+                aria-controls="section-content-text-layout"
+              >
+                <h3>Text & Layout</h3>
+                <svg
+                  class="toggle-icon"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                  width="16"
+                  height="16"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </button>
+              <div
+                class="setting-section-content"
+                id="section-content-text-layout"
+              >
+                <!-- Title, Color, Size, List Style, Position, Align, Offset -->
                 <div class="input-group">
-                  <label for="google-font-url">URL</label>
-                  <input
-                    type="url"
-                    id="google-font-url"
+                  <label for="wallpaper-title-input">Title</label
+                  ><input
+                    type="text"
+                    id="wallpaper-title-input"
                     class="input"
-                    placeholder="https://fonts.googleapis.com/css2?family=..."
+                    value="My Tasks"
                   />
                 </div>
                 <div class="input-group">
-                  <!-- Button Group -->
-                  <label></label>
-                  <!-- Spacer -->
-                  <button id="load-font-btn" class="button button-secondary">
-                    Load Font
-                  </button>
+                  <label for="text-color">Text Color</label
+                  ><input
+                    type="color"
+                    id="text-color"
+                    class="input-color"
+                    value="#f3f4f6"
+                  />
                 </div>
                 <div class="input-group">
-                  <!-- Status Display -->
-                  <label>Status</label>
-                  <span id="font-status" class="font-status-display"
-                    >Default: Inter</span
-                  >
+                  <label for="font-size">Font Size</label
+                  ><input
+                    type="number"
+                    id="font-size"
+                    class="input input-number"
+                    value="48"
+                    min="10"
+                    max="200"
+                  />
+                </div>
+                <div class="input-group">
+                  <label for="list-style-select">List Style</label
+                  ><select id="list-style-select" class="select">
+                    <option value="bullet">Bullet (•)</option>
+                    <option value="dash">Dash (-)</option>
+                    <option value="number">Number (1.)</option>
+                  </select>
+                </div>
+                <div class="input-group">
+                  <label for="text-position">Position</label
+                  ><select id="text-position" class="select">
+                    <option value="top-left">Top Left</option>
+                    <option value="top-center">Top Center</option>
+                    <option value="center-left">Center Left</option>
+                    <option value="center">Center</option>
+                    <option value="bottom-left">Bottom Left</option>
+                    <option value="bottom-center">Bottom Center</option>
+                    <option value="bottom-right">Bottom Right</option>
+                  </select>
+                </div>
+                <div class="input-group">
+                  <label for="text-align-select">Alignment</label
+                  ><select id="text-align-select" class="select">
+                    <option value="left">Left</option>
+                    <option value="center">Center</option>
+                    <option value="right">Right</option>
+                  </select>
+                </div>
+                <div class="input-group">
+                  <label for="offset-x">Offset X</label
+                  ><input
+                    type="number"
+                    id="offset-x"
+                    class="input input-number"
+                    value="0"
+                    step="5"
+                  />
+                </div>
+                <div class="input-group">
+                  <label for="offset-y">Offset Y</label
+                  ><input
+                    type="number"
+                    id="offset-y"
+                    class="input input-number"
+                    value="0"
+                    step="5"
+                  />
                 </div>
               </div>
             </div>
 
-            <!-- Background Settings Section -->
-            <div class="setting-section">
-              <h3>Background</h3>
-              <div class="input-group">
-                <label>Type</label>
-                <div class="radio-group">
-                  <label>
-                    <input
-                      type="radio"
-                      name="bg-type"
-                      value="color"
-                      id="bg-type-color"
-                      checked
-                    />
-                    Color
-                  </label>
-                  <label>
-                    <input
-                      type="radio"
-                      name="bg-type"
-                      value="image"
-                      id="bg-type-image"
-                    />
-                    Image
-                  </label>
-                </div>
-              </div>
-              <div id="bg-color-controls" class="input-group">
-                <label for="bg-color">Color</label>
-                <input
-                  type="color"
-                  id="bg-color"
-                  class="input-color"
-                  value="#111827"
-                />
-              </div>
-              <div id="bg-image-controls" class="input-group hidden">
-                <label>Image</label>
-                <span id="image-filename" class="filename-display"
-                  >No file chosen</span
+            <!-- App Behavior Section -->
+            <div
+              class="setting-section collapsible"
+              data-section-id="app-behavior"
+            >
+              <button
+                class="setting-section-toggle"
+                aria-expanded="true"
+                aria-controls="section-content-app-behavior"
+              >
+                <h3>App Behavior</h3>
+                <svg
+                  class="toggle-icon"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                  width="16"
+                  height="16"
                 >
-                <div class="button-group">
-                  <button id="choose-image-btn" class="button button-secondary">
-                    Choose...
-                  </button>
-                  <button
-                    id="clear-image-btn"
-                    class="button button-danger button-icon"
-                    title="Clear selected image"
+                  <path
+                    fill-rule="evenodd"
+                    d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </button>
+              <div
+                class="setting-section-content"
+                id="section-content-app-behavior"
+              >
+                <div class="input-group">
+                  <label for="run-in-tray-checkbox">Run in Tray</label>
+                  <input
+                    type="checkbox"
+                    id="run-in-tray-checkbox"
+                    class="checkbox-input"
+                  />
+                  <span class="checkbox-hint"
+                    >Hide window on close, enable Quick Add shortcut.</span
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 16 16"
-                      fill="currentColor"
-                      width="16"
-                      height="16"
-                    >
-                      <path
-                        d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
-                      />
-                    </svg>
+                </div>
+                <!-- Shortcut Display/Button Group -->
+                <div class="input-group shortcut-display-group hidden">
+                  <label>Quick Add</label>
+                  <span
+                    id="current-shortcut-display"
+                    class="shortcut-display"
+                  ></span>
+                  <button
+                    id="change-shortcut-btn"
+                    class="button button-secondary"
+                  >
+                    Change
                   </button>
                 </div>
-                <input
-                  type="file"
-                  id="image-file-input"
-                  accept="image/png, image/jpeg, image/webp"
-                  class="hidden"
-                />
+              </div>
+            </div>
+
+            <!-- Font Section -->
+            <div class="setting-section collapsible" data-section-id="font">
+              <button
+                class="setting-section-toggle"
+                aria-expanded="true"
+                aria-controls="section-content-font"
+              >
+                <h3>Font</h3>
+                <svg
+                  class="toggle-icon"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                  width="16"
+                  height="16"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </button>
+              <div class="setting-section-content" id="section-content-font">
+                <div class="input-group">
+                  <label>Source</label>
+                  <div class="radio-group">
+                    <label
+                      ><input
+                        type="radio"
+                        name="font-source"
+                        value="default"
+                        id="font-source-default"
+                        checked
+                      />
+                      Default</label
+                    ><label
+                      ><input
+                        type="radio"
+                        name="font-source"
+                        value="google"
+                        id="font-source-google"
+                      />
+                      Google Font</label
+                    >
+                  </div>
+                </div>
+                <div id="google-font-controls" class="hidden">
+                  <div class="input-group">
+                    <label for="google-font-url">URL</label
+                    ><input
+                      type="url"
+                      id="google-font-url"
+                      class="input"
+                      placeholder="https://fonts.googleapis.com/css2?family=..."
+                    />
+                  </div>
+                  <div class="input-group">
+                    <label></label
+                    ><button id="load-font-btn" class="button button-secondary">
+                      Load Font
+                    </button>
+                  </div>
+                  <div class="input-group">
+                    <label>Status</label
+                    ><span id="font-status" class="font-status-display"
+                      >Default: Inter</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Background Section -->
+            <div
+              class="setting-section collapsible"
+              data-section-id="background"
+            >
+              <button
+                class="setting-section-toggle"
+                aria-expanded="true"
+                aria-controls="section-content-background"
+              >
+                <h3>Background</h3>
+                <svg
+                  class="toggle-icon"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                  width="16"
+                  height="16"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </button>
+              <div
+                class="setting-section-content"
+                id="section-content-background"
+              >
+                <div class="input-group">
+                  <label>Type</label>
+                  <div class="radio-group">
+                    <label
+                      ><input
+                        type="radio"
+                        name="bg-type"
+                        value="color"
+                        id="bg-type-color"
+                        checked
+                      />
+                      Color</label
+                    ><label
+                      ><input
+                        type="radio"
+                        name="bg-type"
+                        value="image"
+                        id="bg-type-image"
+                      />
+                      Image</label
+                    >
+                  </div>
+                </div>
+                <div id="bg-color-controls" class="input-group">
+                  <label for="bg-color">Color</label
+                  ><input
+                    type="color"
+                    id="bg-color"
+                    class="input-color"
+                    value="#111827"
+                  />
+                </div>
+                <div id="bg-image-controls" class="input-group hidden">
+                  <label>Image</label
+                  ><span id="image-filename" class="filename-display"
+                    >No file chosen</span
+                  >
+                  <div class="button-group">
+                    <button
+                      id="choose-image-btn"
+                      class="button button-secondary"
+                    >
+                      Choose...</button
+                    ><button
+                      id="clear-image-btn"
+                      class="button button-danger button-icon"
+                      title="Clear selected image"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 16 16"
+                        fill="currentColor"
+                        width="16"
+                        height="16"
+                      >
+                        <path
+                          d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                  <input
+                    type="file"
+                    id="image-file-input"
+                    accept="image/png, image/jpeg, image/webp"
+                    class="hidden"
+                  />
+                </div>
               </div>
             </div>
           </div>
-          <!-- End Scrollable Content -->
+          <!-- End Settings Scrollable Content -->
         </aside>
       </main>
 
@@ -373,8 +512,7 @@
             <div class="input-group modal-input-group">
               <label for="modal-todo-input" class="sr-only"
                 >Task description</label
-              >
-              <input
+              ><input
                 type="text"
                 id="modal-todo-input"
                 class="input"
@@ -388,13 +526,64 @@
                 id="modal-cancel-btn"
                 class="button button-secondary"
               >
-                Cancel
-              </button>
-              <button type="submit" class="button button-primary">
+                Cancel</button
+              ><button type="submit" class="button button-primary">
                 Add Task
               </button>
             </div>
           </form>
+        </div>
+      </div>
+
+      <!-- Record Shortcut Modal -->
+      <div id="record-shortcut-modal" class="modal-overlay hidden">
+        <div class="modal-content record-shortcut-content">
+          <button
+            id="record-modal-close-btn"
+            class="modal-close-button button button-ghost button-icon"
+            title="Cancel Recording (Esc)"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              width="16"
+              height="16"
+            >
+              <path
+                d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
+              />
+            </svg>
+          </button>
+          <h2>Record Shortcut</h2>
+          <p class="record-instructions">
+            Press the desired key combination (e.g., Ctrl+Shift+N).
+          </p>
+          <div
+            id="shortcut-display-area"
+            class="shortcut-display-area"
+            aria-live="polite"
+          >
+            <span>Press keys...</span>
+            <!-- Keys will be added here by JS -->
+          </div>
+          <div class="modal-actions">
+            <button
+              type="button"
+              id="record-cancel-btn"
+              class="button button-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              id="record-save-btn"
+              class="button button-primary"
+              disabled
+            >
+              Save Shortcut
+            </button>
+          </div>
         </div>
       </div>
     </div>

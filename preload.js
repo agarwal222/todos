@@ -6,39 +6,52 @@ let screenDimensions = null // Cache dimensions received from main
 ipcRenderer.on("screen-dimensions", (event, dimensions) => {
   console.log("Preload received screen dimensions:", dimensions)
   screenDimensions = dimensions
-  // Optionally, notify the renderer that dimensions are ready if needed immediately
-  // window.postMessage({ type: 'SCREEN_DIMENSIONS_READY', payload: dimensions }, '*');
 })
 
+// --- Expose APIs to Renderers ---
 contextBridge.exposeInMainWorld("electronAPI", {
-  // Wallpaper update function
+  // == APIs for Main Window Renderer ==
   updateWallpaper: (imageDataUrl) =>
     ipcRenderer.invoke("update-wallpaper", imageDataUrl),
-
-  // Function to request screen dimensions (returns cached value or null)
-  // Made async to potentially wait if called before 'screen-dimensions' event fires (though unlikely with current setup)
   getScreenDimensions: async () => {
-    if (screenDimensions) {
-      return screenDimensions
-    }
-    // Basic fallback/wait mechanism (might need refinement if race condition occurs)
+    if (screenDimensions) return screenDimensions
+    // Basic fallback/wait mechanism
     return new Promise((resolve) => {
+      let checks = 0
+      const maxChecks = 20
       const checkInterval = setInterval(() => {
-        if (screenDimensions) {
+        checks++
+        if (screenDimensions || checks > maxChecks) {
           clearInterval(checkInterval)
           resolve(screenDimensions)
         }
       }, 50)
-      // Timeout after a short period
-      setTimeout(() => {
-        clearInterval(checkInterval)
-        resolve(null) // Indicate failure after timeout
-      }, 1000)
     })
   },
-
-  // Function to request loading font details from main process
   loadGoogleFont: (fontUrl) => ipcRenderer.invoke("load-google-font", fontUrl),
+  updateSettings: (settings) => ipcRenderer.send("update-settings", settings), // Send settings TO main
+
+  // Listen for task FROM main AND trigger auto-apply (Changed channel name)
+  onAddTaskAndApply: (callback) => {
+    const channel = "add-task-and-apply"
+    const listener = (event, taskText) => callback(taskText)
+    ipcRenderer.on(channel, listener)
+    // Return cleanup function
+    return () => ipcRenderer.removeListener(channel, listener)
+  },
+
+  // Listen for shortcut registration errors FROM main
+  onShortcutError: (callback) => {
+    const channel = "shortcut-error"
+    const listener = (event, errorMessage) => callback(errorMessage)
+    ipcRenderer.on(channel, listener)
+    return () => ipcRenderer.removeListener(channel, listener)
+  },
+
+  // == APIs for Quick Add Renderer ==
+  sendTaskToMain: (taskText) =>
+    ipcRenderer.send("add-task-from-overlay", taskText),
+  closeQuickAddWindow: () => ipcRenderer.send("close-quick-add"),
 })
 
 console.log("Preload script loaded.")
