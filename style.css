@@ -1,279 +1,386 @@
-/* Basic Reset/Defaults */
+/* style.css */
+
+/* --- Theme Variables --- */
+:root {
+    --bg-primary: #1a1a1d; /* Very dark grey, almost black */
+    --bg-secondary: #25252a; /* Dark grey */
+    --bg-tertiary: #33333a; /* Lighter dark grey */
+    --text-primary: #e1e1e6; /* Off-white */
+    --text-secondary: #a8a8b3; /* Grey for less important text */
+    --accent-primary: #6366f1; /* Indigo */
+    --accent-secondary: #818cf8; /* Lighter Indigo */
+    --border-color: #44444a;
+    --success-color: #10b981; /* Emerald */
+    --danger-color: #ef4444; /* Red */
+    --warning-color: #f59e0b; /* Amber */
+
+    --font-family: 'Roboto', sans-serif;
+    --border-radius: 6px;
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 12px;
+    --spacing-lg: 16px;
+    --spacing-xl: 24px;
+    --transition-speed: 0.2s;
+}
+
+/* --- Basic Reset & Body --- */
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
 }
 
-/* Dark Mode Theme */
 body {
-    font-family: 'Roboto', sans-serif;
-    background-color: #222; /* Dark background */
-    color: #eee; /* Light text */
+    font-family: var(--font-family);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
     line-height: 1.6;
+    font-size: 15px; /* Slightly smaller base font */
+    overflow: hidden; /* Prevent body scrollbars */
 }
 
-/* Layout */
+/* --- Layout --- */
 .app-container {
     display: flex;
-    padding: 25px;
-    gap: 30px;
-    min-height: 95vh;
+    height: 100vh; /* Full viewport height */
+    overflow: hidden; /* Contains scrolling within columns */
 }
 
 .controls-column {
-    flex: 1;
+    flex: 0 0 380px; /* Fixed width for controls */
+    background-color: var(--bg-secondary);
+    padding: var(--spacing-xl);
     display: flex;
     flex-direction: column;
-    gap: 15px;
-    min-width: 350px; /* Slightly increased min-width for more controls */
+    gap: var(--spacing-lg);
+    overflow-y: auto; /* Allow controls to scroll if needed */
+    border-right: 1px solid var(--border-color);
 }
 
 .preview-column {
-    flex: 2;
+    flex: 1; /* Takes remaining space */
+    padding: var(--spacing-xl);
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: var(--spacing-lg);
+    background-color: var(--bg-primary); /* Match body background */
+    overflow-y: auto; /* Allow preview area to scroll if content overflows */
 }
 
-h1, h2 {
-    color: #fff; /* White headings */
-    margin-bottom: 10px;
-    border-bottom: 1px solid #444; /* Subtle separator */
-    padding-bottom: 5px;
+/* --- Headings & Separators --- */
+h1, h2, h3 {
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+}
+
+h1 {
+    font-size: 1.6em;
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+h2 {
+    font-size: 1.3em;
+    margin-top: var(--spacing-lg); /* Space above settings sections */
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--border-color);
+}
+
+h3 {
+    font-size: 1.1em;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-md);
 }
 
 hr {
     border: none;
-    border-top: 1px solid #444; /* Darker separator */
-    margin: 15px 0;
+    border-top: 1px solid var(--border-color);
+    margin: var(--spacing-lg) 0;
 }
 
-/* Control Groups */
-.control-group {
+/* --- Setting Sections --- */
+.setting-section {
+    background-color: var(--bg-tertiary);
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--border-radius);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* --- Input Groups & Controls --- */
+.input-group { /* Replaces .control-group for more specific styling */
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-    flex-wrap: wrap; /* Allow wrapping if space is tight */
+    gap: var(--spacing-md);
 }
-
-.control-group label {
-    font-weight: normal; /* Normal weight for labels */
-    color: #ccc; /* Lighter label color */
-    min-width: 80px; /* Align labels somewhat */
-    flex-shrink: 0; /* Prevent labels from shrinking too much */
+.input-group label {
+    flex-basis: 90px; /* Consistent label width */
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    font-size: 0.95em;
+    text-align: right; /* Align labels to the right */
 }
-
-/* Inputs and Buttons - Dark Mode */
-input[type="text"],
-input[type="number"],
-select {
-    padding: 8px 12px;
-    border: 1px solid #555; /* Darker border */
-    border-radius: 4px;
+.input-group input[type="text"],
+.input-group input[type="number"],
+.input-group select,
+.input-group .filename-display { /* Apply common styles */
+    flex-grow: 1;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
     font-size: 1em;
-    background-color: #333; /* Dark input background */
-    color: #eee; /* Light input text */
-    flex-grow: 1; /* Allow text/number inputs to grow */
+    outline: none;
+    transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
 }
-input[type="text"]::placeholder {
-    color: #888;
+.input-group input:focus,
+.input-group select:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px var(--accent-secondary);
 }
-
-input[type="number"] {
-    max-width: 80px; /* Limit width of number inputs */
+.input-group input[type="number"] {
+    max-width: 80px;
     flex-grow: 0;
 }
-
-/* Style the specific group containers for background type */
-.settings-group {
-    border-left: 2px solid #555; /* Visually group related settings */
-    padding-left: 10px;
-    margin-left: 5px; /* Indent slightly */
-    width: calc(100% - 5px); /* Adjust width to account for margin */
-}
-
-
-input[type="color"] {
-    width: 40px;
-    height: 30px;
-    border: 1px solid #555;
-    border-radius: 4px;
+.input-group input[type="color"] {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
     cursor: pointer;
-    padding: 2px;
-    background-color: #333; /* Match other inputs */
+    padding: 4px;
+    background-color: var(--bg-primary);
     flex-shrink: 0;
+    appearance: none; /* Remove default styling */
+    -webkit-appearance: none;
+}
+/* Style the inner color picker indicator */
+.input-group input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+.input-group input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: calc(var(--border-radius) - 2px); /* Inner radius */
+}
+.input-group input[type="radio"] {
+    accent-color: var(--accent-primary);
+    margin-right: var(--spacing-xs);
+    vertical-align: middle;
+}
+.input-group label > input[type="radio"] {
+     margin-right: var(--spacing-xs);
+}
+.radio-group { /* For laying out radio buttons horizontally */
+    display: flex;
+    gap: var(--spacing-lg);
+    align-items: center;
+}
+.radio-group label {
+    flex-basis: auto; /* Override default label width */
+    text-align: left;
+    display: flex; /* Align radio and text */
+    align-items: center;
+    cursor: pointer;
 }
 
-select {
-     /* Specific styling for select dropdown arrow might be needed per browser/OS */
-     flex-shrink: 0;
-}
-
-input[type="radio"] {
-    margin-right: 4px;
-    accent-color: #007bff;
-    vertical-align: middle; /* Align radios better with labels */
-}
-/* Make radio labels clickable */
-.control-group label > input[type="radio"] {
-    margin-right: 4px;
-}
-
-/* Styles for Image Upload Controls */
-#image-filename {
-    color: #aaa;
+/* --- Specific Controls: Image Upload --- */
+.filename-display {
     font-style: italic;
-    font-size: 0.9em;
+    color: var(--text-secondary);
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
-    flex-grow: 1; /* Allow filename to take space */
-    min-width: 50px; /* Prevent it becoming too small */
+    min-width: 50px;
+    line-height: 1.4; /* Match input height approx */
+    display: inline-block; /* Needed for text-overflow */
+    vertical-align: middle;
+}
+.button-group { /* For buttons next to inputs */
+    display: flex;
+    gap: var(--spacing-sm);
 }
 
-#choose-image-btn {
-    flex-shrink: 0; /* Don't shrink button */
-}
-
-#clear-image-btn {
-    background-color: #6c757d;
-    color: white;
-    padding: 4px 8px;
-    font-size: 0.8em;
+/* --- Buttons --- */
+.button { /* Base button class */
+    display: inline-flex; /* Align icon and text */
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-sm) var(--spacing-lg);
     border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    line-height: 1; /* Ensure 'X' fits well */
-    flex-shrink: 0;
-}
-#clear-image-btn:hover {
-    background-color: #5a6268;
-}
-
-
-button {
-    padding: 8px 15px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 4px;
+    border-radius: var(--border-radius);
     cursor: pointer;
     font-size: 1em;
-    transition: background-color 0.2s ease;
-    flex-shrink: 0; /* Prevent buttons shrinking too much on wrap */
+    font-weight: 500; /* Medium weight */
+    transition: background-color var(--transition-speed), box-shadow var(--transition-speed);
+    outline: none;
+    text-decoration: none; /* Remove underline if used as link */
+    white-space: nowrap; /* Prevent wrapping */
 }
-button:hover {
-    background-color: #0056b3;
+.button:focus-visible { /* More modern focus indicator */
+     box-shadow: 0 0 0 3px var(--accent-secondary);
 }
-button:disabled {
-    background-color: #555;
+.button:disabled {
+    opacity: 0.6;
     cursor: not-allowed;
 }
 
+.button-primary {
+    background-color: var(--accent-primary);
+    color: white;
+}
+.button-primary:hover:not(:disabled) {
+    background-color: var(--accent-secondary);
+}
 
-/* Todo List Styling - Dark Mode & Scroll */
+.button-secondary {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+.button-secondary:hover:not(:disabled) {
+    background-color: #404048; /* Slightly darker tertiary */
+}
+
+.button-danger {
+    background-color: var(--danger-color);
+    color: white;
+    font-size: 0.9em; /* Smaller delete button */
+    padding: var(--spacing-xs) var(--spacing-sm);
+}
+.button-danger:hover:not(:disabled) {
+    background-color: #dc2626; /* Darker red */
+}
+
+.button-success {
+    background-color: var(--success-color);
+    color: white;
+    font-size: 1.1em; /* Larger apply button */
+    padding: var(--spacing-md) var(--spacing-xl);
+}
+.button-success:hover:not(:disabled) {
+    background-color: #059669; /* Darker emerald */
+}
+
+.button-icon { /* For buttons that are just icons */
+    padding: var(--spacing-sm);
+    font-size: 1.2em;
+    line-height: 1;
+}
+
+/* --- Todo Input Area --- */
+.todo-input-area {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+#new-todo-input { /* Target specific input */
+    flex-grow: 1;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 1em;
+    outline: none;
+    transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
+}
+#new-todo-input:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px var(--accent-secondary);
+}
+#add-todo-btn {
+    flex-shrink: 0;
+}
+
+
+/* --- Todo List Styling --- */
 .todo-list-container {
-     flex-grow: 1; /* Allow container to fill space */
-     overflow-y: auto; /* Add scrollbar to the container */
-     min-height: 150px; /* Minimum height before shrinking */
-     max-height: 400px; /* Increased max-height */
-     background-color: #2a2a2a; /* Slightly different bg for list area */
-     border: 1px solid #444;
-     border-radius: 4px;
-     padding: 5px;
+    flex-grow: 1; /* Take remaining vertical space in controls */
+    background-color: var(--bg-primary); /* Slightly different BG */
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-sm);
+    overflow-y: auto; /* Scrollbar for the list */
+    min-height: 200px; /* Ensure it has some height */
 }
 
-/* Custom Scrollbar (Optional - Webkit browsers) */
-.todo-list-container::-webkit-scrollbar {
-    width: 8px;
-}
-.todo-list-container::-webkit-scrollbar-track {
-    background: #333;
-    border-radius: 4px;
-}
-.todo-list-container::-webkit-scrollbar-thumb {
-    background-color: #555;
-    border-radius: 4px;
-    border: 2px solid #333; /* Padding around thumb */
-}
+/* Custom Scrollbar */
+.todo-list-container::-webkit-scrollbar { width: 8px; }
+.todo-list-container::-webkit-scrollbar-track { background: var(--bg-secondary); border-radius: var(--border-radius); }
+.todo-list-container::-webkit-scrollbar-thumb { background-color: var(--bg-tertiary); border-radius: var(--border-radius); border: 2px solid var(--bg-secondary); }
+.todo-list-container::-webkit-scrollbar-thumb:hover { background-color: #555; }
 
 
 #todo-list {
     list-style: none;
-    padding: 0; /* Remove padding from UL itself */
 }
 
-#todo-list li {
+.todo-item { /* Replaces li direct styling */
     display: flex;
     align-items: center;
-    padding: 10px 10px; /* Adjust padding */
-    border-bottom: 1px solid #444;
-    gap: 10px;
-    background-color: #333; /* Item background */
-    margin-bottom: 5px; /* Space between items */
-    border-radius: 3px;
-    transition: background-color 0.2s; /* Smooth transition for hover/done */
+    padding: var(--spacing-md);
+    gap: var(--spacing-md);
+    background-color: var(--bg-secondary);
+    margin-bottom: var(--spacing-sm);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    transition: background-color var(--transition-speed), border-color var(--transition-speed);
 }
-#todo-list li:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-}
-#todo-list li:hover {
-    background-color: #3a3a3a; /* Slightly lighter on hover */
+.todo-item:hover {
+    background-color: var(--bg-tertiary);
+    border-color: #555;
 }
 
-
-#todo-list li input[type="checkbox"] {
-    margin-right: 5px; /* Adjust spacing */
+.todo-item input[type="checkbox"] {
     width: 18px;
     height: 18px;
-    flex-shrink: 0; /* Prevent checkbox shrinking */
-    accent-color: #007bff; /* Style checkbox color */
+    flex-shrink: 0;
+    accent-color: var(--accent-primary);
     cursor: pointer;
+    margin-top: 2px; /* Align checkbox better */
 }
 
-#todo-list li .todo-text {
+.todo-item .todo-text {
     flex-grow: 1;
-    cursor: pointer;
-    color: #eee; /* Ensure text is light */
-    transition: color 0.2s; /* Smooth color transition */
+    cursor: pointer; /* Indicate clickable */
+    color: var(--text-primary);
+    transition: color var(--transition-speed), text-decoration var(--transition-speed);
 }
 
-#todo-list li.done {
-    background-color: #2f2f2f; /* Slightly darker background when done */
+.todo-item.done {
+    background-color: #202023; /* Even darker when done */
+    border-color: #303033;
 }
 
-#todo-list li.done .todo-text {
+.todo-item.done .todo-text {
     text-decoration: line-through;
-    color: #888; /* Dimmer color for done items */
-    font-style: italic; /* Italicize done items */
+    color: var(--text-secondary); /* Use secondary text color */
+    opacity: 0.8;
 }
 
-#todo-list li .delete-btn {
-    background-color: #dc3545;
-    font-size: 0.8em;
-    padding: 4px 8px;
-    flex-shrink: 0; /* Prevent button shrinking */
-}
-#todo-list li .delete-btn:hover {
-    background-color: #c82333;
+.todo-item .delete-btn {
+    flex-shrink: 0;
 }
 
-/* Preview Area - Dark Mode */
+
+/* --- Preview Area --- */
 .preview-area-container {
-    border: 1px solid #555;
-    background-color: #333; /* Dark container background */
-    padding: 5px;
-    border-radius: 4px;
+    border: 1px dashed var(--border-color); /* Dashed border for preview */
+    background-color: var(--bg-secondary);
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius);
     width: 100%;
     aspect-ratio: 16 / 9;
     display: flex;
     justify-content: center;
     align-items: center;
     overflow: hidden;
-    flex-grow: 1; /* Allow preview container to take available vertical space */
+    flex-grow: 1; /* Take available vertical space */
+    min-height: 200px; /* Prevent excessive shrinking */
 }
 
 #preview-area {
@@ -281,15 +388,18 @@ button:disabled {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
-    background-color: #000; /* Black background behind preview image */
+    background-color: var(--bg-primary); /* Dark background behind preview */
+    border-radius: calc(var(--border-radius) - 2px);
 }
 
 #apply-wallpaper-btn {
-    padding: 12px 20px;
-    font-size: 1.1em;
-    background-color: #28a745;
-    flex-shrink: 0; /* Prevent button shrinking if container gets small */
+    margin-top: auto; /* Push to bottom if space allows */
+    align-self: center; /* Center button horizontally */
+    width: 60%; /* Make button wider */
+    max-width: 300px;
 }
-#apply-wallpaper-btn:hover {
-    background-color: #218838;
+
+/* --- Utility Classes --- */
+.hidden {
+    display: none !important;
 }
