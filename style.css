@@ -26,7 +26,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 15px;
-    min-width: 300px; /* Prevent controls column from getting too small */
+    min-width: 350px; /* Slightly increased min-width for more controls */
 }
 
 .preview-column {
@@ -55,13 +55,14 @@ hr {
     align-items: center;
     gap: 10px;
     margin-bottom: 10px;
-    flex-wrap: wrap;
+    flex-wrap: wrap; /* Allow wrapping if space is tight */
 }
 
 .control-group label {
     font-weight: normal; /* Normal weight for labels */
     color: #ccc; /* Lighter label color */
     min-width: 80px; /* Align labels somewhat */
+    flex-shrink: 0; /* Prevent labels from shrinking too much */
 }
 
 /* Inputs and Buttons - Dark Mode */
@@ -85,6 +86,14 @@ input[type="number"] {
     flex-grow: 0;
 }
 
+/* Style the specific group containers for background type */
+.settings-group {
+    border-left: 2px solid #555; /* Visually group related settings */
+    padding-left: 10px;
+    margin-left: 5px; /* Indent slightly */
+    width: calc(100% - 5px); /* Adjust width to account for margin */
+}
+
 
 input[type="color"] {
     width: 40px;
@@ -94,11 +103,55 @@ input[type="color"] {
     cursor: pointer;
     padding: 2px;
     background-color: #333; /* Match other inputs */
+    flex-shrink: 0;
 }
 
 select {
      /* Specific styling for select dropdown arrow might be needed per browser/OS */
+     flex-shrink: 0;
 }
+
+input[type="radio"] {
+    margin-right: 4px;
+    accent-color: #007bff;
+    vertical-align: middle; /* Align radios better with labels */
+}
+/* Make radio labels clickable */
+.control-group label > input[type="radio"] {
+    margin-right: 4px;
+}
+
+/* Styles for Image Upload Controls */
+#image-filename {
+    color: #aaa;
+    font-style: italic;
+    font-size: 0.9em;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    flex-grow: 1; /* Allow filename to take space */
+    min-width: 50px; /* Prevent it becoming too small */
+}
+
+#choose-image-btn {
+    flex-shrink: 0; /* Don't shrink button */
+}
+
+#clear-image-btn {
+    background-color: #6c757d;
+    color: white;
+    padding: 4px 8px;
+    font-size: 0.8em;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    line-height: 1; /* Ensure 'X' fits well */
+    flex-shrink: 0;
+}
+#clear-image-btn:hover {
+    background-color: #5a6268;
+}
+
 
 button {
     padding: 8px 15px;
@@ -109,6 +162,7 @@ button {
     cursor: pointer;
     font-size: 1em;
     transition: background-color 0.2s ease;
+    flex-shrink: 0; /* Prevent buttons shrinking too much on wrap */
 }
 button:hover {
     background-color: #0056b3;
@@ -160,11 +214,16 @@ button:disabled {
     background-color: #333; /* Item background */
     margin-bottom: 5px; /* Space between items */
     border-radius: 3px;
+    transition: background-color 0.2s; /* Smooth transition for hover/done */
 }
 #todo-list li:last-child {
     border-bottom: none;
     margin-bottom: 0;
 }
+#todo-list li:hover {
+    background-color: #3a3a3a; /* Slightly lighter on hover */
+}
+
 
 #todo-list li input[type="checkbox"] {
     margin-right: 5px; /* Adjust spacing */
@@ -172,17 +231,24 @@ button:disabled {
     height: 18px;
     flex-shrink: 0; /* Prevent checkbox shrinking */
     accent-color: #007bff; /* Style checkbox color */
+    cursor: pointer;
 }
 
 #todo-list li .todo-text {
     flex-grow: 1;
     cursor: pointer;
     color: #eee; /* Ensure text is light */
+    transition: color 0.2s; /* Smooth color transition */
+}
+
+#todo-list li.done {
+    background-color: #2f2f2f; /* Slightly darker background when done */
 }
 
 #todo-list li.done .todo-text {
     text-decoration: line-through;
     color: #888; /* Dimmer color for done items */
+    font-style: italic; /* Italicize done items */
 }
 
 #todo-list li .delete-btn {
