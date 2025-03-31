@@ -1,19 +1,61 @@
 {
-  "name": "todo-wallpaper-app",
-  "version": "1.0.0",
-  "description": "Displays todos as desktop wallpaper",
+  "name": "Visido",
+  "version": "1.1.0",
+  "description": "Displays your active tasks directly on your desktop wallpaper.",
   "main": "main.js",
   "scripts": {
-    "start": "electron .", 
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "todo",
+    "task",
+    "wallpaper",
+    "desktop",
+    "productivity",
+    "electron"
+  ],
+  "author": "Your Name or GitHub Username",
+  "license": "MIT",
   "devDependencies": {
-    "electron": "^29.1.5" 
+    "electron": "^29.1.5",
+    "electron-builder": "^24.13.3"
   },
   "dependencies": {
-    "wallpaper": "^6.1.1" 
+    "wallpaper": "^6.1.1"
+  },
+  "build": {
+    "appId": "com.yourcompany.todowallpaper",
+    "productName": "Todo Wallpaper",
+    "files": [
+      "!node_modules/.cache",
+      "!dist/",
+      "!*.code-workspace",
+      "!README.md"
+    ],
+    "directories": {
+      "buildResources": "assets",
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icon.png",
+      "category": "Utility"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }
