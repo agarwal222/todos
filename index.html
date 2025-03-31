@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;"
+    />
+    <title>Todo Wallpaper Advanced</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="app-container">
+      <div class="controls-column">
+        <h1>To-Do List</h1>
+
+        <div class="control-group">
+          <input
+            type="text"
+            id="new-todo-input"
+            placeholder="Add a new todo..."
+          />
+          <button id="add-todo-btn">Add</button>
+        </div>
+
+        <div class="todo-list-container">
+          <ul id="todo-list"></ul>
+        </div>
+
+        <hr />
+
+        <h2>Wallpaper Settings</h2>
+
+        <div class="control-group">
+          <label for="bg-color">Background:</label>
+          <input type="color" id="bg-color" value="#333333" />
+
+          <label for="text-color">Text:</label>
+          <input type="color" id="text-color" value="#FFFFFF" />
+        </div>
+
+        <div class="control-group">
+          <label for="font-size">Font Size (px):</label>
+          <input type="number" id="font-size" value="48" min="10" max="200" />
+        </div>
+
+        <div class="control-group">
+          <label for="text-position">Position:</label>
+          <select id="text-position">
+            <option value="top-left">Top Left</option>
+            <option value="top-center">Top Center</option>
+            <option value="center-left">Center Left</option>
+            <option value="center">Center</option>
+            <option value="bottom-left">Bottom Left</option>
+            <option value="bottom-center">Bottom Center</option>
+            <option value="bottom-right">Bottom Right</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="offset-x">Offset X:</label>
+          <input type="number" id="offset-x" value="0" step="5" />
+
+          <label for="offset-y">Offset Y:</label>
+          <input type="number" id="offset-y" value="0" step="5" />
+        </div>
+      </div>
+
+      <div class="preview-column">
+        <h2>Preview</h2>
+        <div class="preview-area-container">
+          <img id="preview-area" alt="Wallpaper Preview" src="" />
+          <canvas
+            id="image-canvas"
+            width="1920"
+            height="1080"
+            style="display: none"
+          ></canvas>
+        </div>
+        <button id="apply-wallpaper-btn">Apply as Wallpaper</button>
+      </div>
+    </div>
+    <script src="./renderer.js"></script>
+  </body>
+</html>

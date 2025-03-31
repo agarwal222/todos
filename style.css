@@ -1,0 +1,229 @@
+/* Basic Reset/Defaults */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* Dark Mode Theme */
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #222; /* Dark background */
+    color: #eee; /* Light text */
+    line-height: 1.6;
+}
+
+/* Layout */
+.app-container {
+    display: flex;
+    padding: 25px;
+    gap: 30px;
+    min-height: 95vh;
+}
+
+.controls-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    min-width: 300px; /* Prevent controls column from getting too small */
+}
+
+.preview-column {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+h1, h2 {
+    color: #fff; /* White headings */
+    margin-bottom: 10px;
+    border-bottom: 1px solid #444; /* Subtle separator */
+    padding-bottom: 5px;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid #444; /* Darker separator */
+    margin: 15px 0;
+}
+
+/* Control Groups */
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.control-group label {
+    font-weight: normal; /* Normal weight for labels */
+    color: #ccc; /* Lighter label color */
+    min-width: 80px; /* Align labels somewhat */
+}
+
+/* Inputs and Buttons - Dark Mode */
+input[type="text"],
+input[type="number"],
+select {
+    padding: 8px 12px;
+    border: 1px solid #555; /* Darker border */
+    border-radius: 4px;
+    font-size: 1em;
+    background-color: #333; /* Dark input background */
+    color: #eee; /* Light input text */
+    flex-grow: 1; /* Allow text/number inputs to grow */
+}
+input[type="text"]::placeholder {
+    color: #888;
+}
+
+input[type="number"] {
+    max-width: 80px; /* Limit width of number inputs */
+    flex-grow: 0;
+}
+
+
+input[type="color"] {
+    width: 40px;
+    height: 30px;
+    border: 1px solid #555;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 2px;
+    background-color: #333; /* Match other inputs */
+}
+
+select {
+     /* Specific styling for select dropdown arrow might be needed per browser/OS */
+}
+
+button {
+    padding: 8px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.2s ease;
+}
+button:hover {
+    background-color: #0056b3;
+}
+button:disabled {
+    background-color: #555;
+    cursor: not-allowed;
+}
+
+
+/* Todo List Styling - Dark Mode & Scroll */
+.todo-list-container {
+     flex-grow: 1; /* Allow container to fill space */
+     overflow-y: auto; /* Add scrollbar to the container */
+     min-height: 150px; /* Minimum height before shrinking */
+     max-height: 400px; /* Increased max-height */
+     background-color: #2a2a2a; /* Slightly different bg for list area */
+     border: 1px solid #444;
+     border-radius: 4px;
+     padding: 5px;
+}
+
+/* Custom Scrollbar (Optional - Webkit browsers) */
+.todo-list-container::-webkit-scrollbar {
+    width: 8px;
+}
+.todo-list-container::-webkit-scrollbar-track {
+    background: #333;
+    border-radius: 4px;
+}
+.todo-list-container::-webkit-scrollbar-thumb {
+    background-color: #555;
+    border-radius: 4px;
+    border: 2px solid #333; /* Padding around thumb */
+}
+
+
+#todo-list {
+    list-style: none;
+    padding: 0; /* Remove padding from UL itself */
+}
+
+#todo-list li {
+    display: flex;
+    align-items: center;
+    padding: 10px 10px; /* Adjust padding */
+    border-bottom: 1px solid #444;
+    gap: 10px;
+    background-color: #333; /* Item background */
+    margin-bottom: 5px; /* Space between items */
+    border-radius: 3px;
+}
+#todo-list li:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+#todo-list li input[type="checkbox"] {
+    margin-right: 5px; /* Adjust spacing */
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0; /* Prevent checkbox shrinking */
+    accent-color: #007bff; /* Style checkbox color */
+}
+
+#todo-list li .todo-text {
+    flex-grow: 1;
+    cursor: pointer;
+    color: #eee; /* Ensure text is light */
+}
+
+#todo-list li.done .todo-text {
+    text-decoration: line-through;
+    color: #888; /* Dimmer color for done items */
+}
+
+#todo-list li .delete-btn {
+    background-color: #dc3545;
+    font-size: 0.8em;
+    padding: 4px 8px;
+    flex-shrink: 0; /* Prevent button shrinking */
+}
+#todo-list li .delete-btn:hover {
+    background-color: #c82333;
+}
+
+/* Preview Area - Dark Mode */
+.preview-area-container {
+    border: 1px solid #555;
+    background-color: #333; /* Dark container background */
+    padding: 5px;
+    border-radius: 4px;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    flex-grow: 1; /* Allow preview container to take available vertical space */
+}
+
+#preview-area {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    background-color: #000; /* Black background behind preview image */
+}
+
+#apply-wallpaper-btn {
+    padding: 12px 20px;
+    font-size: 1.1em;
+    background-color: #28a745;
+    flex-shrink: 0; /* Prevent button shrinking if container gets small */
+}
+#apply-wallpaper-btn:hover {
+    background-color: #218838;
+}

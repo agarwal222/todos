@@ -1,0 +1,19 @@
+{
+  "name": "todo-wallpaper-app",
+  "version": "1.0.0",
+  "description": "Displays todos as desktop wallpaper",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .", 
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^29.1.5" 
+  },
+  "dependencies": {
+    "wallpaper": "^6.1.1" 
+  }
+}
