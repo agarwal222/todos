@@ -15,7 +15,8 @@
       rel="stylesheet"
     />
   </head>
-  <body>
+  <body data-platform="">
+    <!-- Add platform data attribute -->
     <div class="app-shell">
       <!-- App Header -->
       <header class="app-header">
@@ -79,6 +80,70 @@
               />
             </svg>
           </button>
+
+          <!-- *** Custom Window Controls *** -->
+          <div class="window-controls">
+            <button
+              id="minimize-btn"
+              class="window-control-btn minimize-btn"
+              aria-label="Minimize"
+              title="Minimize"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 10 1"
+                fill="currentColor"
+              >
+                <rect width="10" height="1" />
+              </svg>
+            </button>
+            <button
+              id="maximize-restore-btn"
+              class="window-control-btn maximize-restore-btn"
+              aria-label="Maximize"
+              title="Maximize"
+            >
+              <svg
+                class="icon-maximize"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 10 10"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <rect x="0.75" y="0.75" width="8.5" height="8.5" rx="1" />
+              </svg>
+              <svg
+                class="icon-restore hidden"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 10 10"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <rect x="2.75" y="0.75" width="6.5" height="6.5" rx="1" />
+                <path
+                  d="M0.75 2.75C0.75 1.92157 1.42157 1.25 2.25 1.25H6.25 M2.75 9.25V 6.25C2.75 5.42157 3.42157 4.75 4.25 4.75H7.25"
+                />
+              </svg>
+            </button>
+            <button
+              id="close-btn"
+              class="window-control-btn close-btn"
+              aria-label="Close"
+              title="Close"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 10 10"
+                fill="currentColor"
+              >
+                <path
+                  d="M1.06066 0L0 1.06066L3.93934 5L0 8.93934L1.06066 10L5 6.06066L8.93934 10L10 8.93934L6.06066 5L10 1.06066L8.93934 0L5 3.93934L1.06066 0Z"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -170,7 +235,6 @@
                 class="setting-section-content"
                 id="section-content-text-layout"
               >
-                <!-- Title, Color, Size, List Style, Position, Align, Offset -->
                 <div class="input-group">
                   <label for="wallpaper-title-input">Title</label
                   ><input
@@ -250,7 +314,6 @@
                 </div>
               </div>
             </div>
-
             <!-- App Behavior Section -->
             <div
               class="setting-section collapsible"
@@ -282,24 +345,22 @@
                 id="section-content-app-behavior"
               >
                 <div class="input-group">
-                  <label for="run-in-tray-checkbox">Run in Tray</label>
-                  <input
+                  <label for="run-in-tray-checkbox">Run in Tray</label
+                  ><input
                     type="checkbox"
                     id="run-in-tray-checkbox"
                     class="checkbox-input"
-                  />
-                  <span class="checkbox-hint"
+                  /><span class="checkbox-hint"
                     >Hide window on close, enable Quick Add shortcut.</span
                   >
                 </div>
-                <!-- Shortcut Display/Button Group -->
                 <div class="input-group shortcut-display-group hidden">
-                  <label>Quick Add</label>
-                  <span
+                  <label>Quick Add</label
+                  ><span
                     id="current-shortcut-display"
                     class="shortcut-display"
-                  ></span>
-                  <button
+                  ></span
+                  ><button
                     id="change-shortcut-btn"
                     class="button button-secondary"
                   >
@@ -308,7 +369,6 @@
                 </div>
               </div>
             </div>
-
             <!-- Font Section -->
             <div class="setting-section collapsible" data-section-id="font">
               <button
@@ -381,7 +441,6 @@
                 </div>
               </div>
             </div>
-
             <!-- Background Section -->
             <div
               class="setting-section collapsible"
@@ -483,7 +542,6 @@
               </div>
             </div>
           </div>
-          <!-- End Settings Scrollable Content -->
         </aside>
       </main>
 
@@ -510,13 +568,12 @@
           <h2>Add New Task</h2>
           <form id="add-todo-form">
             <div class="input-group modal-input-group">
-              <label for="modal-todo-input" class="sr-only"
-                >Task description</label
+              <label for="modal-todo-input" class="sr-only">Task</label
               ><input
                 type="text"
                 id="modal-todo-input"
                 class="input"
-                placeholder="Enter task description..."
+                placeholder="Enter task..."
                 required
               />
             </div>
@@ -534,14 +591,13 @@
           </form>
         </div>
       </div>
-
       <!-- Record Shortcut Modal -->
       <div id="record-shortcut-modal" class="modal-overlay hidden">
         <div class="modal-content record-shortcut-content">
           <button
             id="record-modal-close-btn"
             class="modal-close-button button button-ghost button-icon"
-            title="Cancel Recording (Esc)"
+            title="Cancel (Esc)"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -556,16 +612,13 @@
             </svg>
           </button>
           <h2>Record Shortcut</h2>
-          <p class="record-instructions">
-            Press the desired key combination (e.g., Ctrl+Shift+N).
-          </p>
+          <p class="record-instructions">Press the desired key combination.</p>
           <div
             id="shortcut-display-area"
             class="shortcut-display-area"
             aria-live="polite"
           >
             <span>Press keys...</span>
-            <!-- Keys will be added here by JS -->
           </div>
           <div class="modal-actions">
             <button
@@ -573,21 +626,19 @@
               id="record-cancel-btn"
               class="button button-secondary"
             >
-              Cancel
-            </button>
-            <button
+              Cancel</button
+            ><button
               type="button"
               id="record-save-btn"
               class="button button-primary"
               disabled
             >
-              Save Shortcut
+              Save
             </button>
           </div>
         </div>
       </div>
     </div>
-    <!-- End App Shell -->
     <script src="./renderer.js"></script>
   </body>
 </html>

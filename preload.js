@@ -1,3 +1,4 @@
+// preload.js
 const { contextBridge, ipcRenderer } = require("electron")
 
 let screenDimensions = null // Cache dimensions received from main
@@ -9,71 +10,80 @@ ipcRenderer.on("screen-dimensions", (event, dimensions) => {
 })
 
 // --- Expose APIs to Renderers ---
-contextBridge.exposeInMainWorld("electronAPI", {
-  // == APIs for Main Window Renderer ==
-  updateWallpaper: (imageDataUrl) =>
-    ipcRenderer.invoke("update-wallpaper", imageDataUrl),
+try {
+  // Add try-catch for debugging preload issues
+  contextBridge.exposeInMainWorld("electronAPI", {
+    // == APIs for Main Window Renderer ==
+    updateWallpaper: (imageDataUrl) =>
+      ipcRenderer.invoke("update-wallpaper", imageDataUrl),
+    getScreenDimensions: () => {
+      if (!screenDimensions)
+        console.warn("Preload: getScreenDimensions called early.")
+      return screenDimensions
+    },
+    loadGoogleFont: (fontUrl) =>
+      ipcRenderer.invoke("load-google-font", fontUrl),
+    updateSettings: (settings) => ipcRenderer.send("update-settings", settings),
+    onAddTaskAndApply: (callback) => {
+      const channel = "add-task-and-apply"
+      const listener = (event, taskText) => callback(taskText)
+      ipcRenderer.on(channel, listener)
+      return () => ipcRenderer.removeListener(channel, listener)
+    },
+    onShortcutError: (callback) => {
+      const channel = "shortcut-error"
+      const listener = (event, errorMessage) => callback(errorMessage)
+      ipcRenderer.on(channel, listener)
+      return () => ipcRenderer.removeListener(channel, listener)
+    },
+    onGetTodosRequest: (callback) => {
+      const channel = "get-todos-request"
+      const listener = () => callback()
+      ipcRenderer.on(channel, listener)
+      return () => ipcRenderer.removeListener(channel, listener)
+    },
+    sendTodosResponse: (todos) => {
+      ipcRenderer.send("current-todos-response", todos)
+    },
+    // *** Window Controls ***
+    minimizeWindow: () => {
+      console.log("Preload: Sending window-minimize")
+      ipcRenderer.send("window-minimize")
+    },
+    maximizeRestoreWindow: () => {
+      console.log("Preload: Sending window-maximize-restore")
+      ipcRenderer.send("window-maximize-restore")
+    },
+    closeWindow: () => {
+      console.log("Preload: Sending window-close")
+      ipcRenderer.send("window-close")
+    },
+    // *** Listen for Window State Changes from Main ***
+    onWindowStateChange: (callback) => {
+      const channel = "window-state-changed"
+      const listener = (event, state) => callback(state) // state is { isMaximized, isFullScreen }
+      ipcRenderer.on(channel, listener)
+      return () => ipcRenderer.removeListener(channel, listener)
+    },
+    // *** Expose Platform ***
+    getPlatform: () => process.platform,
 
-  // Function to get screen dimensions (returns cached value or null)
-  // *** CHANGED: Made synchronous - relies on main sending before it's needed ***
-  getScreenDimensions: () => {
-    if (!screenDimensions) {
-      // This warning might appear if called extremely early, but generally shouldn't happen.
-      console.warn(
-        "Preload: getScreenDimensions called before dimensions were received from main."
-      )
-    }
-    return screenDimensions // Return cached value (or null if not ready yet)
-  },
+    // == APIs for Quick Add Renderer ==
+    sendTaskToMain: (taskText) =>
+      ipcRenderer.send("add-task-from-overlay", taskText),
+    closeQuickAddWindow: () => ipcRenderer.send("close-quick-add"),
+    onInitialTodos: (callback) => {
+      const channel = "initial-todos"
+      const listener = (event, todos) => callback(todos)
+      ipcRenderer.on(channel, listener)
+      return () => ipcRenderer.removeListener(channel, listener)
+    },
+    requestTodosForOverlay: () => {
+      ipcRenderer.send("quick-add-ready-for-todos")
+    },
+  })
 
-  loadGoogleFont: (fontUrl) => ipcRenderer.invoke("load-google-font", fontUrl),
-  updateSettings: (settings) => ipcRenderer.send("update-settings", settings), // Send settings TO main
-
-  // Listen for task FROM main AND trigger auto-apply (Changed channel name)
-  onAddTaskAndApply: (callback) => {
-    const channel = "add-task-and-apply"
-    const listener = (event, taskText) => callback(taskText)
-    ipcRenderer.on(channel, listener)
-    // Return cleanup function
-    return () => ipcRenderer.removeListener(channel, listener)
-  },
-
-  // Listen for shortcut registration errors FROM main
-  onShortcutError: (callback) => {
-    const channel = "shortcut-error"
-    const listener = (event, errorMessage) => callback(errorMessage)
-    ipcRenderer.on(channel, listener)
-    return () => ipcRenderer.removeListener(channel, listener)
-  },
-
-  // *** NEW: Listen for request from Main to get todos ***
-  onGetTodosRequest: (callback) => {
-    const channel = "get-todos-request"
-    // No need for args here, just trigger the callback
-    const listener = () => callback()
-    ipcRenderer.on(channel, listener)
-    return () => ipcRenderer.removeListener(channel, listener)
-  },
-  // *** NEW: Send todos response back to Main ***
-  sendTodosResponse: (todos) => {
-    ipcRenderer.send("current-todos-response", todos)
-  },
-
-  // == APIs for Quick Add Renderer ==
-  sendTaskToMain: (taskText) =>
-    ipcRenderer.send("add-task-from-overlay", taskText),
-  closeQuickAddWindow: () => ipcRenderer.send("close-quick-add"),
-  // *** NEW: Listen for initial todos FROM Main ***
-  onInitialTodos: (callback) => {
-    const channel = "initial-todos"
-    const listener = (event, todos) => callback(todos)
-    ipcRenderer.on(channel, listener)
-    return () => ipcRenderer.removeListener(channel, listener)
-  },
-  // *** NEW: Tell main process we're ready for todos ***
-  requestTodosForOverlay: () => {
-    ipcRenderer.send("quick-add-ready-for-todos")
-  },
-})
-
-console.log("Preload script loaded.")
+  console.log("Preload script finished exposing API successfully.")
+} catch (error) {
+  console.error("Error in preload script:", error)
+}

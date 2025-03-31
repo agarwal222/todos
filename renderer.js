@@ -14,6 +14,13 @@ const completedListContainer = document.querySelector(
 const settingsColumn = document.getElementById("settings-column")
 const previewContainer = document.getElementById("preview-container")
 const previewAreaImg = document.getElementById("preview-area")
+// Window Control Buttons
+const minimizeBtn = document.getElementById("minimize-btn")
+const maximizeRestoreBtn = document.getElementById("maximize-restore-btn")
+// *** Get references to the icons *inside* the maximize/restore button ***
+const maximizeIcon = maximizeRestoreBtn?.querySelector(".icon-maximize")
+const restoreIcon = maximizeRestoreBtn?.querySelector(".icon-restore")
+const closeBtn = document.getElementById("close-btn")
 const settingsInputs = {
   title: document.getElementById("wallpaper-title-input"),
   textColor: document.getElementById("text-color"),
@@ -95,75 +102,46 @@ let currentRecordedString = ""
 let lastMainKeyPressed = null
 
 // --- Initialization ---
-// *** REMOVED async ***
 function initialize() {
-  console.log("Initializing...")
-  // 1. Get Screen Dimensions *synchronously*
-  // *** REMOVED await ***
+  console.log("Initializing Renderer...")
   const dimensions = window.electronAPI.getScreenDimensions()
   if (dimensions?.width && dimensions?.height) {
     state.screenWidth = dimensions.width
     state.screenHeight = dimensions.height
-    console.log(
-      `Screen dimensions received: ${state.screenWidth}x${state.screenHeight}`
-    )
   } else {
-    console.warn("Could not get screen dimensions, using defaults.")
+    console.warn("Could not get screen dimensions sync, using defaults.")
   }
   setCanvasAndPreviewSize(state.screenWidth, state.screenHeight)
-
-  // 2. Load Saved State
   loadState()
-
-  // 3. Apply State to UI
   applyStateToUI()
-
-  // 4. Send Initial Settings to Main Process
   window.electronAPI.updateSettings({
     runInTray: state.runInTray,
     quickAddShortcut: state.quickAddShortcut,
   })
-
-  // 5. Attempt to load saved custom font
   let fontLoadPromise = Promise.resolve()
   if (state.fontSource === "google" && state.googleFontUrl) {
     fontLoadPromise = loadAndApplyCustomFont(state.googleFontUrl, false)
   } else {
     updateFontStatus("idle", DEFAULT_FONT)
   }
-
-  // 6. Initial Render
   renderTodoList()
-
-  // 7. Generate Preview - Wait for font load attempt *before first generation*
   fontLoadPromise
-    .catch((err) => {
-      console.warn("Initial font load failed before first preview:", err)
-    })
+    .catch((err) => console.warn("Initial font load failed:", err))
     .finally(() => {
-      // Generate preview *after* font promise settles (either resolved or rejected)
-      console.log("Initial font load settled, generating initial preview.")
       generateTodoImageAndUpdatePreview()
     })
-
-  // 8. Setup Event Listeners
   setupEventListeners()
-
-  // 9. Initial setup for collapsible sections
   initializeCollapsibleSections()
-
-  // 10. Listen for IPC messages
   window.electronAPI.onAddTaskAndApply(handleQuickAddTaskAndApply)
   window.electronAPI.onShortcutError(handleShortcutError)
-  // Listen for request from Main to send todos
   window.electronAPI.onGetTodosRequest(() => {
-    console.log("Renderer: Received request for todos from main process.")
-    if (window.electronAPI?.sendTodosResponse) {
-      window.electronAPI.sendTodosResponse(state.todos) // Send current todos back
-    }
+    if (window.electronAPI?.sendTodosResponse)
+      window.electronAPI.sendTodosResponse(state.todos)
   })
-
-  console.log("Renderer initialized.")
+  window.electronAPI.onWindowStateChange(handleWindowStateChange)
+  const platform = window.electronAPI.getPlatform()
+  document.body.dataset.platform = platform
+  console.log("Renderer initialized on platform:", platform)
 }
 
 // --- Set Canvas & Preview Size ---
@@ -201,6 +179,7 @@ function applyStateToUI() {
     settingsInputs.currentShortcutDisplay.textContent = formatAccelerator(
       state.quickAddShortcut || DEFAULT_SHORTCUT
     )
+  else console.warn("#current-shortcut-display not found")
   updateFontControlsVisibility()
   updateFontStatus(
     state.customFontStatus,
@@ -208,9 +187,10 @@ function applyStateToUI() {
     state.customFontError
   )
   updateBackgroundControlsVisibility()
-  updateShortcutInputVisibility() // Show/hide the shortcut display/button group
+  updateShortcutInputVisibility()
   settingsColumn.dataset.collapsed = state.settingsCollapsed
   updateToggleIcons(state.settingsCollapsed)
+  // Note: Initial maximized state is now handled by the first 'window-state-changed' event from main.js
 }
 
 // --- Setup Event Listeners ---
@@ -218,6 +198,21 @@ function setupEventListeners() {
   console.log("Setting up event listeners...")
   applyWallpaperBtn.addEventListener("click", handleApplyWallpaper)
   toggleSettingsBtn.addEventListener("click", handleToggleSettings)
+
+  // Window Control Listeners
+  if (minimizeBtn)
+    minimizeBtn.addEventListener("click", () =>
+      window.electronAPI.minimizeWindow()
+    )
+  else console.error("#minimize-btn not found")
+  if (maximizeRestoreBtn)
+    maximizeRestoreBtn.addEventListener("click", () =>
+      window.electronAPI.maximizeRestoreWindow()
+    )
+  else console.error("#maximize-restore-btn not found")
+  if (closeBtn)
+    closeBtn.addEventListener("click", () => window.electronAPI.closeWindow())
+  else console.error("#close-btn not found")
 
   // Settings Inputs Change - Direct listeners
   Object.keys(settingsInputs).forEach((key) => {
@@ -474,8 +469,6 @@ async function generateTodoImageAndUpdatePreview() {
   const padding = Math.max(60, itemFontSize * 1.5)
   const lineSpacing = Math.round(itemFontSize * 0.6)
   const titleFontSize = Math.round(itemFontSize * 1.2)
-
-  // Use Promise.resolve() to ensure async operation even for color background
   return Promise.resolve()
     .then(() => {
       ctx.clearRect(0, 0, screenWidth, screenHeight)
@@ -484,13 +477,12 @@ async function generateTodoImageAndUpdatePreview() {
           .then((img) =>
             drawBackgroundImage(ctx, img, screenWidth, screenHeight)
           )
-          .catch((error) => {
-            console.error("BG Image Error:", error)
+          .catch((e) => {
+            console.error("BG Image Error:", e)
             drawBackgroundColor(ctx, bgColor, screenWidth, screenHeight)
           })
       } else {
         drawBackgroundColor(ctx, bgColor, screenWidth, screenHeight)
-        // No need to return anything here, the promise chain continues
       }
     })
     .then(() => {
@@ -519,13 +511,12 @@ async function generateTodoImageAndUpdatePreview() {
         startY,
         listStyle,
       })
-      updatePreviewImage() // This generates the data URL synchronously
+      updatePreviewImage()
     })
     .catch((err) => {
       console.error("Error during image generation process:", err)
-      updatePreviewImage() // Attempt to update preview even on error
-      // Optionally re-throw or handle differently
-      throw err // Re-throw if needed downstream
+      updatePreviewImage()
+      throw err
     })
 }
 function loadImage(src) {
@@ -1443,7 +1434,7 @@ async function handleApplyWallpaper() {
   }
 }
 
-// --- Handler for Auto-Apply Task --- (Changed name to match preload)
+// --- Handler for Auto-Apply Task ---
 async function handleQuickAddTaskAndApply(taskText) {
   console.log("Renderer received task and apply trigger:", taskText)
   if (addTodo(taskText)) {
@@ -1481,9 +1472,9 @@ function handleShortcutError(errorMessage) {
 // --- Utility ---
 function formatAccelerator(accelerator) {
   if (!accelerator) return ""
-  const platform = window.navigator.platform.toUpperCase()
+  const platform = window.electronAPI.getPlatform()
   let d = accelerator
-  if (platform.includes("MAC")) {
+  if (platform === "darwin") {
     d = d
       .replace(/CommandOrControl|CmdOrCtrl/g, "Cmd")
       .replace(/Control/g, "Ctrl")
@@ -1492,6 +1483,26 @@ function formatAccelerator(accelerator) {
     d = d.replace(/CommandOrControl|CmdOrCtrl|Command|Meta/g, "Ctrl")
   }
   return d.replace(/\+/g, " + ")
+}
+
+// *** NEW: Handler for Window State Changes from Main ***
+function handleWindowStateChange({ isMaximized }) {
+  console.log("Renderer received window state change - Maximized:", isMaximized)
+  document.body.classList.toggle("maximized", isMaximized)
+  // Update button title/aria-label and icons
+  if (maximizeRestoreBtn && maximizeIcon && restoreIcon) {
+    maximizeRestoreBtn.title = isMaximized ? "Restore" : "Maximize"
+    maximizeRestoreBtn.setAttribute(
+      "aria-label",
+      isMaximized ? "Restore" : "Maximize"
+    )
+    maximizeIcon.classList.toggle("hidden", isMaximized)
+    restoreIcon.classList.toggle("hidden", !isMaximized)
+  } else {
+    console.warn(
+      "Could not find maximize/restore button or icons to update state."
+    )
+  }
 }
 
 // --- Start the application ---

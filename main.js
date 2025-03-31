@@ -1,3 +1,4 @@
+// main.js
 const {
   app,
   BrowserWindow,
@@ -43,15 +44,56 @@ function createWindow() {
       nodeIntegration: false,
     },
     show: false, // Don't show immediately
+    // *** CRITICAL: Ensure this line is present and uncommented ***
+    frame: false,
+    // titleBarStyle: 'hidden', // Keep this commented out if using frame: false
+    // titleBarOverlay: { }, // Keep this commented out if using frame: false
   })
 
   mainWindow.loadFile("index.html")
 
-  // Send screen dimensions once ready
+  // Send screen dimensions and initial window state once ready
   mainWindow.webContents.on("did-finish-load", () => {
     mainWindow.webContents.send("screen-dimensions", screenDimensions)
-    // Show window gracefully when ready
+    mainWindow.webContents.send("window-state-changed", {
+      isMaximized: mainWindow.isMaximized(),
+      isFullScreen: mainWindow.isFullScreen(),
+    })
     mainWindow.show()
+  })
+
+  // --- Send state changes to renderer ---
+  mainWindow.on("maximize", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("window-state-changed", {
+        isMaximized: true,
+        isFullScreen: mainWindow.isFullScreen(),
+      })
+    }
+  })
+  mainWindow.on("unmaximize", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("window-state-changed", {
+        isMaximized: false,
+        isFullScreen: mainWindow.isFullScreen(),
+      })
+    }
+  })
+  mainWindow.on("enter-full-screen", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("window-state-changed", {
+        isMaximized: mainWindow.isMaximized(),
+        isFullScreen: true,
+      })
+    }
+  })
+  mainWindow.on("leave-full-screen", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("window-state-changed", {
+        isMaximized: mainWindow.isMaximized(),
+        isFullScreen: false,
+      })
+    }
   })
 
   // --- Modified Close/Minimize Behavior ---
@@ -101,12 +143,18 @@ function createTray() {
   // Create icon using path relative to project root
   const iconPath = path.join(__dirname, "icon.png") // Ensure you have icon.png
   if (!fs.existsSync(iconPath)) {
-    console.error("Tray icon not found at:", iconPath)
-    // Consider creating a default icon programmatically or skipping tray
-    return
+    console.error(
+      "Tray icon not found at:",
+      iconPath,
+      "- Using default Electron icon as fallback."
+    )
+    // Consider using a default icon or notifying the user
+    // tray = new Tray(nativeImage.createEmpty()); // Example: Creates an empty image
+    // For now, we'll just proceed without setting the icon if missing
+    tray = new Tray(app.getAppPath() + "/icon.png") // Attempt anyway, might fail visually
+  } else {
+    tray = new Tray(iconPath)
   }
-
-  tray = new Tray(iconPath)
 
   const contextMenu = Menu.buildFromTemplate([
     { label: "Show App", click: () => showMainWindow() },
@@ -165,12 +213,28 @@ function registerGlobalShortcut() {
   }
 
   // Only register if not already registered with the *same* accelerator
+  // Important: Check if *any* app registered it. Electron cannot override other apps.
   if (globalShortcut.isRegistered(shortcutToRegister)) {
-    console.warn(
-      `Shortcut ${shortcutToRegister} is already registered (likely by this app). Skipping.`
-    )
-    if (!currentShortcut) currentShortcut = shortcutToRegister // Ensure currentShortcut is set if already registered
-    return
+    // Check if *we* registered it. If currentShortcut matches, we are good.
+    if (currentShortcut === shortcutToRegister) {
+      console.log(
+        `Shortcut ${shortcutToRegister} already registered by this app instance. Skipping.`
+      )
+      return
+    } else {
+      // If currentShortcut is different or null, it means another app has it.
+      console.error(
+        `Failed to register global shortcut: ${shortcutToRegister}. It is already in use by another application.`
+      )
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(
+          "shortcut-error",
+          `Failed to register shortcut: ${shortcutToRegister}. It is in use by another application.`
+        )
+      }
+      currentShortcut = null // Mark as not registered *by us*
+      return // Cannot register it
+    }
   }
 
   console.log(`Attempting to register shortcut: ${shortcutToRegister}`)
@@ -180,12 +244,15 @@ function registerGlobalShortcut() {
   })
 
   if (!ret) {
-    console.error("Failed to register global shortcut:", shortcutToRegister)
-    // Notify user in the main window if possible
+    console.error(
+      "Failed to register global shortcut:",
+      shortcutToRegister,
+      "(Unknown reason, possibly invalid format or system issue)"
+    )
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send(
         "shortcut-error",
-        `Failed to register shortcut: ${shortcutToRegister}. It might be in use by another application.`
+        `Failed to register shortcut: ${shortcutToRegister}. Invalid format or system issue.`
       )
     }
     currentShortcut = null // Mark as not registered
@@ -201,8 +268,9 @@ function unregisterCurrentShortcut() {
     globalShortcut.unregister(currentShortcut)
     console.log("Global shortcut unregistered:", currentShortcut)
   } else if (currentShortcut) {
-    console.log(
-      "Attempted to unregister shortcut, but it was not registered:",
+    // This case means Electron thinks it's registered by us, but the OS disagrees. Log it.
+    console.warn(
+      "Attempted to unregister shortcut, but OS reported it was not registered:",
       currentShortcut
     )
   }
@@ -221,7 +289,8 @@ function createOrShowQuickAddWindow() {
   // Check if main window exists to request todos from
   if (!mainWindow || mainWindow.isDestroyed()) {
     console.error("Cannot open Quick Add: Main window not available.")
-    // Maybe show an error message or just don't open
+    // Optionally, inform the user via a dialog or simply don't open
+    // dialog.showErrorBox("Error", "Main application window is not available.");
     return
   }
 
@@ -258,8 +327,9 @@ function createOrShowQuickAddWindow() {
   const responseListener = (event, todos) => {
     console.log("Main: Received current-todos-response from main window.")
     todosForQuickAdd = todos // Store the received todos
+    ipcMain.removeListener("current-todos-response", responseListener) // Clean up listener
 
-    // 3. If quickAddWindow is ready, send todos to it. Otherwise wait for did-finish-load
+    // 3. If quickAddWindow is ready, send todos to it.
     if (
       quickAddWindow &&
       !quickAddWindow.isDestroyed() &&
@@ -269,7 +339,7 @@ function createOrShowQuickAddWindow() {
       quickAddWindow.webContents.send("initial-todos", todosForQuickAdd)
     }
   }
-  ipcMain.once("current-todos-response", responseListener) // Use once to avoid memory leaks
+  ipcMain.once("current-todos-response", responseListener) // Use once
 
   // 2. Request todos from main window *after* quickAddWindow is created
   console.log("Main: Sending get-todos-request to main window.")
@@ -293,29 +363,26 @@ function createOrShowQuickAddWindow() {
   quickAddWindow.on("blur", () => {
     if (quickAddWindow && !quickAddWindow.isDestroyed()) {
       console.log("Quick Add window lost focus, closing.")
-      quickAddWindow.close() // Use close instead of destroy directly
+      quickAddWindow.close()
     }
   })
 
   quickAddWindow.on("closed", () => {
     console.log("Quick Add window closed.")
-    ipcMain.removeListener("current-todos-response", responseListener) // Clean up listener
-    quickAddWindow = null // Allow garbage collection
+    ipcMain.removeListener("current-todos-response", responseListener) // Ensure cleanup
+    quickAddWindow = null
   })
 }
 
 // --- IPC Handlers ---
 
-ipcMain.handle("get-screen-dimensions", () => {
-  const primaryDisplay = screen.getPrimaryDisplay()
-  return primaryDisplay.size
-})
+ipcMain.handle("get-screen-dimensions", () => screen.getPrimaryDisplay().size)
 
 ipcMain.handle("load-google-font", async (event, fontUrl) => {
   if (!fontUrl || !fontUrl.startsWith("https://fonts.googleapis.com/css")) {
     return { success: false, error: "Invalid Google Fonts URL format." }
   }
-  console.log("Main: Received request to load font URL:", fontUrl)
+  console.log("Main: Loading font URL:", fontUrl)
   try {
     const cssContent = await fetchGoogleFontCSS(fontUrl)
     const fontFamilyMatch = cssContent.match(
@@ -324,41 +391,32 @@ ipcMain.handle("load-google-font", async (event, fontUrl) => {
     const woff2UrlMatch = cssContent.match(
       /url\((https:\/\/fonts\.gstatic\.com\/s\/[^)]+\.woff2)\)/
     )
-
     if (!fontFamilyMatch || !woff2UrlMatch) {
-      console.error("Main: Could not parse font-family or woff2 URL from CSS.")
       const woffUrlMatch = cssContent.match(
         /url\((https:\/\/fonts\.gstatic\.com\/s\/[^)]+\.woff)\)/
       )
       if (fontFamilyMatch && woffUrlMatch) {
-        console.log("Main: Found WOFF fallback URL.")
-        const fontFamily = fontFamilyMatch[1]
-        const woffUrl = woffUrlMatch[1]
-        const fontData = await fetchFontData(woffUrl)
+        const fontData = await fetchFontData(woffUrlMatch[1])
         return {
           success: true,
-          fontFamily: fontFamily,
+          fontFamily: fontFamilyMatch[1],
           fontDataUrl: `data:font/woff;base64,${fontData}`,
         }
       }
       return {
         success: false,
-        error:
-          "Could not parse font details (WOFF2 or WOFF) from Google Fonts CSS.",
+        error: "Could not parse font details (WOFF2 or WOFF).",
       }
     }
-
-    const fontFamily = fontFamilyMatch[1]
-    const woff2Url = woff2UrlMatch[1]
-    const fontData = await fetchFontData(woff2Url)
+    const fontData = await fetchFontData(woff2UrlMatch[1])
     return {
       success: true,
-      fontFamily: fontFamily,
+      fontFamily: fontFamilyMatch[1],
       fontDataUrl: `data:font/woff2;base64,${fontData}`,
     }
   } catch (error) {
-    console.error("Main: Error loading Google Font:", error)
-    return { success: false, error: error.message || "Failed to load font." }
+    console.error("Main: Font load error:", error)
+    return { success: false, error: error.message || "Failed font load." }
   }
 })
 
@@ -375,66 +433,45 @@ function fetchGoogleFontCSS(url) {
       .get(url, options, (res) => {
         if (res.statusCode !== 200) {
           if (res.statusCode === 301 || res.statusCode === 302) {
-            console.log(
-              "Main: Following redirect for CSS URL:",
-              res.headers.location
-            )
             return fetchGoogleFontCSS(res.headers.location)
               .then(resolve)
               .catch(reject)
           }
-          return reject(
-            new Error(`Failed to get CSS: Status Code ${res.statusCode}`)
-          )
+          return reject(new Error(`Failed CSS fetch: Status ${res.statusCode}`))
         }
         let data = ""
-        res.on("data", (chunk) => {
-          data += chunk
-        })
+        res.on("data", (c) => (data += c))
         res.on("end", () => resolve(data))
       })
-      .on("error", (e) =>
-        reject(new Error(`HTTPS request error for CSS: ${e.message}`))
-      )
+      .on("error", (e) => reject(new Error(`CSS Request Error: ${e.message}`)))
   })
 }
-
-// Helper: Fetch Font Data (WOFF/WOFF2) as Base64
+// Helper: Fetch Font Data
 function fetchFontData(url) {
   return new Promise((resolve, reject) => {
     https
       .get(url, (res) => {
         if (res.statusCode !== 200) {
           if (res.statusCode === 301 || res.statusCode === 302) {
-            console.log(
-              "Main: Following redirect for Font URL:",
-              res.headers.location
-            )
             return fetchFontData(res.headers.location)
               .then(resolve)
               .catch(reject)
           }
           return reject(
-            new Error(`Failed to get font file: Status Code ${res.statusCode}`)
+            new Error(`Failed font fetch: Status ${res.statusCode}`)
           )
         }
-        const dataChunks = []
-        res.on("data", (chunk) => {
-          dataChunks.push(chunk)
-        })
-        res.on("end", () =>
-          resolve(Buffer.concat(dataChunks).toString("base64"))
-        )
+        const data = []
+        res.on("data", (c) => data.push(c))
+        res.on("end", () => resolve(Buffer.concat(data).toString("base64")))
       })
-      .on("error", (e) =>
-        reject(new Error(`HTTPS request error for font file: ${e.message}`))
-      )
+      .on("error", (e) => reject(new Error(`Font Request Error: ${e.message}`)))
   })
 }
 
 // Update Wallpaper
 ipcMain.handle("update-wallpaper", async (event, imageDataUrl) => {
-  console.log("Main: Updating wallpaper...") // Shortened log
+  console.log("Main: Updating wallpaper...")
   try {
     const { setWallpaper } = await import("wallpaper")
     const tempDir = os.tmpdir()
@@ -466,11 +503,12 @@ ipcMain.on("update-settings", (event, settings) => {
   const shortcutChanged = appSettings.quickAddShortcut !== newShortcut
   appSettings = { ...appSettings, ...settings, quickAddShortcut: newShortcut }
 
-  if (appSettings.runInTray && (trayModeChanged || shortcutChanged)) {
+  if (appSettings.runInTray) {
     if (trayModeChanged) createTray()
-    registerGlobalShortcut()
+    if (trayModeChanged || shortcutChanged) registerGlobalShortcut() // Register if mode enabled or shortcut changed
     if (trayModeChanged && process.platform === "darwin") app.dock?.hide()
   } else if (!appSettings.runInTray && trayModeChanged) {
+    // Only act if it *was* enabled
     destroyTray()
     unregisterCurrentShortcut()
     if (process.platform === "darwin") app.dock?.show()
@@ -482,65 +520,68 @@ ipcMain.on("update-settings", (event, settings) => {
 // Listen for task from quick add renderer
 ipcMain.on("add-task-from-overlay", (event, taskText) => {
   console.log("Main received task from overlay:", taskText)
-  // *** Send ONE message to renderer to add AND apply ***
   if (mainWindow && !mainWindow.isDestroyed()) {
     console.log("Sending add-task-and-apply to main window renderer...")
-    mainWindow.webContents.send("add-task-and-apply", taskText) // Use the new channel name
+    mainWindow.webContents.send("add-task-and-apply", taskText)
   } else {
-    console.warn("Main window not available to receive task.")
+    console.warn("Main window not available for task.")
   }
-  // Close the quick add window after sending
-  if (quickAddWindow && !quickAddWindow.isDestroyed()) {
-    quickAddWindow.close()
-  }
+  if (quickAddWindow && !quickAddWindow.isDestroyed()) quickAddWindow.close()
 })
 
 // Listen for close request from quick add renderer
 ipcMain.on("close-quick-add", () => {
-  if (quickAddWindow && !quickAddWindow.isDestroyed()) {
-    quickAddWindow.close()
+  if (quickAddWindow && !quickAddWindow.isDestroyed()) quickAddWindow.close()
+})
+
+// Handle Window Control Actions from Renderer
+ipcMain.on("window-minimize", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  console.log("Main: Received minimize request")
+  win?.minimize()
+})
+
+ipcMain.on("window-maximize-restore", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  console.log("Main: Received maximize/restore request")
+  if (win) {
+    if (win.isMaximized()) win.unmaximize()
+    else win.maximize()
   }
+})
+
+ipcMain.on("window-close", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  console.log("Main: Received close request")
+  win?.close() // Triggers the 'close' event handler
 })
 
 // --- App Lifecycle ---
 app.whenReady().then(() => {
-  createWindow() // Create main window first
-
+  createWindow()
   app.on("activate", () => {
-    // macOS specific
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
-    } else if (
-      mainWindow &&
-      !mainWindow.isDestroyed() &&
-      !mainWindow.isVisible()
-    ) {
-      // Check if destroyed
+    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    else if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible())
       showMainWindow()
-    }
   })
 })
 
 app.on("window-all-closed", () => {
-  // Only quit if NOT in tray mode OR if explicitly quitting (isQuitting flag)
-  // On macOS, default is not to quit when windows close, so only quit if not in tray mode
-  if (!appSettings.runInTray) {
-    if (process.platform !== "darwin") {
+  // Quit logic based on tray mode and platform
+  if (!appSettings.runInTray || process.platform !== "darwin") {
+    if (process.platform !== "darwin" || !appSettings.runInTray) {
       app.quit()
     }
   } else {
-    console.log("Main window closed, but app running in tray.")
+    console.log("Main window closed, app in tray.")
   }
 })
 
 app.on("before-quit", () => {
-  console.log("App is about to quit...")
-  isQuitting = true // Set flag explicitly before quit sequence starts
+  isQuitting = true
 })
-
 app.on("will-quit", () => {
-  console.log("App will quit now.")
-  // Clean up resources just before exiting
-  unregisterGlobalShortcut() // Use the function that unregisters all known shortcuts by this app instance
+  console.log("App quitting...")
+  unregisterCurrentShortcut()
   destroyTray()
-})
+}) // Use specific unregister

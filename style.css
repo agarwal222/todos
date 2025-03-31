@@ -1,6 +1,6 @@
 /* style.css */
 
-/* --- Theme Variables (Shadcn Dark Inspired) --- */
+/* --- Theme Variables --- */
 :root {
     --background: 240 10% 3.9%; --foreground: 0 0% 98%;
     --card: 240 10% 3.9%; --card-foreground: 0 0% 98%;
@@ -27,14 +27,61 @@ body {
     font-family: var(--font-sans); background-color: hsl(var(--background)); color: hsl(var(--foreground));
     line-height: 1.5; font-size: 14px; overflow: hidden;
     -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    /* *** NEW: Prevent Text Selection Globally *** */
+    user-select: none;
+    -webkit-user-select: none; /* Safari/Chrome */
+    -moz-user-select: none;    /* Firefox */
+    -ms-user-select: none;     /* IE/Edge */
 }
+body[data-platform="darwin"] .window-controls { order: -1; padding-left: var(--spacing-md); padding-right: 0; }
+body[data-platform="darwin"] .header-left { margin-left: 65px; }
+
+/* *** NEW: Allow Text Selection in Inputs/Textareas *** */
+input[type="text"],
+input[type="url"],
+input[type="number"],
+textarea {
+    user-select: auto;
+    -webkit-user-select: auto;
+    -moz-user-select: auto;
+    -ms-user-select: auto;
+}
+/* Also allow selection in specific display areas if needed */
+.filename-display, .shortcut-display, .font-status-display {
+     user-select: text; /* More appropriate than auto for display spans */
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+}
+
 
 /* --- App Shell & Header --- */
 .app-shell { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
-.app-header { display: flex; align-items: center; justify-content: space-between; padding: 0 var(--spacing-lg); border-bottom: 1px solid hsl(var(--border)); background-color: hsl(var(--background)); flex-shrink: 0; height: 52px; }
+.app-header { display: flex; align-items: center; justify-content: space-between; padding: 0 var(--spacing-lg); border-bottom: 1px solid hsl(var(--border)); background-color: hsl(var(--background)); flex-shrink: 0; height: 52px; -webkit-app-region: drag; }
+.header-left, .header-right, .header-right > button, .app-title { -webkit-app-region: no-drag; }
 .header-left { display: flex; align-items: center; gap: var(--spacing-md); }
 .app-title { font-size: 1.1rem; font-weight: 600; color: hsl(var(--foreground)); }
-.header-right { display: flex; align-items: center; gap: var(--spacing-sm); }
+.header-right { display: flex; align-items: center; gap: var(--spacing-sm); height: 100%; /* Ensure right group takes height */ }
+
+/* --- Custom Window Controls --- */
+.window-controls { display: flex; gap: 0; margin-left: auto; -webkit-app-region: no-drag; height: 100%; /* Ensure container takes height */}
+.window-control-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 46px; /* Slightly wider for easier clicking */
+    height: 100%; /* *** CHANGED: Fill header height *** */
+    border: none; background-color: transparent; color: hsl(var(--muted-foreground));
+    padding: 0; margin: 0; cursor: pointer; transition: background-color 0.1s, color 0.1s;
+    outline: none;
+}
+.window-control-btn svg { width: 10px; height: 10px; }
+.window-control-btn:hover { background-color: hsl(var(--muted) / 0.5); color: hsl(var(--foreground)); }
+.window-control-btn:active { background-color: hsl(var(--muted)); }
+.close-btn:hover { background-color: hsl(var(--destructive)); color: hsl(var(--destructive-foreground)); }
+.close-btn:active { background-color: hsl(var(--destructive) / 0.9); }
+body.maximized .maximize-restore-btn .icon-maximize { display: none; }
+body.maximized .maximize-restore-btn .icon-restore { display: inline; }
+body:not(.maximized) .maximize-restore-btn .icon-maximize { display: inline; }
+body:not(.maximized) .maximize-restore-btn .icon-restore { display: none; }
 
 /* --- Main Content Area & Columns --- */
 .app-main { display: flex; flex-grow: 1; overflow: hidden; }
@@ -89,26 +136,10 @@ body {
 .button-group { display: flex; gap: var(--spacing-sm); flex-shrink: 0; }
 
 /* Shortcut Display/Button */
-.shortcut-display-group { align-items: center; } /* Vertically align items */
-.shortcut-display {
-    grid-column: 2 / 3; /* Position display */
-    font-family: monospace; /* Monospace for better key display */
-    background-color: hsl(var(--input));
-    padding: var(--spacing-xs) var(--spacing-sm);
-    border-radius: calc(var(--radius) / 2);
-    border: 1px solid hsl(var(--border));
-    color: hsl(var(--accent-foreground));
-    font-size: 0.85rem;
-    min-height: 28px; /* Align roughly with button */
-    display: inline-block; /* Allow padding */
-    line-height: 1.4;
-}
-#change-shortcut-btn {
-    grid-column: 3 / 4; /* Position button */
-    justify-self: end;
-    padding: var(--spacing-xs) var(--spacing-sm); /* Smaller button */
-    height: 28px;
-}
+.shortcut-display-group { align-items: center; transition: opacity var(--transition-speed), visibility 0s linear var(--transition-speed); }
+.shortcut-display-group.hidden { display: none; }
+.shortcut-display { grid-column: 2 / 3; font-family: monospace; background-color: hsl(var(--input)); padding: var(--spacing-xs) var(--spacing-sm); border-radius: calc(var(--radius) / 2); border: 1px solid hsl(var(--border)); color: hsl(var(--accent-foreground)); font-size: 0.85rem; min-height: 28px; display: inline-flex; align-items: center; line-height: 1.4; }
+#change-shortcut-btn { grid-column: 3 / 4; justify-self: end; padding: var(--spacing-xs) var(--spacing-sm); height: 28px; }
 
 /* Font Controls */
 #google-font-controls { display: contents; }
@@ -137,10 +168,8 @@ body {
 .button-ghost:hover:not(:disabled) { background-color: hsl(var(--accent)); color: hsl(var(--accent-foreground)); }
 .button-icon { padding: var(--spacing-sm); width: 32px; }
 .button-icon svg { margin: 0; }
-#apply-wallpaper-btn { font-size: 0.9rem; }
-#apply-wallpaper-btn span { margin-left: var(--spacing-sm); }
-#toggle-settings-btn { padding: calc(var(--spacing-sm) + 1px); }
-#toggle-settings-btn svg { width: 16px; height: 16px; }
+#apply-wallpaper-btn { font-size: 0.9rem; } #apply-wallpaper-btn span { margin-left: var(--spacing-sm); }
+#toggle-settings-btn { padding: calc(var(--spacing-sm) + 1px); } #toggle-settings-btn svg { width: 16px; height: 16px; }
 
 /* Todo List */
 .todo-list-container { padding: 0 var(--spacing-xs); margin-top: var(--spacing-xs); }
@@ -173,49 +202,12 @@ body {
 .modal-actions { display: flex; justify-content: flex-end; gap: var(--spacing-md); margin-top: var(--spacing-lg); }
 
 /* Record Shortcut Modal Specific Styles */
-.record-shortcut-content { max-width: 500px; } /* Slightly wider */
-.record-instructions {
-    color: hsl(var(--muted-foreground));
-    font-size: 0.9rem;
-    margin-bottom: var(--spacing-lg);
-    text-align: center;
-}
-.shortcut-display-area {
-    background-color: hsl(var(--input));
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    padding: var(--spacing-lg);
-    min-height: 60px; /* Ensure minimum height */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap; /* Wrap keys if combination is long */
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-lg);
-    text-align: center;
-    font-size: 1.1rem; /* Larger font for display */
-    font-family: monospace;
-}
-.shortcut-display-area span:first-child { /* Style placeholder text */
-    color: hsl(var(--muted-foreground));
-    font-style: italic;
-}
-span.key-display {
-    display: inline-block;
-    background-color: hsl(var(--background));
-    border: 1px solid hsl(var(--muted-foreground));
-    padding: var(--spacing-xs) var(--spacing-md);
-    border-radius: calc(var(--radius) / 1.5);
-    margin: var(--spacing-xs);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-    font-weight: 500;
-    color: hsl(var(--foreground));
-}
-span.key-display.modifier {
-    background-color: hsl(var(--primary) / 0.8);
-    color: hsl(var(--primary-foreground));
-    border-color: hsl(var(--primary));
-}
+.record-shortcut-content { max-width: 500px; }
+.record-instructions { color: hsl(var(--muted-foreground)); font-size: 0.9rem; margin-bottom: var(--spacing-lg); text-align: center; }
+.shortcut-display-area { background-color: hsl(var(--input)); border: 1px solid hsl(var(--border)); border-radius: var(--radius); padding: var(--spacing-lg); min-height: 60px; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg); text-align: center; font-size: 1.1rem; font-family: monospace; }
+.shortcut-display-area span:first-child:not(.key-display) { color: hsl(var(--muted-foreground)); font-style: italic; }
+span.key-display { display: inline-block; background-color: hsl(var(--background)); border: 1px solid hsl(var(--muted-foreground)); padding: var(--spacing-xs) var(--spacing-md); border-radius: calc(var(--radius) / 1.5); margin: var(--spacing-xs); box-shadow: 0 1px 2px rgba(0,0,0,0.2); font-weight: 500; color: hsl(var(--foreground)); }
+span.key-display.modifier { background-color: hsl(var(--primary) / 0.8); color: hsl(var(--primary-foreground)); border-color: hsl(var(--primary)); }
 
 /* Utility Classes */
 .hidden { display: none !important; }
