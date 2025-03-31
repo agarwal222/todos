@@ -27,52 +27,29 @@ body {
     font-family: var(--font-sans); background-color: hsl(var(--background)); color: hsl(var(--foreground));
     line-height: 1.5; font-size: 14px; overflow: hidden;
     -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
-    /* *** NEW: Prevent Text Selection Globally *** */
-    user-select: none;
-    -webkit-user-select: none; /* Safari/Chrome */
-    -moz-user-select: none;    /* Firefox */
-    -ms-user-select: none;     /* IE/Edge */
+    user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;
 }
 body[data-platform="darwin"] .window-controls { order: -1; padding-left: var(--spacing-md); padding-right: 0; }
 body[data-platform="darwin"] .header-left { margin-left: 65px; }
 
-/* *** NEW: Allow Text Selection in Inputs/Textareas *** */
-input[type="text"],
-input[type="url"],
-input[type="number"],
-textarea {
-    user-select: auto;
-    -webkit-user-select: auto;
-    -moz-user-select: auto;
-    -ms-user-select: auto;
+input[type="text"], input[type="url"], input[type="number"], textarea {
+    user-select: auto; -webkit-user-select: auto; -moz-user-select: auto; -ms-user-select: auto;
 }
-/* Also allow selection in specific display areas if needed */
-.filename-display, .shortcut-display, .font-status-display {
-     user-select: text; /* More appropriate than auto for display spans */
-    -webkit-user-select: text;
-    -moz-user-select: text;
-    -ms-user-select: text;
+.filename-display, .shortcut-display, .font-status-display, .todo-text {
+     user-select: text; -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text;
 }
-
 
 /* --- App Shell & Header --- */
 .app-shell { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
 .app-header { display: flex; align-items: center; justify-content: space-between; padding: 0 var(--spacing-lg); border-bottom: 1px solid hsl(var(--border)); background-color: hsl(var(--background)); flex-shrink: 0; height: 52px; -webkit-app-region: drag; }
-.header-left, .header-right, .header-right > button, .app-title { -webkit-app-region: no-drag; }
+.header-left, .header-right, .header-right > button, .app-title, .window-controls button { -webkit-app-region: no-drag; }
 .header-left { display: flex; align-items: center; gap: var(--spacing-md); }
 .app-title { font-size: 1.1rem; font-weight: 600; color: hsl(var(--foreground)); }
-.header-right { display: flex; align-items: center; gap: var(--spacing-sm); height: 100%; /* Ensure right group takes height */ }
+.header-right { display: flex; align-items: center; gap: var(--spacing-sm); height: 100%; }
 
 /* --- Custom Window Controls --- */
-.window-controls { display: flex; gap: 0; margin-left: auto; -webkit-app-region: no-drag; height: 100%; /* Ensure container takes height */}
-.window-control-btn {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 46px; /* Slightly wider for easier clicking */
-    height: 100%; /* *** CHANGED: Fill header height *** */
-    border: none; background-color: transparent; color: hsl(var(--muted-foreground));
-    padding: 0; margin: 0; cursor: pointer; transition: background-color 0.1s, color 0.1s;
-    outline: none;
-}
+.window-controls { display: flex; gap: 0; margin-left: auto; height: 100%; }
+.window-control-btn { display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 100%; border: none; background-color: transparent; color: hsl(var(--muted-foreground)); padding: 0; margin: 0; cursor: pointer; transition: background-color 0.1s, color 0.1s; outline: none; }
 .window-control-btn svg { width: 10px; height: 10px; }
 .window-control-btn:hover { background-color: hsl(var(--muted) / 0.5); color: hsl(var(--foreground)); }
 .window-control-btn:active { background-color: hsl(var(--muted)); }
@@ -107,11 +84,23 @@ body:not(.maximized) .maximize-restore-btn .icon-restore { display: none; }
 .setting-section:last-child { margin-bottom: 0; }
 .setting-section-toggle { display: flex; justify-content: space-between; align-items: center; width: 100%; background: none; border: none; padding: var(--spacing-sm) 0; cursor: pointer; color: hsl(var(--foreground)); border-bottom: 1px solid hsl(var(--border)); margin-bottom: var(--spacing-md); transition: background-color var(--transition-speed); }
 .setting-section-toggle:hover { background-color: hsl(var(--muted) / 0.3); }
-.setting-section-toggle h3 { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: hsl(var(--muted-foreground)); margin: 0; padding: 0; border: none; }
-.setting-section-toggle .toggle-icon { transition: transform var(--transition-speed) var(--transition-curve); color: hsl(var(--muted-foreground)); width: 16px; height: 16px; }
+.setting-section-toggle h3 { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: hsl(var(--muted-foreground)); margin: 0; padding: 0; border: none; pointer-events: none; /* Prevent h3 from stealing click */}
+.setting-section-toggle .toggle-icon { transition: transform var(--transition-speed) var(--transition-curve); color: hsl(var(--muted-foreground)); width: 16px; height: 16px; pointer-events: none; /* Prevent icon stealing click */}
 .setting-section.collapsed .setting-section-toggle .toggle-icon { transform: rotate(-90deg); }
 .setting-section-content { padding-left: var(--spacing-sm); overflow: hidden; max-height: 1000px; opacity: 1; visibility: visible; transition: max-height 0.3s ease-in-out, opacity 0.2s ease-in-out, visibility 0s linear 0s, padding 0.3s ease-in-out, margin 0.3s ease-in-out; }
 .setting-section.collapsed .setting-section-content { max-height: 0; opacity: 0; visibility: hidden; padding-top: 0; padding-bottom: 0; margin-top: 0; margin-bottom: 0; transition: max-height 0.3s ease-in-out, opacity 0.2s ease-in-out 0.1s, visibility 0s linear 0.3s, padding 0.3s ease-in-out, margin 0.3s ease-in-out; }
+
+/* *** Sub-groups within Settings *** */
+.sub-setting-group {
+    padding-top: var(--spacing-md);
+    margin-top: var(--spacing-md);
+    border-top: 1px dashed hsl(var(--border) / 0.5);
+}
+.setting-section-content > .sub-setting-group:first-child {
+    margin-top: 0; /* Remove top margin/padding/border for the first group */
+    padding-top: 0;
+    border-top: none;
+}
 
 /* Input Groups */
 .input-group { display: grid; grid-template-columns: 85px 1fr auto; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-md); }

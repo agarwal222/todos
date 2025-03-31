@@ -28,8 +28,10 @@ const settingsInputs = {
   textAlign: document.getElementById("text-align-select"),
   offsetX: document.getElementById("offset-x"),
   offsetY: document.getElementById("offset-y"),
-  titleSpacing: document.getElementById("title-spacing-input"), // New
-  itemSpacing: document.getElementById("item-spacing-input"), // New
+  titleSpacing: document.getElementById("title-spacing-input"),
+  itemSpacing: document.getElementById("item-spacing-input"),
+  maxItems: document.getElementById("max-items-input"),
+  columnGap: document.getElementById("column-gap-input"),
   fontSourceDefault: document.getElementById("font-source-default"),
   fontSourceGoogle: document.getElementById("font-source-google"),
   googleFontControls: document.getElementById("google-font-controls"),
@@ -89,8 +91,10 @@ let state = {
   textAlign: "left",
   offsetX: 0,
   offsetY: 0,
-  titleBottomMargin: 40, // New: Space below title (px)
-  itemSpacing: 20, // New: Space between items (px)
+  titleBottomMargin: 40,
+  itemSpacing: 20,
+  maxItemsPerColumn: 10,
+  columnGap: 50,
   lastGeneratedImageDataUrl: null,
   settingsCollapsed: false,
   runInTray: false,
@@ -114,27 +118,26 @@ function initialize() {
     console.warn("Could not get screen dimensions sync, using defaults.")
   }
   setCanvasAndPreviewSize(state.screenWidth, state.screenHeight)
-  loadState() // Load state first
-  applyStateToUI() // Apply loaded state to UI
+  loadState()
+  applyStateToUI()
   window.electronAPI.updateSettings({
     runInTray: state.runInTray,
     quickAddShortcut: state.quickAddShortcut,
-  }) // Send initial settings
-  let fontLoadPromise = Promise.resolve() // Load custom font if needed
+  })
+  let fontLoadPromise = Promise.resolve()
   if (state.fontSource === "google" && state.googleFontUrl) {
     fontLoadPromise = loadAndApplyCustomFont(state.googleFontUrl, false)
   } else {
     updateFontStatus("idle", DEFAULT_FONT)
   }
-  renderTodoList() // Render initial list
+  renderTodoList()
   fontLoadPromise
-    .catch((err) => console.warn("Initial font load failed:", err)) // Handle font load error
+    .catch((err) => console.warn("Initial font load failed:", err))
     .finally(() => {
       generateTodoImageAndUpdatePreview()
-    }) // Generate preview after font settles
-  setupEventListeners() // Setup listeners
-  initializeCollapsibleSections() // Setup collapsible sections
-  // Listen for IPC messages
+    })
+  setupEventListeners()
+  initializeCollapsibleSections()
   window.electronAPI.onAddTaskAndApply(handleQuickAddTaskAndApply)
   window.electronAPI.onShortcutError(handleShortcutError)
   window.electronAPI.onGetTodosRequest(() => {
@@ -142,8 +145,8 @@ function initialize() {
       window.electronAPI.sendTodosResponse(state.todos)
   })
   window.electronAPI.onWindowStateChange(handleWindowStateChange)
-  const platform = window.electronAPI.getPlatform() // Get platform
-  document.body.dataset.platform = platform // Set data attribute
+  const platform = window.electronAPI.getPlatform()
+  document.body.dataset.platform = platform
   console.log("Renderer initialized on platform:", platform)
 }
 
@@ -168,8 +171,10 @@ function applyStateToUI() {
   settingsInputs.textAlign.value = state.textAlign
   settingsInputs.offsetX.value = state.offsetX
   settingsInputs.offsetY.value = state.offsetY
-  settingsInputs.titleSpacing.value = state.titleBottomMargin // Apply new state
-  settingsInputs.itemSpacing.value = state.itemSpacing // Apply new state
+  settingsInputs.titleSpacing.value = state.titleBottomMargin
+  settingsInputs.itemSpacing.value = state.itemSpacing
+  settingsInputs.maxItems.value = state.maxItemsPerColumn
+  settingsInputs.columnGap.value = state.columnGap
   settingsInputs.bgColor.value = state.bgColor
   settingsInputs.googleFontUrl.value = state.googleFontUrl || ""
   settingsInputs.fontSourceDefault.checked = state.fontSource === "default"
@@ -184,6 +189,7 @@ function applyStateToUI() {
     settingsInputs.currentShortcutDisplay.textContent = formatAccelerator(
       state.quickAddShortcut || DEFAULT_SHORTCUT
     )
+  else console.warn("#current-shortcut-display not found")
   updateFontControlsVisibility()
   updateFontStatus(
     state.customFontStatus,
@@ -198,20 +204,26 @@ function applyStateToUI() {
 
 // --- Setup Event Listeners ---
 function setupEventListeners() {
+  console.log("Setting up event listeners...")
   applyWallpaperBtn.addEventListener("click", handleApplyWallpaper)
   toggleSettingsBtn.addEventListener("click", handleToggleSettings)
+
+  // Window Control Listeners
   if (minimizeBtn)
     minimizeBtn.addEventListener("click", () =>
       window.electronAPI.minimizeWindow()
     )
+  else console.error("#minimize-btn not found")
   if (maximizeRestoreBtn)
     maximizeRestoreBtn.addEventListener("click", () =>
       window.electronAPI.maximizeRestoreWindow()
     )
+  else console.error("#maximize-restore-btn not found")
   if (closeBtn)
     closeBtn.addEventListener("click", () => window.electronAPI.closeWindow())
+  else console.error("#close-btn not found")
 
-  // Settings Inputs Change
+  // Settings Inputs Change - Direct listeners
   Object.keys(settingsInputs).forEach((key) => {
     const input = settingsInputs[key]
     if (
@@ -239,11 +251,15 @@ function setupEventListeners() {
     }
   })
 
+  // Listener for "Change" Shortcut Button
   if (settingsInputs.changeShortcutBtn)
     settingsInputs.changeShortcutBtn.addEventListener(
       "click",
       openRecordShortcutModal
     )
+  else console.error("#change-shortcut-btn not found")
+
+  // Specific Button Listeners in Settings
   settingsInputs.loadFontBtn.addEventListener("click", handleLoadFontClick)
   settingsInputs.chooseImageBtn.addEventListener("click", () =>
     settingsInputs.imageFileInput.click()
@@ -253,22 +269,30 @@ function setupEventListeners() {
     "change",
     handleImageFileSelect
   )
+
+  // Todo List Interaction
   const todoColumn = document.querySelector(".column-todos")
   if (todoColumn) todoColumn.addEventListener("click", handleListClick)
+  else console.error(".column-todos not found")
+
   openAddTodoModalBtn.addEventListener("click", openModal)
+  // Add Todo Modal Interactions
   modalCloseBtn.addEventListener("click", closeModal)
   modalCancelBtn.addEventListener("click", closeModal)
   addTodoForm.addEventListener("submit", handleModalSubmit)
   addTodoModal.addEventListener("click", (e) => {
     if (e.target === addTodoModal) closeModal()
   })
+  // Record Shortcut Modal Interactions
   recordModalCloseBtn.addEventListener("click", closeRecordShortcutModal)
   recordCancelBtn.addEventListener("click", closeRecordShortcutModal)
   recordSaveBtn.addEventListener("click", handleSaveShortcut)
   recordShortcutModal.addEventListener("click", (e) => {
     if (e.target === recordShortcutModal) closeRecordShortcutModal()
   })
+  // Keyboard Shortcuts (Global Level)
   document.addEventListener("keydown", handleGlobalKeyDown)
+  // Collapsible setting toggles
   settingsColumn.addEventListener("click", (e) => {
     const t = e.target.closest(".setting-section-toggle")
     if (t) handleSettingToggleClick(t)
@@ -314,8 +338,10 @@ function saveState() {
       textAlign: state.textAlign,
       offsetX: state.offsetX,
       offsetY: state.offsetY,
-      titleBottomMargin: state.titleBottomMargin, // Save new state
-      itemSpacing: state.itemSpacing, // Save new state
+      titleBottomMargin: state.titleBottomMargin,
+      itemSpacing: state.itemSpacing,
+      maxItemsPerColumn: state.maxItemsPerColumn,
+      columnGap: state.columnGap, // Save new state
       settingsCollapsed: state.settingsCollapsed,
       runInTray: state.runInTray,
       quickAddShortcut: state.quickAddShortcut,
@@ -334,25 +360,24 @@ function loadState() {
         screenWidth: state.screenWidth,
         screenHeight: state.screenHeight,
       }
-      // Define defaults for new state properties if loading old save file
+      // Define defaults for potentially new state properties
       const defaults = {
         titleBottomMargin: 40,
         itemSpacing: 20,
+        maxItemsPerColumn: 10,
+        columnGap: 50,
         activeFontFamily: DEFAULT_FONT,
         quickAddShortcut: DEFAULT_SHORTCUT,
         runInTray: false,
         settingsCollapsed: false,
         fontSource: "default",
-        // Add other defaults if necessary
       }
-
       state = {
-        ...state, // Keep current state (includes screen dims)
-        ...defaults, // Apply defaults for potentially missing keys
-        ...parsedState, // Override with saved values
-        ...currentScreenDims, // Re-apply current screen dims
+        ...state,
+        ...defaults,
+        ...parsedState,
+        ...currentScreenDims,
         todos: Array.isArray(parsedState.todos) ? parsedState.todos : [],
-        // Ensure boolean and number types are correct after loading
         settingsCollapsed:
           typeof parsedState.settingsCollapsed === "boolean"
             ? parsedState.settingsCollapsed
@@ -375,25 +400,36 @@ function loadState() {
           typeof parsedState.itemSpacing === "number"
             ? parsedState.itemSpacing
             : defaults.itemSpacing,
+        maxItemsPerColumn:
+          typeof parsedState.maxItemsPerColumn === "number" &&
+          parsedState.maxItemsPerColumn >= 1
+            ? parsedState.maxItemsPerColumn
+            : defaults.maxItemsPerColumn,
+        columnGap:
+          typeof parsedState.columnGap === "number"
+            ? parsedState.columnGap
+            : defaults.columnGap,
         activeFontFamily:
           parsedState.activeFontFamily || defaults.activeFontFamily,
         quickAddShortcut:
           parsedState.quickAddShortcut || defaults.quickAddShortcut,
         customFontStatus: "idle",
-        customFontError: null, // Reset status
+        customFontError: null,
       }
     } else {
-      // Apply defaults if no saved state exists
       state.quickAddShortcut = DEFAULT_SHORTCUT
       state.titleBottomMargin = 40
       state.itemSpacing = 20
-      console.log("No saved state found, using defaults.")
+      state.maxItemsPerColumn = 10
+      state.columnGap = 50
     }
   } catch (e) {
     console.error("Load State Error:", e)
     state.quickAddShortcut = DEFAULT_SHORTCUT
     state.titleBottomMargin = 40
     state.itemSpacing = 20
+    state.maxItemsPerColumn = 10
+    state.columnGap = 50
   }
 }
 
@@ -458,7 +494,6 @@ function createTodoElement(todo) {
 }
 
 // --- Image Generation ---
-// generateTodoImageAndUpdatePreview - Calls calculateTextStartPosition & drawTextElements
 async function generateTodoImageAndUpdatePreview() {
   const {
     title,
@@ -474,7 +509,9 @@ async function generateTodoImageAndUpdatePreview() {
     offsetX,
     offsetY,
     titleBottomMargin,
-    itemSpacing, // Use new state
+    itemSpacing,
+    maxItemsPerColumn,
+    columnGap,
     todos,
     screenWidth,
     screenHeight,
@@ -490,11 +527,11 @@ async function generateTodoImageAndUpdatePreview() {
     .filter((t) => !t.done)
     .map((t) => ({ text: t.text, done: false }))
   const padding = Math.max(60, itemFontSize * 1.5)
-  // Use state values for spacing calculations
   const titleSpacing = parseInt(titleBottomMargin, 10) || 40
   const spacingBetweenItems = parseInt(itemSpacing, 10) || 20
+  const maxItems = Math.max(1, parseInt(maxItemsPerColumn, 10) || 10)
+  const colGap = Math.max(0, parseInt(columnGap, 10) || 50)
   const titleFontSize = Math.round(itemFontSize * 1.2)
-
   return Promise.resolve()
     .then(() => {
       ctx.clearRect(0, 0, screenWidth, screenHeight)
@@ -512,32 +549,35 @@ async function generateTodoImageAndUpdatePreview() {
       }
     })
     .then(() => {
-      const { startX, startY } = calculateTextStartPosition(
+      const { startX, startY } = calculateTextStartPositionMultiCol(
         screenWidth,
         screenHeight,
         padding,
         titleFontSize,
         itemFontSize,
-        titleSpacing, // Pass title spacing instead of lineSpacing here
-        spacingBetweenItems, // Pass item spacing instead of lineSpacing here
+        titleSpacing,
+        spacingBetweenItems,
+        maxItems,
         linesToDraw.length,
         textPosition,
         offsetX,
         offsetY
       )
-      drawTextElements(ctx, {
+      drawTextElementsMultiCol(ctx, {
         title,
         textColor,
         textAlign,
         fontName: activeFontFamily,
         titleFontSize,
         itemFontSize,
-        titleSpacing, // Pass new spacing value
-        itemSpacing: spacingBetweenItems, // Pass new spacing value
+        titleSpacing,
+        itemSpacing: spacingBetweenItems,
         lines: linesToDraw,
         startX,
         startY,
         listStyle,
+        maxItemsPerColumn: maxItems,
+        columnGap: colGap,
       })
       updatePreviewImage()
     })
@@ -576,8 +616,7 @@ function drawBackgroundImage(ctx, img, cw, ch) {
   }
   ctx.drawImage(img, dx, dy, dw, dh)
 }
-// calculateTextStartPosition - *Updated* to accept separate title/item spacing
-function calculateTextStartPosition(
+function calculateTextStartPositionMultiCol(
   cw,
   ch,
   p,
@@ -585,15 +624,19 @@ function calculateTextStartPosition(
   ifz,
   titleSpacing,
   itemSpacing,
-  lc,
+  maxItems,
+  lineCount,
   pos,
   ox,
   oy
 ) {
   let sx, sy
-  let totalTextHeight = tfz + titleSpacing // Title + space after
-  totalTextHeight += lc > 0 ? lc * ifz + (lc - 1) * itemSpacing : 0 // Height of items + spacing between them
-
+  let itemsInFirstCol = Math.min(lineCount, maxItems)
+  let requiredHeight = tfz + titleSpacing
+  if (itemsInFirstCol > 0) {
+    requiredHeight +=
+      itemsInFirstCol * ifz + (itemsInFirstCol - 1) * itemSpacing
+  }
   switch (pos) {
     case "top-left":
       sx = p
@@ -605,36 +648,34 @@ function calculateTextStartPosition(
       break
     case "center-left":
       sx = p
-      sy = Math.max(p, ch / 2 - totalTextHeight / 2)
+      sy = Math.max(p, ch / 2 - requiredHeight / 2)
       break
     case "center":
       sx = cw / 2
-      sy = Math.max(p, ch / 2 - totalTextHeight / 2)
+      sy = Math.max(p, ch / 2 - requiredHeight / 2)
       break
     case "bottom-left":
       sx = p
-      sy = ch - p - totalTextHeight
+      sy = ch - p - requiredHeight
       break
     case "bottom-center":
       sx = cw / 2
-      sy = ch - p - totalTextHeight
+      sy = ch - p - requiredHeight
       break
     case "bottom-right":
       sx = cw - p
-      sy = ch - p - totalTextHeight
+      sy = ch - p - requiredHeight
       break
     default:
       sx = p
       sy = p
   }
-  sy = Math.max(p, sy) // Clamp top
-  if (sy + totalTextHeight > ch - p) sy = ch - p - totalTextHeight // Clamp bottom
-  sy = Math.max(p, sy) // Re-clamp top after bottom clamp
-
-  return { startX: sx + ox, startY: sy + oy }
+  sy = Math.max(p, sy)
+  if (sy + requiredHeight > ch - p) sy = ch - p - requiredHeight
+  sy = Math.max(p, sy)
+  return { startX: sx + ox, startY: sy + oy, requiredHeight }
 }
-// drawTextElements helper - *Updated* to use titleSpacing and itemSpacing
-function drawTextElements(ctx, p) {
+function drawTextElementsMultiCol(ctx, p) {
   const {
     title,
     textColor,
@@ -648,6 +689,8 @@ function drawTextElements(ctx, p) {
     startX,
     startY,
     listStyle,
+    maxItemsPerColumn,
+    columnGap,
   } = p
   ctx.textAlign = textAlign
   ctx.textBaseline = "top"
@@ -655,24 +698,35 @@ function drawTextElements(ctx, p) {
   ctx.shadowBlur = 6
   ctx.shadowOffsetX = 1
   ctx.shadowOffsetY = 2
-  let currentY = startY
+  let currentX = startX,
+    currentY = startY,
+    columnWidth = 0
   ctx.fillStyle = textColor
-  const tfs = `600 ${titleFontSize}px "${fontName}"`
-  const ftfs = `600 ${titleFontSize}px ${DEFAULT_FONT}`
+  const tfs = `600 ${titleFontSize}px "${fontName}"`,
+    ftfs = `600 ${titleFontSize}px ${DEFAULT_FONT}`
   ctx.font = tfs
+  let titleWidth = 0
   try {
+    titleWidth = ctx.measureText(title).width
     ctx.fillText(title, startX, currentY)
   } catch (e) {
-    console.error(`Title Font Error (${fontName}):`, e)
     ctx.font = ftfs
+    titleWidth = ctx.measureText(title).width
     ctx.fillText(title, startX, currentY)
   }
-  currentY += titleFontSize + titleSpacing // Use titleSpacing
-  const ifs = `400 ${itemFontSize}px "${fontName}"`
-  const fifs = `400 ${itemFontSize}px ${DEFAULT_FONT}`
+  columnWidth = Math.max(columnWidth, titleWidth)
+  currentY += titleFontSize + titleSpacing
+  let initialItemY = currentY
+  const ifs = `400 ${itemFontSize}px "${fontName}"`,
+    fifs = `400 ${itemFontSize}px ${DEFAULT_FONT}`
   ctx.font = ifs
   const dc = "#a1a1aa"
   lines.forEach((item, idx) => {
+    if (idx > 0 && idx % maxItemsPerColumn === 0) {
+      currentX += columnWidth + columnGap
+      currentY = initialItemY
+      columnWidth = 0
+    }
     let prefix
     switch (listStyle) {
       case "dash":
@@ -688,16 +742,19 @@ function drawTextElements(ctx, p) {
     const itxt = `${prefix}${item.text}`
     ctx.fillStyle = textColor
     ctx.globalAlpha = 1.0
+    let itemWidth = 0
     try {
       ctx.font = ifs
-      ctx.fillText(itxt, startX, currentY)
+      itemWidth = ctx.measureText(itxt).width
+      ctx.fillText(itxt, currentX, currentY)
     } catch (e) {
-      console.error(`Item Font Error (${fontName}):`, e)
       ctx.font = fifs
-      ctx.fillText(itxt, startX, currentY)
+      itemWidth = ctx.measureText(itxt).width
+      ctx.fillText(itxt, currentX, currentY)
     }
+    columnWidth = Math.max(columnWidth, itemWidth)
     ctx.globalAlpha = 1.0
-    currentY += itemFontSize + itemSpacing // Use itemSpacing
+    currentY += itemFontSize + itemSpacing
   })
   ctx.shadowColor = "transparent"
   ctx.shadowBlur = 0
@@ -817,11 +874,19 @@ function handleSettingChange(event) {
         case "title-spacing-input":
           state.titleBottomMargin = parseInt(value, 10) || 0
           settingChanged = true
-          break // Handle new input
+          break
         case "item-spacing-input":
           state.itemSpacing = parseInt(value, 10) || 0
           settingChanged = true
-          break // Handle new input
+          break
+        case "max-items-input":
+          state.maxItemsPerColumn = Math.max(1, parseInt(value, 10) || 10)
+          settingChanged = true
+          break
+        case "column-gap-input":
+          state.columnGap = Math.max(0, parseInt(value, 10) || 50)
+          settingChanged = true
+          break
         case "bg-color":
           state.bgColor = value
           settingChanged = true
