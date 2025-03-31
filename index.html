@@ -4,181 +4,330 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:;"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; script-src-elem 'self';"
     />
+    <!-- Adjusted CSP slightly -->
     <title>Todo Wallpaper</title>
-    <!-- Shorter Title -->
     <link rel="stylesheet" href="style.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <!-- Using Inter font -->
   </head>
   <body>
-    <div class="app-container">
-      <!-- Controls Column -->
-      <div class="controls-column">
-        <h1>Todo Wallpaper</h1>
-
-        <!-- Todo Input Area -->
-        <div class="todo-input-area">
-          <input
-            type="text"
-            id="new-todo-input"
-            placeholder="Add a new task (Ctrl+N)"
-          />
+    <div class="app-shell">
+      <!-- App Header -->
+      <header class="app-header">
+        <div class="header-left">
+          <h1 class="app-title">Todo Wallpaper</h1>
+        </div>
+        <div class="header-right">
           <button
-            id="add-todo-btn"
+            id="apply-wallpaper-btn"
             class="button button-primary"
-            title="Add Todo"
+            title="Apply current settings as wallpaper"
           >
-            +
-            <!-- Simple Add Symbol -->
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              width="18"
+              height="18"
+            >
+              <path
+                d="M9.25 13.25a.75.75 0 001.5 0V4.636l2.955 3.129a.75.75 0 001.09-1.03l-4.25-4.5a.75.75 0 00-1.09 0l-4.25 4.5a.75.75 0 101.09 1.03L9.25 4.636v8.614z"
+              />
+              <path
+                d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"
+              />
+            </svg>
+            <span>Apply Wallpaper</span>
+          </button>
+          <button
+            id="toggle-settings-btn"
+            class="button button-secondary button-icon"
+            title="Toggle Settings Panel"
+          >
+            <svg
+              id="settings-icon-open"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              width="20"
+              height="20"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M11.49 3.17a.75.75 0 01.75.75v1.25a.75.75 0 01-1.5 0V4.17h-.24a6.75 6.75 0 00-7.5 7.5v.24a.75.75 0 01-1.5 0V11.67a8.25 8.25 0 015.94-7.93.75.75 0 01.81.33zM8.51 16.83a.75.75 0 01-.75-.75v-1.25a.75.75 0 011.5 0v1.08a6.73 6.73 0 004.49 1.42h.24a.75.75 0 011.5 0h.24a6.75 6.75 0 007.5-7.5v-.24a.75.75 0 011.5 0V8.33a8.25 8.25 0 01-5.94 7.93.75.75 0 01-.81-.33z"
+                clip-rule="evenodd"
+              />
+              <path
+                fill-rule="evenodd"
+                d="M10 3a.75.75 0 01.75.75v.94a8.31 8.31 0 013.81 1.35l.79-.4a.75.75 0 01.97.44l.5 1a.75.75 0 01-.34.93l-.8.4a8.18 8.18 0 010 2.18l.8.4a.75.75 0 01.34.93l-.5 1a.75.75 0 01-.97.44l-.79-.4a8.31 8.31 0 01-3.81 1.35v.94a.75.75 0 01-1.5 0v-.94a8.31 8.31 0 01-3.81-1.35l-.79.4a.75.75 0 01-.97-.44l-.5-1a.75.75 0 01.34-.93l.8-.4a8.18 8.18 0 010-2.18l-.8-.4a.75.75 0 01-.34-.93l.5-1a.75.75 0 01.97-.44l.79.4A8.31 8.31 0 019.25 4.69v-.94A.75.75 0 0110 3zM11.5 10a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            <svg
+              id="settings-icon-close"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              width="20"
+              height="20"
+              class="hidden"
+            >
+              <path
+                d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"
+              />
+            </svg>
           </button>
         </div>
+      </header>
 
-        <!-- Todo List -->
-        <div class="todo-list-container">
-          <ul id="todo-list">
-            <!-- Todo items will be rendered here by JS -->
-          </ul>
-        </div>
+      <!-- Main Content Area (3 Columns) -->
+      <main class="app-main">
+        <!-- Todos Column (Left) -->
+        <aside class="column column-todos">
+          <h2 class="column-title">Tasks</h2>
+          <p class="add-hint">Press Ctrl+N to add a new task</p>
+          <div class="todo-list-container scrollable-content">
+            <ul id="todo-list">
+              <!-- Todo items render here -->
+            </ul>
+          </div>
+        </aside>
 
-        <h2>Wallpaper Settings</h2>
+        <!-- Preview Column (Middle) -->
+        <section class="column column-preview">
+          <h2 class="column-title">Preview</h2>
+          <div class="preview-area-container">
+            <img id="preview-area" alt="Wallpaper Preview" src="" />
+            <!-- Hidden canvas for generation -->
+            <canvas
+              id="image-canvas"
+              width="1920"
+              height="1080"
+              class="hidden"
+            ></canvas>
+          </div>
+        </section>
 
-        <!-- Text Settings Section -->
-        <div class="setting-section">
-          <h3>Text & Layout</h3>
-          <div class="input-group">
-            <label for="wallpaper-title-input">Title:</label>
-            <input
-              type="text"
-              id="wallpaper-title-input"
-              value="My To-Do List"
-            />
-          </div>
-          <div class="input-group">
-            <label for="text-color">Color:</label>
-            <input type="color" id="text-color" value="#FFFFFF" />
-          </div>
-          <div class="input-group">
-            <label for="font-size">Font Size:</label>
-            <input type="number" id="font-size" value="48" min="10" max="200" />
-          </div>
-          <div class="input-group">
-            <label for="text-position">Position:</label>
-            <select id="text-position">
-              <option value="top-left">Top Left</option>
-              <option value="top-center">Top Center</option>
-              <option value="center-left">Center Left</option>
-              <option value="center">Center</option>
-              <option value="bottom-left">Bottom Left</option>
-              <option value="bottom-center">Bottom Center</option>
-              <option value="bottom-right">Bottom Right</option>
-            </select>
-          </div>
-          <div class="input-group">
-            <label for="text-align-select">Align:</label>
-            <select id="text-align-select">
-              <option value="left">Left</option>
-              <option value="center">Center</option>
-              <option value="right">Right</option>
-            </select>
-          </div>
-          <div class="input-group">
-            <label for="offset-x">Offset X:</label>
-            <input type="number" id="offset-x" value="0" step="5" />
-          </div>
-          <div class="input-group">
-            <label for="offset-y">Offset Y:</label>
-            <input type="number" id="offset-y" value="0" step="5" />
-          </div>
-        </div>
-
-        <!-- Background Settings Section -->
-        <div class="setting-section">
-          <h3>Background</h3>
-          <div class="input-group">
-            <label>Type:</label>
-            <div class="radio-group">
-              <label>
+        <!-- Settings Column (Right - Collapsible) -->
+        <aside
+          class="column column-settings"
+          id="settings-column"
+          data-collapsed="false"
+        >
+          <h2 class="column-title">Settings</h2>
+          <div class="scrollable-content">
+            <!-- Text Settings Section -->
+            <div class="setting-section">
+              <h3>Text & Layout</h3>
+              <div class="input-group">
+                <label for="wallpaper-title-input">Title</label>
                 <input
-                  type="radio"
-                  name="bg-type"
-                  value="color"
-                  id="bg-type-color"
-                  checked
+                  type="text"
+                  id="wallpaper-title-input"
+                  class="input"
+                  value="My To-Do List"
                 />
-                Color
-              </label>
-              <label>
+              </div>
+              <div class="input-group">
+                <label for="text-color">Text Color</label>
                 <input
-                  type="radio"
-                  name="bg-type"
-                  value="image"
-                  id="bg-type-image"
+                  type="color"
+                  id="text-color"
+                  class="input-color"
+                  value="#FFFFFF"
                 />
-                Image
-              </label>
+              </div>
+              <div class="input-group">
+                <label for="font-size">Font Size</label>
+                <input
+                  type="number"
+                  id="font-size"
+                  class="input input-number"
+                  value="48"
+                  min="10"
+                  max="200"
+                />
+              </div>
+              <div class="input-group">
+                <label for="text-position">Position</label>
+                <select id="text-position" class="select">
+                  <option value="top-left">Top Left</option>
+                  <option value="top-center">Top Center</option>
+                  <option value="center-left">Center Left</option>
+                  <option value="center">Center</option>
+                  <option value="bottom-left">Bottom Left</option>
+                  <option value="bottom-center">Bottom Center</option>
+                  <option value="bottom-right">Bottom Right</option>
+                </select>
+              </div>
+              <div class="input-group">
+                <label for="text-align-select">Alignment</label>
+                <select id="text-align-select" class="select">
+                  <option value="left">Left</option>
+                  <option value="center">Center</option>
+                  <option value="right">Right</option>
+                </select>
+              </div>
+              <div class="input-group">
+                <label for="offset-x">Offset X</label>
+                <input
+                  type="number"
+                  id="offset-x"
+                  class="input input-number"
+                  value="0"
+                  step="5"
+                />
+              </div>
+              <div class="input-group">
+                <label for="offset-y">Offset Y</label>
+                <input
+                  type="number"
+                  id="offset-y"
+                  class="input input-number"
+                  value="0"
+                  step="5"
+                />
+              </div>
+            </div>
+
+            <!-- Background Settings Section -->
+            <div class="setting-section">
+              <h3>Background</h3>
+              <div class="input-group">
+                <label>Type</label>
+                <div class="radio-group">
+                  <label>
+                    <input
+                      type="radio"
+                      name="bg-type"
+                      value="color"
+                      id="bg-type-color"
+                      checked
+                    />
+                    Color
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="bg-type"
+                      value="image"
+                      id="bg-type-image"
+                    />
+                    Image
+                  </label>
+                </div>
+              </div>
+
+              <!-- Background Color Controls -->
+              <div id="bg-color-controls" class="input-group">
+                <label for="bg-color">Color</label>
+                <input
+                  type="color"
+                  id="bg-color"
+                  class="input-color"
+                  value="#1a1a1d"
+                />
+              </div>
+
+              <!-- Background Image Controls -->
+              <div id="bg-image-controls" class="input-group hidden">
+                <label>Image</label>
+                <span id="image-filename" class="filename-display"
+                  >No file chosen</span
+                >
+                <div class="button-group">
+                  <button id="choose-image-btn" class="button button-secondary">
+                    Choose...
+                  </button>
+                  <button
+                    id="clear-image-btn"
+                    class="button button-danger button-icon"
+                    title="Clear selected image"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                      width="16"
+                      height="16"
+                    >
+                      <path
+                        d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <input
+                  type="file"
+                  id="image-file-input"
+                  accept="image/png, image/jpeg, image/webp"
+                  class="hidden"
+                />
+              </div>
             </div>
           </div>
+          <!-- End Scrollable Content -->
+        </aside>
+      </main>
 
-          <!-- Background Color Controls -->
-          <div id="bg-color-controls" class="input-group settings-group">
-            <!-- Removed extra settings-group -->
-            <label for="bg-color">Color:</label>
-            <input type="color" id="bg-color" value="#333333" />
-          </div>
-
-          <!-- Background Image Controls -->
-          <div id="bg-image-controls" class="input-group settings-group hidden">
-            <!-- Add hidden class -->
-            <label>Image:</label>
-            <span id="image-filename" class="filename-display"
-              >No file chosen</span
+      <!-- Add Todo Modal -->
+      <div id="add-todo-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+          <button
+            id="modal-close-btn"
+            class="modal-close-button button button-ghost button-icon"
+            title="Close"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              width="16"
+              height="16"
             >
-            <div class="button-group">
-              <button id="choose-image-btn" class="button button-secondary">
-                Choose...
-              </button>
-              <button
-                id="clear-image-btn"
-                class="button button-danger button-icon"
-                title="Clear selected image"
+              <path
+                d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
+              />
+            </svg>
+          </button>
+          <h2>Add New Task</h2>
+          <form id="add-todo-form">
+            <div class="input-group modal-input-group">
+              <label for="modal-todo-input" class="sr-only"
+                >Task description</label
               >
-                ×
+              <input
+                type="text"
+                id="modal-todo-input"
+                class="input"
+                placeholder="Enter task description..."
+                required
+              />
+            </div>
+            <div class="modal-actions">
+              <button
+                type="button"
+                id="modal-cancel-btn"
+                class="button button-secondary"
+              >
+                Cancel
+              </button>
+              <button type="submit" class="button button-primary">
+                Add Task
               </button>
             </div>
-            <input
-              type="file"
-              id="image-file-input"
-              accept="image/png, image/jpeg, image/webp"
-              style="display: none"
-            />
-          </div>
+          </form>
         </div>
-      </div>
-
-      <!-- Preview Column -->
-      <div class="preview-column">
-        <h2>Preview</h2>
-        <div class="preview-area-container">
-          <img id="preview-area" alt="Wallpaper Preview" src="" />
-          <!-- Canvas is hidden but used for generation -->
-          <canvas
-            id="image-canvas"
-            width="1920"
-            height="1080"
-            class="hidden"
-          ></canvas>
-        </div>
-        <button id="apply-wallpaper-btn" class="button button-success">
-          Apply as Wallpaper
-        </button>
       </div>
     </div>
+    <!-- End App Shell -->
     <script src="./renderer.js"></script>
   </body>
 </html>

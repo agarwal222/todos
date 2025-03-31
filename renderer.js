@@ -1,125 +1,181 @@
 // --- DOM Elements ---
-const newTodoInput = document.getElementById("new-todo-input")
-const addTodoBtn = document.getElementById("add-todo-btn")
-const todoListUl = document.getElementById("todo-list")
 
-// Settings Elements
-const wallpaperTitleInput = document.getElementById("wallpaper-title-input")
-const bgTypeColorRadio = document.getElementById("bg-type-color")
-const bgTypeImageRadio = document.getElementById("bg-type-image")
-const bgColorControls = document.getElementById("bg-color-controls")
-const bgColorInput = document.getElementById("bg-color")
-const bgImageControls = document.getElementById("bg-image-controls")
-const chooseImageBtn = document.getElementById("choose-image-btn")
-const imageFileInput = document.getElementById("image-file-input")
-const imageFilenameSpan = document.getElementById("image-filename")
-const clearImageBtn = document.getElementById("clear-image-btn")
-const textColorInput = document.getElementById("text-color")
-const textPositionSelect = document.getElementById("text-position")
-const fontSizeInput = document.getElementById("font-size")
-const textAlignSelect = document.getElementById("text-align-select")
-const offsetXInput = document.getElementById("offset-x")
-const offsetYInput = document.getElementById("offset-y")
-
-// Preview/Apply Elements
-const previewAreaImg = document.getElementById("preview-area")
+// Header
 const applyWallpaperBtn = document.getElementById("apply-wallpaper-btn")
+const toggleSettingsBtn = document.getElementById("toggle-settings-btn")
+const settingsIconOpen = document.getElementById("settings-icon-open")
+const settingsIconClose = document.getElementById("settings-icon-close")
 
+// Columns
+const todoListUl = document.getElementById("todo-list")
+const settingsColumn = document.getElementById("settings-column")
+const previewAreaImg = document.getElementById("preview-area")
+
+// Settings Inputs (grouped for clarity)
+const settingsInputs = {
+  title: document.getElementById("wallpaper-title-input"),
+  textColor: document.getElementById("text-color"),
+  fontSize: document.getElementById("font-size"),
+  textPosition: document.getElementById("text-position"),
+  textAlign: document.getElementById("text-align-select"),
+  offsetX: document.getElementById("offset-x"),
+  offsetY: document.getElementById("offset-y"),
+  bgTypeColor: document.getElementById("bg-type-color"),
+  bgTypeImage: document.getElementById("bg-type-image"),
+  bgColor: document.getElementById("bg-color"),
+  chooseImageBtn: document.getElementById("choose-image-btn"),
+  clearImageBtn: document.getElementById("clear-image-btn"),
+  imageFileInput: document.getElementById("image-file-input"),
+  imageFilenameSpan: document.getElementById("image-filename"),
+  bgColorControls: document.getElementById("bg-color-controls"),
+  bgImageControls: document.getElementById("bg-image-controls"),
+}
+
+// Modal Elements
+const addTodoModal = document.getElementById("add-todo-modal")
+const modalCloseBtn = document.getElementById("modal-close-btn")
+const modalCancelBtn = document.getElementById("modal-cancel-btn")
+const addTodoForm = document.getElementById("add-todo-form")
+const modalTodoInput = document.getElementById("modal-todo-input")
+
+// Canvas (still needed for generation)
 const canvas = document.getElementById("image-canvas")
 const ctx = canvas.getContext("2d")
 
 // --- Application State ---
 let state = {
   todos: [],
-  title: "My To-Do List",
+  title: "My Tasks", // Updated default
   backgroundType: "color",
-  bgColor: "#1a1a1d", // Updated default bg to match theme
+  bgColor: "#111827", // Dark Blue/Grey start (sync with CSS vars conceptually)
   backgroundImageDataUrl: null,
   backgroundImageName: null,
-  textColor: "#e1e1e6", // Updated default text to match theme
+  textColor: "#f3f4f6", // Light Grey start
   textPosition: "top-left",
   fontSize: 48,
   textAlign: "left",
   offsetX: 0,
   offsetY: 0,
   lastGeneratedImageDataUrl: null,
+  settingsCollapsed: false, // Track settings panel state
 }
 
 // --- Initialization ---
 function initialize() {
   loadState()
 
-  // Set initial values from state
-  wallpaperTitleInput.value = state.title
-  bgColorInput.value = state.bgColor
-  textColorInput.value = state.textColor
-  fontSizeInput.value = state.fontSize
-  textPositionSelect.value = state.textPosition
-  textAlignSelect.value = state.textAlign
-  offsetXInput.value = state.offsetX
-  offsetYInput.value = state.offsetY
-
-  // Set background type UI
-  if (state.backgroundType === "image") {
-    bgTypeImageRadio.checked = true
-    imageFilenameSpan.textContent =
-      state.backgroundImageName || "No file chosen"
-  } else {
-    bgTypeColorRadio.checked = true
-  }
-  updateBackgroundControlsVisibility() // Use helper to set visibility
+  // Apply loaded state to UI elements
+  applyStateToUI()
 
   // Initial Render
   renderTodoList()
-  generateTodoImageAndUpdatePreview()
+  generateTodoImageAndUpdatePreview() // Generate initial image
 
-  // --- Event Listeners ---
-
-  // Todo List
-  addTodoBtn.addEventListener("click", handleAddTodo)
-  newTodoInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") handleAddTodo()
-  })
-  todoListUl.addEventListener("click", handleListClick)
-
-  // Keyboard Shortcut (Ctrl+N)
-  document.addEventListener("keydown", (event) => {
-    if (event.ctrlKey && event.key === "n") {
-      event.preventDefault() // Prevent default browser action (new window)
-      newTodoInput.focus() // Focus the input field
-      console.log("Ctrl+N pressed, focusing input.")
-    }
-  })
-
-  // Settings Changes
-  wallpaperTitleInput.addEventListener("input", handleSettingChange)
-  bgColorInput.addEventListener("input", handleSettingChange)
-  textColorInput.addEventListener("input", handleSettingChange)
-  fontSizeInput.addEventListener("input", handleSettingChange)
-  textPositionSelect.addEventListener("change", handleSettingChange)
-  textAlignSelect.addEventListener("change", handleSettingChange)
-  offsetXInput.addEventListener("input", handleSettingChange)
-  offsetYInput.addEventListener("input", handleSettingChange)
-
-  // Background Type Selection
-  bgTypeColorRadio.addEventListener("change", handleBackgroundTypeChange)
-  bgTypeImageRadio.addEventListener("change", handleBackgroundTypeChange)
-
-  // Background Image Selection
-  chooseImageBtn.addEventListener("click", () => imageFileInput.click())
-  imageFileInput.addEventListener("change", handleImageFileSelect)
-  clearImageBtn.addEventListener("click", handleClearImage)
-
-  // Apply Button
-  applyWallpaperBtn.addEventListener("click", handleApplyWallpaper)
+  // Setup Event Listeners
+  setupEventListeners()
 
   console.log("Renderer initialized.")
 }
 
-// --- State Management (LocalStorage) ---
+// --- Apply State to UI ---
+// Helper to set all UI elements based on the current state
+function applyStateToUI() {
+  settingsInputs.title.value = state.title
+  settingsInputs.textColor.value = state.textColor
+  settingsInputs.fontSize.value = state.fontSize
+  settingsInputs.textPosition.value = state.textPosition
+  settingsInputs.textAlign.value = state.textAlign
+  settingsInputs.offsetX.value = state.offsetX
+  settingsInputs.offsetY.value = state.offsetY
+  settingsInputs.bgColor.value = state.bgColor
+
+  // Background type
+  if (state.backgroundType === "image") {
+    settingsInputs.bgTypeImage.checked = true
+    settingsInputs.imageFilenameSpan.textContent =
+      state.backgroundImageName || "No file chosen"
+  } else {
+    settingsInputs.bgTypeColor.checked = true
+  }
+  updateBackgroundControlsVisibility() // Show/hide relevant controls
+
+  // Settings panel collapse state
+  settingsColumn.dataset.collapsed = state.settingsCollapsed
+  updateToggleIcons(state.settingsCollapsed)
+}
+
+// --- Setup Event Listeners ---
+function setupEventListeners() {
+  // Header Buttons
+  applyWallpaperBtn.addEventListener("click", handleApplyWallpaper)
+  toggleSettingsBtn.addEventListener("click", handleToggleSettings)
+
+  // Settings Inputs Change (using event delegation on a container might be more performant for many inputs, but this is clear)
+  Object.values(settingsInputs).forEach((input) => {
+    if (
+      input &&
+      input.tagName !== "SPAN" &&
+      input.id !== "bg-color-controls" &&
+      input.id !== "bg-image-controls" &&
+      input.type !== "file" &&
+      !input.classList.contains("button")
+    ) {
+      // Avoid adding listeners to containers, spans, file inputs, buttons handled separately
+      const eventType =
+        input.tagName === "SELECT" || input.type === "radio"
+          ? "change"
+          : "input"
+      input.addEventListener(eventType, handleSettingChange)
+    }
+  })
+
+  // Specific Button Listeners in Settings
+  settingsInputs.chooseImageBtn.addEventListener("click", () =>
+    settingsInputs.imageFileInput.click()
+  )
+  settingsInputs.clearImageBtn.addEventListener("click", handleClearImage)
+  settingsInputs.imageFileInput.addEventListener(
+    "change",
+    handleImageFileSelect
+  )
+
+  // Todo List Interaction (Event Delegation)
+  todoListUl.addEventListener("click", handleListClick)
+
+  // Modal Interactions
+  modalCloseBtn.addEventListener("click", closeModal)
+  modalCancelBtn.addEventListener("click", closeModal)
+  addTodoForm.addEventListener("submit", handleModalSubmit)
+  addTodoModal.addEventListener("click", (event) => {
+    // Close on overlay click
+    if (event.target === addTodoModal) {
+      closeModal()
+    }
+  })
+
+  // Keyboard Shortcuts
+  document.addEventListener("keydown", handleKeyDown)
+}
+
+// --- Keyboard Shortcut Handler ---
+function handleKeyDown(event) {
+  // Ctrl+N or Cmd+N for New Todo Modal
+  if ((event.ctrlKey || event.metaKey) && event.key === "n") {
+    event.preventDefault()
+    openModal()
+  }
+  // Escape key to close modal
+  if (event.key === "Escape" && !addTodoModal.classList.contains("hidden")) {
+    closeModal()
+  }
+}
+
+// --- State Management ---
 function saveState() {
   try {
-    localStorage.setItem("todoAppState", JSON.stringify(state))
+    // Explicitly include settingsCollapsed in saved state
+    const stateToSave = { ...state }
+    localStorage.setItem("todoAppState", JSON.stringify(stateToSave))
     console.log("State saved.")
   } catch (e) {
     console.error("Failed to save state:", e)
@@ -136,22 +192,33 @@ function loadState() {
     const savedState = localStorage.getItem("todoAppState")
     if (savedState) {
       const parsedState = JSON.parse(savedState)
-      // Use defaults as base and merge saved state over it
+      // Merge saved state over defaults
       state = { ...state, ...parsedState }
+      // Ensure todos is always an array
       state.todos = Array.isArray(state.todos) ? state.todos : []
-      // Ensure loaded background color/text match the theme if not overridden
-      state.bgColor = parsedState.bgColor || "#1a1a1d"
-      state.textColor = parsedState.textColor || "#e1e1e6"
+      // Ensure settingsCollapsed is boolean
+      state.settingsCollapsed =
+        typeof state.settingsCollapsed === "boolean"
+          ? state.settingsCollapsed
+          : false
+
       console.log("State loaded:", state)
     } else {
       console.log("No saved state found, using defaults.")
+      // Set default colors explicitly if needed (to match CSS)
+      state.bgColor = "#111827"
+      state.textColor = "#f3f4f6"
     }
   } catch (e) {
     console.error("Failed to load or parse state:", e)
+    // Reset to defaults on error?
+    state.bgColor = "#111827"
+    state.textColor = "#f3f4f6"
+    state.settingsCollapsed = false
   }
 }
 
-// --- Todo CRUD Functions ---
+// --- Todo CRUD ---
 function addTodo(text) {
   const trimmedText = text.trim()
   if (trimmedText) {
@@ -170,28 +237,27 @@ function deleteTodo(id) {
 }
 
 function toggleDone(id) {
-  state.todos = state.todos.map((todo) =>
-    todo.id === id ? { ...todo, done: !todo.done } : todo
-  )
+  const todo = state.todos.find((t) => t.id === id)
+  if (todo) {
+    todo.done = !todo.done
+  }
 }
 
-// --- UI Update Functions ---
+// --- UI Rendering ---
 function renderTodoList() {
-  todoListUl.innerHTML = ""
+  todoListUl.innerHTML = "" // Clear previous items
   if (!Array.isArray(state.todos)) {
-    console.error("State.todos is not an array!", state.todos)
-    state.todos = []
-    return
+    state.todos = [] // Recover if state is broken
   }
+
   if (state.todos.length === 0) {
-    todoListUl.innerHTML = `<li class="empty-list-message">No tasks yet!</li>` // Placeholder
-    // Style .empty-list-message in CSS if desired (e.g., text-align: center; color: var(--text-secondary); padding: var(--spacing-lg);)
+    todoListUl.innerHTML = `<li class="empty-list-message">No tasks added yet.</li>`
     return
   }
 
   state.todos.forEach((todo) => {
     const li = document.createElement("li")
-    li.className = "todo-item" // Use the new class
+    li.className = "todo-item"
     li.dataset.id = todo.id
     if (todo.done) {
       li.classList.add("done")
@@ -200,104 +266,159 @@ function renderTodoList() {
     const checkbox = document.createElement("input")
     checkbox.type = "checkbox"
     checkbox.checked = todo.done
-    checkbox.classList.add("toggle-done") // Keep for event delegation logic
+    checkbox.classList.add("toggle-done")
+    checkbox.setAttribute(
+      "aria-label",
+      `Mark task ${todo.done ? "not done" : "done"}`
+    ) // Accessibility
 
     const textSpan = document.createElement("span")
     textSpan.textContent = todo.text
     textSpan.classList.add("todo-text")
 
     const deleteBtn = document.createElement("button")
-    // Use text symbol for delete
-    deleteBtn.textContent = "×"
-    deleteBtn.className = "button button-danger button-icon delete-btn" // Use new button classes
+    deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z" clip-rule="evenodd" /></svg>` // Trash icon
+    deleteBtn.className = "button button-ghost button-icon delete-btn"
     deleteBtn.title = "Delete Task"
+    deleteBtn.setAttribute("aria-label", "Delete task") // Accessibility
 
     li.appendChild(checkbox)
     li.appendChild(textSpan)
     li.appendChild(deleteBtn)
     todoListUl.appendChild(li)
   })
-  console.log("Todo list UI updated.")
 }
 
-// --- Image Generation and Preview ---
+// --- Image Generation ---
 async function generateTodoImageAndUpdatePreview() {
-  console.log("Generating preview with state:", state)
+  console.log("Generating preview image...")
 
-  // Read current settings from state
-  const title = state.title || "To-Do List"
-  const backgroundType = state.backgroundType
-  const bgColor = state.bgColor
-  const bgImageDataUrl = state.backgroundImageDataUrl
-  const textColor = state.textColor
-  const align = state.textAlign
-  const position = state.textPosition
-  const itemFontSize = parseInt(state.fontSize, 10) || 48
-  const offsetX = parseInt(state.offsetX, 10) || 0
-  const offsetY = parseInt(state.offsetY, 10) || 0
-  const lines = state.todos.map((todo) => ({
-    text: todo.text,
-    done: todo.done,
-  }))
+  // Read settings from state
+  const {
+    title,
+    backgroundType,
+    bgColor,
+    backgroundImageDataUrl,
+    textColor,
+    textAlign,
+    textPosition,
+    fontSize,
+    offsetX,
+    offsetY,
+    todos,
+  } = state
+
+  const itemFontSize = parseInt(fontSize, 10) || 48
+  const lines = todos.map((todo) => ({ text: todo.text, done: todo.done }))
 
   // Canvas Settings
   const canvasWidth = canvas.width
   const canvasHeight = canvas.height
-  const fontName = "Roboto" // Already using Roboto from Google Fonts
-  const titleFontSize = Math.round(itemFontSize * 1.25)
-  const padding = 80 // Adjust padding as needed for aesthetics
-  const lineSpacing = Math.round(itemFontSize * 0.5) // Slightly increased line spacing
+  const fontName = "Inter" // Match CSS font
+  const titleFontSize = Math.round(itemFontSize * 1.2) // Slightly smaller title ratio
+  const padding = Math.max(60, itemFontSize * 1.5) // Dynamic padding based on font size
+  const lineSpacing = Math.round(itemFontSize * 0.6) // Increased spacing
 
-  // --- 1. Draw Background (Color or Image) ---
+  // 1. Draw Background
   ctx.clearRect(0, 0, canvasWidth, canvasHeight)
-
-  if (backgroundType === "image" && bgImageDataUrl) {
+  if (backgroundType === "image" && backgroundImageDataUrl) {
     try {
-      const img = new Image()
-      await new Promise((resolve, reject) => {
-        img.onload = () => resolve()
-        img.onerror = (err) =>
-          reject(new Error("Failed to load background image."))
-        img.src = bgImageDataUrl
-      })
-      // Draw image covering the canvas, potentially cropping
-      const imgAspect = img.width / img.height
-      const canvasAspect = canvasWidth / canvasHeight
-      let drawWidth, drawHeight, drawX, drawY
-
-      if (imgAspect > canvasAspect) {
-        // Image wider than canvas
-        drawHeight = canvasHeight
-        drawWidth = drawHeight * imgAspect
-        drawX = (canvasWidth - drawWidth) / 2 // Center horizontally
-        drawY = 0
-      } else {
-        // Image taller than canvas or same aspect
-        drawWidth = canvasWidth
-        drawHeight = drawWidth / imgAspect
-        drawX = 0
-        drawY = (canvasHeight - drawHeight) / 2 // Center vertically
-      }
-      ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight)
-      console.log("Background image drawn (cover).")
+      const img = await loadImage(backgroundImageDataUrl)
+      drawBackgroundImage(ctx, img, canvasWidth, canvasHeight)
     } catch (error) {
-      console.error(error.message)
-      ctx.fillStyle = bgColor // Fallback
-      ctx.fillRect(0, 0, canvasWidth, canvasHeight)
-      console.log("Fell back to background color.")
+      console.error("Failed to load/draw background image:", error)
+      drawBackgroundColor(ctx, bgColor, canvasWidth, canvasHeight)
     }
   } else {
-    ctx.fillStyle = bgColor
-    ctx.fillRect(0, 0, canvasWidth, canvasHeight)
-    console.log("Background color drawn.")
+    drawBackgroundColor(ctx, bgColor, canvasWidth, canvasHeight)
   }
 
-  // --- 2. Calculate Text Position ---
-  // (Calculation logic remains the same)
+  // 2. Calculate Text Position
+  const { startX, startY } = calculateTextStartPosition(
+    canvasWidth,
+    canvasHeight,
+    padding,
+    titleFontSize,
+    itemFontSize,
+    lineSpacing,
+    lines.length,
+    textPosition,
+    offsetX,
+    offsetY
+  )
+
+  // 3. Draw Text
+  drawTextElements(ctx, {
+    title,
+    textColor,
+    textAlign,
+    fontName,
+    titleFontSize,
+    itemFontSize,
+    lineSpacing,
+    lines,
+    startX,
+    startY,
+  })
+
+  // 4. Update Preview
+  updatePreviewImage()
+}
+
+// Helper: Load Image Promise
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = (err) => reject(new Error(`Image load error: ${err}`))
+    img.src = src
+  })
+}
+
+// Helper: Draw Background Color
+function drawBackgroundColor(ctx, color, width, height) {
+  ctx.fillStyle = color
+  ctx.fillRect(0, 0, width, height)
+}
+
+// Helper: Draw Background Image (Cover)
+function drawBackgroundImage(ctx, img, canvasWidth, canvasHeight) {
+  const imgAspect = img.width / img.height
+  const canvasAspect = canvasWidth / canvasHeight
+  let drawWidth, drawHeight, drawX, drawY
+
+  if (imgAspect >= canvasAspect) {
+    // Image wider or same aspect as canvas
+    drawHeight = canvasHeight
+    drawWidth = drawHeight * imgAspect
+    drawX = (canvasWidth - drawWidth) / 2
+    drawY = 0
+  } else {
+    // Image taller than canvas
+    drawWidth = canvasWidth
+    drawHeight = drawWidth / imgAspect
+    drawX = 0
+    drawY = (canvasHeight - drawHeight) / 2
+  }
+  ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight)
+}
+
+// Helper: Calculate Text Start Position
+function calculateTextStartPosition(
+  canvasWidth,
+  canvasHeight,
+  padding,
+  titleFontSize,
+  itemFontSize,
+  lineSpacing,
+  lineCount,
+  position,
+  offsetX,
+  offsetY
+) {
   let startX, startY
-  let textBaseline = "top"
-  let totalTextHeight = titleFontSize + lineSpacing * 2
-  totalTextHeight += lines.length * (itemFontSize + lineSpacing)
+  let totalTextHeight = titleFontSize + lineSpacing * 1.5 // Title + space after
+  totalTextHeight += lineCount * (itemFontSize + lineSpacing) // Items + spacing
 
   switch (position) {
     case "top-left":
@@ -310,11 +431,11 @@ async function generateTodoImageAndUpdatePreview() {
       break
     case "center-left":
       startX = padding
-      startY = canvasHeight / 2 - totalTextHeight / 2
+      startY = Math.max(padding, canvasHeight / 2 - totalTextHeight / 2)
       break
     case "center":
       startX = canvasWidth / 2
-      startY = canvasHeight / 2 - totalTextHeight / 2
+      startY = Math.max(padding, canvasHeight / 2 - totalTextHeight / 2)
       break
     case "bottom-left":
       startX = padding
@@ -332,149 +453,252 @@ async function generateTodoImageAndUpdatePreview() {
       startX = padding
       startY = padding
   }
-  startX += offsetX
-  startY += offsetY
+  // Ensure text doesn't start below bottom padding if height is large
+  startY = Math.max(padding, startY)
 
-  ctx.textAlign = align
-  ctx.textBaseline = textBaseline
+  return { startX: startX + offsetX, startY: startY + offsetY }
+}
 
-  // Apply subtle shadow to text for better readability on varied backgrounds
-  ctx.shadowColor = "rgba(0, 0, 0, 0.5)"
-  ctx.shadowBlur = 5
-  ctx.shadowOffsetX = 2
+// Helper: Draw Text Elements
+function drawTextElements(ctx, params) {
+  const {
+    title,
+    textColor,
+    textAlign,
+    fontName,
+    titleFontSize,
+    itemFontSize,
+    lineSpacing,
+    lines,
+    startX,
+    startY,
+  } = params
+
+  ctx.textAlign = textAlign
+  ctx.textBaseline = "top"
+
+  // Subtle shadow for readability
+  ctx.shadowColor = "rgba(0, 0, 0, 0.4)"
+  ctx.shadowBlur = 6
+  ctx.shadowOffsetX = 1
   ctx.shadowOffsetY = 2
 
-  // --- 3. Draw Text ---
   let currentY = startY
 
   // Draw Title
   ctx.fillStyle = textColor
-  ctx.font = `bold ${titleFontSize}px ${fontName}`
+  ctx.font = `600 ${titleFontSize}px ${fontName}` // Use font weight 600
   ctx.fillText(title, startX, currentY)
-  currentY += titleFontSize + lineSpacing * 2
+  currentY += titleFontSize + lineSpacing * 1.5 // More space after title
 
   // Draw Todo Items
-  ctx.font = `normal ${itemFontSize}px ${fontName}`
+  ctx.font = `400 ${itemFontSize}px ${fontName}` // Weight 400 for items
+  const doneColor = "#a1a1aa" // Zinc 400 for done items (adjust if needed)
+
   lines.forEach((item) => {
-    const prefix = item.done ? "✓ " : "• "
+    const prefix = item.done ? "✓ " : "• " // Checkmark for done
     const itemText = `${prefix}${item.text}`
-    let currentTextColor = textColor
-    let currentTextStyle = `normal ${itemFontSize}px ${fontName}`
+    let currentTextColor = item.done ? doneColor : textColor
+    ctx.fillStyle = currentTextColor
+    ctx.globalAlpha = item.done ? 0.75 : 1.0 // Fade done items slightly
 
+    ctx.fillText(itemText, startX, currentY)
+
+    // Strikethrough for done items
     if (item.done) {
-      currentTextColor = "#a8a8b3" // Use theme's secondary text color
-      ctx.font = currentTextStyle // Ensure font is set before measuring/drawing
-
-      // Strikethrough
       const textMetrics = ctx.measureText(itemText)
       const textWidth = textMetrics.width
       ctx.save()
-      ctx.strokeStyle = currentTextColor
-      ctx.globalAlpha = 0.7 // Make strikethrough slightly transparent
-      ctx.lineWidth = Math.max(1, Math.round(itemFontSize / 20)) // Slightly thicker line
-      ctx.shadowColor = "transparent" // No shadow on the strikethrough itself
+      ctx.strokeStyle = currentTextColor // Match faded color
+      ctx.lineWidth = Math.max(1, Math.round(itemFontSize / 22)) // Adjust line thickness
+      ctx.globalAlpha = 0.6 // Make line slightly more transparent than text
+      ctx.shadowColor = "transparent" // No shadow on line
       let lineX = startX
-      if (align === "center") lineX = startX - textWidth / 2
-      else if (align === "right") lineX = startX - textWidth
+      if (textAlign === "center") lineX = startX - textWidth / 2
+      else if (textAlign === "right") lineX = startX - textWidth
       ctx.beginPath()
-      const strikeY = currentY + itemFontSize * 0.6 // Adjust vertical position
+      const strikeY = currentY + itemFontSize * 0.58 // Fine-tune vertical position
       ctx.moveTo(lineX, strikeY)
       ctx.lineTo(lineX + textWidth, strikeY)
       ctx.stroke()
-      ctx.restore() // Restore alpha and shadow settings
-    } else {
-      ctx.font = currentTextStyle // Ensure regular font is set if not done
+      ctx.restore() // Restore alpha, shadow
     }
-
-    ctx.fillStyle = currentTextColor
-    ctx.fillText(itemText, startX, currentY)
+    ctx.globalAlpha = 1.0 // Reset alpha for next item
     currentY += itemFontSize + lineSpacing
   })
 
-  // Reset shadow for next draw cycle
+  // Reset shadow
   ctx.shadowColor = "transparent"
   ctx.shadowBlur = 0
   ctx.shadowOffsetX = 0
   ctx.shadowOffsetY = 0
+}
 
-  // --- 4. Update Preview Image ---
+// Helper: Update Preview Image Src
+function updatePreviewImage() {
   try {
-    const imageDataUrl = canvas.toDataURL("image/png")
-    state.lastGeneratedImageDataUrl = imageDataUrl
+    state.lastGeneratedImageDataUrl = canvas.toDataURL("image/png")
     previewAreaImg.src = state.lastGeneratedImageDataUrl
-    console.log("Canvas updated, preview refreshed.")
+    console.log("Preview updated.")
   } catch (error) {
-    console.error("Error generating image data for preview:", error)
-    previewAreaImg.src = ""
+    console.error("Error generating preview image data:", error)
+    previewAreaImg.src = "" // Clear on error
     state.lastGeneratedImageDataUrl = null
   }
 }
 
 // --- Event Handlers ---
-function handleAddTodo() {
-  if (addTodo(newTodoInput.value)) {
-    newTodoInput.value = ""
+
+function handleSettingChange(event) {
+  const target = event.target
+  const key = Object.keys(settingsInputs).find(
+    (k) => settingsInputs[k] === target
+  )
+
+  if (key) {
+    let value = target.value
+    if (target.type === "number") value = parseInt(value, 10) || 0
+    if (target.type === "radio" && target.name === "bg-type") {
+      state.backgroundType = value
+      updateBackgroundControlsVisibility() // Update visibility immediately
+    } else if (key !== "bgTypeColor" && key !== "bgTypeImage") {
+      // Avoid direct assignment for radios handled above
+      state[key] = value
+    }
+
+    // Special handling for color inputs that might fire 'input' rapidly
+    if (target.type === "color") {
+      // Optional: Debounce this if performance is an issue
+      generateTodoImageAndUpdatePreview()
+    } else {
+      generateTodoImageAndUpdatePreview() // Regenerate for other changes too
+    }
+
+    saveState() // Save on any valid setting change
+    console.log(`Setting ${key} changed to:`, value)
+  } else if (event.target.name === "bg-type") {
+    // Catch radio change specifically if missed by above
+    state.backgroundType = event.target.value
+    updateBackgroundControlsVisibility()
+    generateTodoImageAndUpdatePreview()
+    saveState()
+    console.log(`Setting backgroundType changed to:`, state.backgroundType)
+  }
+}
+
+function handleToggleSettings() {
+  state.settingsCollapsed = !state.settingsCollapsed
+  settingsColumn.dataset.collapsed = state.settingsCollapsed
+  updateToggleIcons(state.settingsCollapsed)
+  saveState() // Save collapse state
+}
+
+function updateToggleIcons(isCollapsed) {
+  if (isCollapsed) {
+    settingsIconOpen.classList.add("hidden")
+    settingsIconClose.classList.remove("hidden")
+    toggleSettingsBtn.title = "Open Settings Panel"
+    toggleSettingsBtn.setAttribute("aria-expanded", "false")
+  } else {
+    settingsIconOpen.classList.remove("hidden")
+    settingsIconClose.classList.add("hidden")
+    toggleSettingsBtn.title = "Close Settings Panel"
+    toggleSettingsBtn.setAttribute("aria-expanded", "true")
+  }
+}
+
+function handleListClick(event) {
+  const target = event.target
+  const todoItem = target.closest(".todo-item")
+
+  if (!todoItem || !todoItem.dataset.id) return
+
+  const todoId = parseInt(todoItem.dataset.id, 10)
+
+  // Checkbox or Text Click -> Toggle Done
+  if (
+    target.classList.contains("toggle-done") ||
+    target.classList.contains("todo-text")
+  ) {
+    toggleDone(todoId)
+    // Visually update just this item
+    todoItem.classList.toggle(
+      "done",
+      state.todos.find((t) => t.id === todoId)?.done
+    )
+    const checkbox = todoItem.querySelector(".toggle-done")
+    if (checkbox)
+      checkbox.checked = state.todos.find((t) => t.id === todoId)?.done
+
+    generateTodoImageAndUpdatePreview() // Update wallpaper image
+    saveState()
+  }
+  // Delete Button Click
+  else if (target.closest(".delete-btn")) {
+    deleteTodo(todoId)
+    // Animate removal (optional but nice UX)
+    todoItem.style.opacity = "0"
+    todoItem.style.transform = "translateX(-20px)"
+    todoItem.style.transition = "opacity 0.3s ease, transform 0.3s ease"
+    setTimeout(() => {
+      renderTodoList() // Re-render list after animation
+      generateTodoImageAndUpdatePreview()
+      saveState()
+    }, 300)
+  }
+}
+
+// Modal: Open
+function openModal() {
+  addTodoModal.classList.remove("hidden")
+  // Delay focus slightly to allow transition
+  setTimeout(() => modalTodoInput.focus(), 50)
+}
+
+// Modal: Close
+function closeModal() {
+  // Add animation class if needed, then hide
+  addTodoModal.classList.add("hidden")
+  modalTodoInput.value = "" // Clear input on close
+}
+
+// Modal: Form Submit
+function handleModalSubmit(event) {
+  event.preventDefault()
+  const newTodoText = modalTodoInput.value
+  if (addTodo(newTodoText)) {
     renderTodoList()
     generateTodoImageAndUpdatePreview()
     saveState()
+    closeModal()
   } else {
-    console.warn("Attempted to add empty todo.")
-    // Optional: Add visual feedback like shaking the input
-    newTodoInput.style.animation = "shake 0.5s ease-in-out"
-    setTimeout(() => (newTodoInput.style.animation = ""), 500) // Reset animation
-    // Add @keyframes shake in CSS if using this
+    // Optional: Add error indication to modal input
+    console.warn("Attempted to add empty task from modal.")
+    modalTodoInput.focus() // Keep focus if invalid
+    // Shake animation example:
+    modalTodoInput.classList.add("shake-animation")
+    setTimeout(() => modalTodoInput.classList.remove("shake-animation"), 500)
+    // Add @keyframes shake-animation in CSS
   }
 }
 
-// Consolidated handler for simple setting changes
-function handleSettingChange() {
-  state.title = wallpaperTitleInput.value
-  state.bgColor = bgColorInput.value
-  state.textColor = textColorInput.value
-  state.fontSize = parseInt(fontSizeInput.value, 10) || 48
-  state.textPosition = textPositionSelect.value
-  state.textAlign = textAlignSelect.value
-  state.offsetX = parseInt(offsetXInput.value, 10) || 0
-  state.offsetY = parseInt(offsetYInput.value, 10) || 0
-
-  generateTodoImageAndUpdatePreview()
-  saveState()
-  console.log("Settings changed and saved:", state)
-}
-
-// Handler for background type radio buttons
-function handleBackgroundTypeChange(event) {
-  state.backgroundType = event.target.value
-  updateBackgroundControlsVisibility()
-  generateTodoImageAndUpdatePreview()
-  saveState()
-}
-
-// Helper to show/hide background controls using classes
+// Image Handling (Mostly unchanged, ensure selectors match)
 function updateBackgroundControlsVisibility() {
-  if (state.backgroundType === "image") {
-    bgColorControls.classList.add("hidden")
-    bgImageControls.classList.remove("hidden")
-  } else {
-    bgColorControls.classList.remove("hidden")
-    bgImageControls.classList.add("hidden")
-  }
+  const isImage = state.backgroundType === "image"
+  settingsInputs.bgColorControls.classList.toggle("hidden", isImage)
+  settingsInputs.bgImageControls.classList.toggle("hidden", !isImage)
 }
 
-// Handler for image file selection
 function handleImageFileSelect(event) {
   const file = event.target.files[0]
   if (!file) return
-
+  // Validation (unchanged)
   if (!file.type.startsWith("image/")) {
-    alert("Please select a valid image file (png, jpg, webp).")
-    imageFileInput.value = ""
+    alert("Please select a valid image file.")
     return
   }
-  if (file.size > 10 * 1024 * 1024) {
-    // 10MB limit
-    alert("Image file is too large (max 10MB).")
-    imageFileInput.value = ""
+  if (file.size > 15 * 1024 * 1024) {
+    alert("Image file too large (max 15MB).")
     return
   }
 
@@ -482,84 +706,42 @@ function handleImageFileSelect(event) {
   reader.onload = (e) => {
     state.backgroundImageDataUrl = e.target.result
     state.backgroundImageName = file.name
-    imageFilenameSpan.textContent = file.name
+    settingsInputs.imageFilenameSpan.textContent = file.name
     generateTodoImageAndUpdatePreview()
     saveState()
   }
-  reader.onerror = (err) => {
-    console.error("FileReader error:", err)
-    alert("Error reading image file.")
-    state.backgroundImageDataUrl = null
-    state.backgroundImageName = null
-    imageFilenameSpan.textContent = "Error reading file"
-    imageFileInput.value = ""
-    saveState()
-  }
+  reader.onerror = handleImageReadError
   reader.readAsDataURL(file)
 }
 
-// Handler for clearing the selected image
 function handleClearImage() {
   state.backgroundImageDataUrl = null
   state.backgroundImageName = null
-  imageFilenameSpan.textContent = "No file chosen"
-  imageFileInput.value = ""
-
-  // Recommended: Switch back to color mode explicitly for clarity
+  settingsInputs.imageFilenameSpan.textContent = "No file chosen"
+  settingsInputs.imageFileInput.value = "" // Reset file input
+  // Switch back to color mode
   state.backgroundType = "color"
-  bgTypeColorRadio.checked = true
+  settingsInputs.bgTypeColor.checked = true
   updateBackgroundControlsVisibility()
-
   generateTodoImageAndUpdatePreview()
   saveState()
-  console.log("Background image cleared.")
 }
 
-// Handler for clicks within the todo list
-function handleListClick(event) {
-  const target = event.target
-  const li = target.closest(".todo-item") // Target new class
-
-  if (!li || !li.dataset.id) return
-
-  const todoId = parseInt(li.dataset.id, 10)
-
-  // Check for delete button specifically
-  if (target.closest(".delete-btn")) {
-    // Check parent button too
-    deleteTodo(todoId)
-    renderTodoList()
-    generateTodoImageAndUpdatePreview()
-    saveState()
-  }
-  // Check for checkbox or text click
-  else if (
-    target.classList.contains("toggle-done") ||
-    target.classList.contains("todo-text")
-  ) {
-    toggleDone(todoId)
-    // Instead of full re-render, just toggle the class for better UX
-    li.classList.toggle("done", state.todos.find((t) => t.id === todoId)?.done)
-    // Update checkbox state directly
-    const checkbox = li.querySelector(".toggle-done")
-    if (checkbox)
-      checkbox.checked = state.todos.find((t) => t.id === todoId)?.done
-
-    generateTodoImageAndUpdatePreview() // Still need to update the image
-    saveState()
-  }
+function handleImageReadError(err) {
+  console.error("FileReader error:", err)
+  alert("Error reading image file.")
+  handleClearImage() // Reset state on error
 }
 
-// Handler for "Apply as Wallpaper"
+// Apply Wallpaper (unchanged core logic, check button ID)
 async function handleApplyWallpaper() {
   if (!state.lastGeneratedImageDataUrl) {
     alert("No preview available to apply.")
     return
   }
-
-  console.log("Sending image data to main process...")
-  applyWallpaperBtn.textContent = "Applying..."
   applyWallpaperBtn.disabled = true
+  const originalText = applyWallpaperBtn.querySelector("span").textContent
+  applyWallpaperBtn.querySelector("span").textContent = "Applying..."
 
   try {
     const result = await window.electronAPI.updateWallpaper(
@@ -567,36 +749,36 @@ async function handleApplyWallpaper() {
     )
     if (result.success) {
       console.log("Wallpaper update successful.")
-      // Optional: Add subtle success feedback, e.g., button text changes briefly
-      applyWallpaperBtn.textContent = "Applied!"
+      applyWallpaperBtn.querySelector("span").textContent = "Applied!"
+      // Change back after a delay
       setTimeout(() => {
-        applyWallpaperBtn.textContent = "Apply as Wallpaper"
+        applyWallpaperBtn.querySelector("span").textContent = originalText
         applyWallpaperBtn.disabled = false
-      }, 1500)
+      }, 2000)
     } else {
-      console.error("Wallpaper update failed:", result.error)
-      alert(`Failed to apply wallpaper:\n${result.error}`)
-      applyWallpaperBtn.textContent = "Apply as Wallpaper" // Reset on failure
-      applyWallpaperBtn.disabled = false
+      throw new Error(result.error || "Unknown error from main process")
     }
   } catch (err) {
-    console.error("Renderer IPC error:", err)
-    alert(`An error occurred while applying wallpaper:\n${err.message}`)
-    applyWallpaperBtn.textContent = "Apply as Wallpaper" // Reset on error
+    console.error("Wallpaper update failed:", err)
+    alert(`Failed to apply wallpaper:\n${err.message}`)
+    applyWallpaperBtn.querySelector("span").textContent = originalText // Reset on error
     applyWallpaperBtn.disabled = false
   }
-  // Removed finally block as success case handles reset with delay
+  // No finally block needed as success case handles reset now
 }
 
 // --- Start the application ---
 initialize()
 
-// Optional: Add @keyframes for shake animation in CSS if using it
+// CSS for Shake Animation (add to style.css if using)
 /*
-@keyframes shake {
+@keyframes shake-animation {
   10%, 90% { transform: translateX(-1px); }
   20%, 80% { transform: translateX(2px); }
-  30%, 50%, 70% { transform: translateX(-4px); }
-  40%, 60% { transform: translateX(4px); }
+  30%, 50%, 70% { transform: translateX(-3px); }
+  40%, 60% { transform: translateX(3px); }
+}
+.shake-animation {
+    animation: shake-animation 0.5s ease-in-out;
 }
 */
