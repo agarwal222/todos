@@ -1,74 +1,178 @@
 /* quick-add-style.css */
 :root {
-    --background: 240 10% 5.9%; /* Slightly lighter than main bg */
-    --foreground: 0 0% 98%;
-    --secondary-bg: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --border: 240 3.7% 20.9%; /* Slightly more visible border */
-    --primary: 262.1 83.3% 57.8%;
-    --primary-foreground: 210 40% 98%;
-    --ring: 262.1 83.3% 57.8%;
-    --radius: 0.5rem;
-    --spacing-sm: 0.5rem;
-    --spacing-md: 0.75rem;
-    --font-sans: sans-serif; /* Use system default */
-    --transition-speed: 0.15s;
+    --background: 240 6% 10%; /* Slightly lighter dark */
+    --foreground: 0 0% 96%;
+    --muted-foreground: 240 5% 64.9%;
+    --input-bg: 240 4% 14%;
+    --border: 240 4% 18%;
+    --primary: 262.1 83.3% 62%; /* Slightly brighter primary */
+    --radius: 0.6rem;
+    --spacing-xs: 0.25rem; --spacing-sm: 0.5rem; --spacing-md: 0.75rem; --spacing-lg: 1rem;
+    --font-sans: sans-serif; /* System default */
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; border: 0 solid hsl(var(--border));}
+* { box-sizing: border-box; margin: 0; padding: 0; border: 0 solid hsl(var(--border)); }
+html, body { height: 100%; overflow: hidden; } /* Prevent scrollbars on body */
 
 body {
     font-family: var(--font-sans);
-    background-color: hsl(var(--background));
+    background-color: hsl(var(--background) / 0.85); /* Translucent background */
+    backdrop-filter: blur(10px);
     color: hsl(var(--foreground));
-    padding: var(--spacing-md);
+    padding: 0; /* No padding on body */
     border-radius: var(--radius);
-    overflow: hidden; /* Prevent scrollbars */
-    border: 1px solid hsl(var(--border));
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    overflow: hidden;
+    border: 1px solid hsl(var(--border) / 0.5);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    display: flex; /* Use flex for container */
+    justify-content: center;
+    align-items: flex-start; /* Align container to top */
 }
 
-.container {
+.quick-add-container {
+    width: 100%;
+    max-height: 80vh; /* Limit height */
     display: flex;
     flex-direction: column;
+    overflow: hidden; /* Prevent container itself from scrolling */
 }
 
 #quick-add-form {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-bottom: 1px solid hsl(var(--border));
+    flex-shrink: 0;
+}
+
+.input-wrapper {
+    position: relative;
     display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
+    align-items: center;
+}
+
+.search-icon {
+    position: absolute;
+    left: var(--spacing-md);
+    color: hsl(var(--muted-foreground));
+    width: 18px;
+    height: 18px;
+    pointer-events: none; /* Don't interfere with input focus */
 }
 
 #quick-add-input {
-    padding: var(--spacing-sm) var(--spacing-md);
-    border: 1px solid hsl(var(--input));
+    flex-grow: 1;
+    padding: var(--spacing-md) var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) * 2 + 18px); /* Left padding for icon */
+    border: none; /* Remove border */
     border-radius: var(--radius);
-    background-color: hsl(var(--input) / 0.8);
+    background-color: hsl(var(--input-bg));
     color: hsl(var(--foreground));
-    font-size: 1rem; /* Larger font for quick add */
+    font-size: 1.1rem; /* Larger input font */
     outline: none;
-    transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
-    width: 100%;
+    height: 44px;
 }
 #quick-add-input:focus {
-    border-color: hsl(var(--ring));
-    box-shadow: 0 0 0 1px hsl(var(--ring));
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.7); /* Focus ring */
+}
+#quick-add-input::placeholder {
+    color: hsl(var(--muted-foreground));
 }
 
-.actions {
+
+.task-lists-container {
+    flex-grow: 1; /* Allow lists area to take remaining space */
+    overflow-y: auto; /* Enable scrolling ONLY for the lists */
+    padding: var(--spacing-sm) var(--spacing-lg);
+    /* Custom Scrollbar */
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground)/0.5) transparent;
+}
+.task-lists-container::-webkit-scrollbar { width: 6px; }
+.task-lists-container::-webkit-scrollbar-track { background: transparent; }
+.task-lists-container::-webkit-scrollbar-thumb { background-color: hsl(var(--muted-foreground)/0.5); border-radius: 3px; }
+.task-lists-container::-webkit-scrollbar-thumb:hover { background-color: hsl(var(--muted-foreground)/0.8); }
+
+
+.task-section {
+    margin-bottom: var(--spacing-lg);
+}
+.task-section:last-child {
+    margin-bottom: 0;
+}
+
+.task-section-header {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: hsl(var(--muted-foreground));
+    text-transform: uppercase;
+    padding: var(--spacing-sm) 0;
+    position: sticky; /* Keep headers visible while scrolling */
+    top: 0;
+    background-color: hsl(var(--background) / 0.9); /* Ensure header bg matches body during scroll */
+    z-index: 10;
+}
+
+.task-section ul {
+    list-style: none;
+    padding: 0;
+}
+
+.quick-task-item {
     display: flex;
-    justify-content: flex-end;
-    gap: var(--spacing-sm);
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-xs); /* Smaller padding */
+    border-radius: calc(var(--radius) / 1.5);
+    margin-bottom: var(--spacing-xs);
+    transition: background-color 0.15s ease-in-out;
 }
 
-.button {
-    display: inline-flex; align-items: center; justify-content: center;
-    padding: var(--spacing-sm) var(--spacing-md); border-radius: var(--radius); cursor: pointer;
-    font-size: 0.85rem; font-weight: 500; transition: background-color var(--transition-speed);
-    outline: none; white-space: nowrap; height: 32px;
+.quick-task-item:hover {
+    background-color: hsl(var(--muted) / 0.3);
 }
-.button:focus-visible { box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring)); }
-.button-primary { background-color: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
-.button-primary:hover { background-color: hsl(var(--primary) / 0.9); }
-.button-secondary { background-color: hsl(var(--secondary-bg)); color: hsl(var(--foreground)); border: 1px solid hsl(var(--input)); }
-.button-secondary:hover { background-color: hsl(var(--muted, 240 3.7% 20.9%)); } /* Define muted if needed */
+
+.quick-task-item .checkbox {
+    width: 14px;
+    height: 14px;
+    border: 1.5px solid hsl(var(--muted-foreground));
+    border-radius: 50%; /* Circle checkbox */
+    margin-right: var(--spacing-md);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.quick-task-item.done .checkbox {
+    border-color: hsl(var(--primary));
+    background-color: hsl(var(--primary));
+}
+/* Optional: Add checkmark inside */
+/* .quick-task-item.done .checkbox::after { content: '✔'; color: var(--primary-foreground); font-size: 10px; } */
+
+.quick-task-item .text {
+    flex-grow: 1;
+    font-size: 0.9rem;
+    color: hsl(var(--foreground));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.quick-task-item.done .text {
+    text-decoration: line-through;
+    color: hsl(var(--muted-foreground));
+    opacity: 0.7;
+}
+
+.empty-message {
+    color: hsl(var(--muted-foreground));
+    font-style: italic;
+    text-align: center;
+    padding: var(--spacing-md);
+    font-size: 0.85rem;
+}
+
+.quick-add-footer {
+    text-align: center;
+    padding: var(--spacing-sm) 0;
+    font-size: 0.75rem;
+    color: hsl(var(--muted-foreground));
+    border-top: 1px solid hsl(var(--border));
+    flex-shrink: 0;
+}

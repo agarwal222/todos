@@ -13,21 +13,19 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // == APIs for Main Window Renderer ==
   updateWallpaper: (imageDataUrl) =>
     ipcRenderer.invoke("update-wallpaper", imageDataUrl),
-  getScreenDimensions: async () => {
-    if (screenDimensions) return screenDimensions
-    // Basic fallback/wait mechanism
-    return new Promise((resolve) => {
-      let checks = 0
-      const maxChecks = 20
-      const checkInterval = setInterval(() => {
-        checks++
-        if (screenDimensions || checks > maxChecks) {
-          clearInterval(checkInterval)
-          resolve(screenDimensions)
-        }
-      }, 50)
-    })
+
+  // Function to get screen dimensions (returns cached value or null)
+  // *** CHANGED: Made synchronous - relies on main sending before it's needed ***
+  getScreenDimensions: () => {
+    if (!screenDimensions) {
+      // This warning might appear if called extremely early, but generally shouldn't happen.
+      console.warn(
+        "Preload: getScreenDimensions called before dimensions were received from main."
+      )
+    }
+    return screenDimensions // Return cached value (or null if not ready yet)
   },
+
   loadGoogleFont: (fontUrl) => ipcRenderer.invoke("load-google-font", fontUrl),
   updateSettings: (settings) => ipcRenderer.send("update-settings", settings), // Send settings TO main
 
@@ -48,10 +46,34 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return () => ipcRenderer.removeListener(channel, listener)
   },
 
+  // *** NEW: Listen for request from Main to get todos ***
+  onGetTodosRequest: (callback) => {
+    const channel = "get-todos-request"
+    // No need for args here, just trigger the callback
+    const listener = () => callback()
+    ipcRenderer.on(channel, listener)
+    return () => ipcRenderer.removeListener(channel, listener)
+  },
+  // *** NEW: Send todos response back to Main ***
+  sendTodosResponse: (todos) => {
+    ipcRenderer.send("current-todos-response", todos)
+  },
+
   // == APIs for Quick Add Renderer ==
   sendTaskToMain: (taskText) =>
     ipcRenderer.send("add-task-from-overlay", taskText),
   closeQuickAddWindow: () => ipcRenderer.send("close-quick-add"),
+  // *** NEW: Listen for initial todos FROM Main ***
+  onInitialTodos: (callback) => {
+    const channel = "initial-todos"
+    const listener = (event, todos) => callback(todos)
+    ipcRenderer.on(channel, listener)
+    return () => ipcRenderer.removeListener(channel, listener)
+  },
+  // *** NEW: Tell main process we're ready for todos ***
+  requestTodosForOverlay: () => {
+    ipcRenderer.send("quick-add-ready-for-todos")
+  },
 })
 
 console.log("Preload script loaded.")

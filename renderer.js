@@ -49,7 +49,6 @@ const modalCloseBtn = document.getElementById("modal-close-btn")
 const modalCancelBtn = document.getElementById("modal-cancel-btn")
 const addTodoForm = document.getElementById("add-todo-form")
 const modalTodoInput = document.getElementById("modal-todo-input")
-// Record Shortcut Modal Elements
 const recordShortcutModal = document.getElementById("record-shortcut-modal")
 const recordModalCloseBtn = document.getElementById("record-modal-close-btn")
 const shortcutDisplayArea = document.getElementById("shortcut-display-area")
@@ -57,9 +56,7 @@ const recordCancelBtn = document.getElementById("record-cancel-btn")
 const recordSaveBtn = document.getElementById("record-save-btn")
 const recordInstructions = recordShortcutModal.querySelector(
   ".record-instructions"
-) // Get instructions P tag
-
-// Canvas
+)
 const canvas = document.getElementById("image-canvas")
 const ctx = canvas.getContext("2d")
 
@@ -92,32 +89,41 @@ let state = {
   screenWidth: 1920,
   screenHeight: 1080,
 }
-
-// --- State for Shortcut Recording Modal ---
 let isRecordingShortcut = false
-let pressedKeys = new Set() // Tracks keys currently held down
-let currentRecordedString = "" // The Electron accelerator string if valid combo detected
-let lastMainKeyPressed = null // Track the single non-modifier key allowed
+let pressedKeys = new Set()
+let currentRecordedString = ""
+let lastMainKeyPressed = null
 
 // --- Initialization ---
-async function initialize() {
+// *** REMOVED async ***
+function initialize() {
   console.log("Initializing...")
-  // 1. Get Screen Dimensions
-  const dimensions = await window.electronAPI.getScreenDimensions()
+  // 1. Get Screen Dimensions *synchronously*
+  // *** REMOVED await ***
+  const dimensions = window.electronAPI.getScreenDimensions()
   if (dimensions?.width && dimensions?.height) {
     state.screenWidth = dimensions.width
     state.screenHeight = dimensions.height
+    console.log(
+      `Screen dimensions received: ${state.screenWidth}x${state.screenHeight}`
+    )
+  } else {
+    console.warn("Could not get screen dimensions, using defaults.")
   }
   setCanvasAndPreviewSize(state.screenWidth, state.screenHeight)
+
   // 2. Load Saved State
   loadState()
+
   // 3. Apply State to UI
   applyStateToUI()
+
   // 4. Send Initial Settings to Main Process
   window.electronAPI.updateSettings({
     runInTray: state.runInTray,
     quickAddShortcut: state.quickAddShortcut,
   })
+
   // 5. Attempt to load saved custom font
   let fontLoadPromise = Promise.resolve()
   if (state.fontSource === "google" && state.googleFontUrl) {
@@ -125,22 +131,38 @@ async function initialize() {
   } else {
     updateFontStatus("idle", DEFAULT_FONT)
   }
+
   // 6. Initial Render
   renderTodoList()
-  // 7. Generate Preview after font attempt
-  try {
-    await fontLoadPromise
-  } catch (err) {
-  } finally {
-    generateTodoImageAndUpdatePreview()
-  }
+
+  // 7. Generate Preview - Wait for font load attempt *before first generation*
+  fontLoadPromise
+    .catch((err) => {
+      console.warn("Initial font load failed before first preview:", err)
+    })
+    .finally(() => {
+      // Generate preview *after* font promise settles (either resolved or rejected)
+      console.log("Initial font load settled, generating initial preview.")
+      generateTodoImageAndUpdatePreview()
+    })
+
   // 8. Setup Event Listeners
   setupEventListeners()
+
   // 9. Initial setup for collapsible sections
   initializeCollapsibleSections()
+
   // 10. Listen for IPC messages
   window.electronAPI.onAddTaskAndApply(handleQuickAddTaskAndApply)
   window.electronAPI.onShortcutError(handleShortcutError)
+  // Listen for request from Main to send todos
+  window.electronAPI.onGetTodosRequest(() => {
+    console.log("Renderer: Received request for todos from main process.")
+    if (window.electronAPI?.sendTodosResponse) {
+      window.electronAPI.sendTodosResponse(state.todos) // Send current todos back
+    }
+  })
+
   console.log("Renderer initialized.")
 }
 
@@ -186,15 +208,17 @@ function applyStateToUI() {
     state.customFontError
   )
   updateBackgroundControlsVisibility()
-  updateShortcutInputVisibility()
+  updateShortcutInputVisibility() // Show/hide the shortcut display/button group
   settingsColumn.dataset.collapsed = state.settingsCollapsed
   updateToggleIcons(state.settingsCollapsed)
 }
 
 // --- Setup Event Listeners ---
 function setupEventListeners() {
+  console.log("Setting up event listeners...")
   applyWallpaperBtn.addEventListener("click", handleApplyWallpaper)
   toggleSettingsBtn.addEventListener("click", handleToggleSettings)
+
   // Settings Inputs Change - Direct listeners
   Object.keys(settingsInputs).forEach((key) => {
     const input = settingsInputs[key]
@@ -222,12 +246,15 @@ function setupEventListeners() {
       input.addEventListener(eventType, handleSettingChange)
     }
   })
+
   // Listener for "Change" Shortcut Button
   if (settingsInputs.changeShortcutBtn)
     settingsInputs.changeShortcutBtn.addEventListener(
       "click",
       openRecordShortcutModal
     )
+  else console.error("#change-shortcut-btn not found")
+
   // Specific Button Listeners in Settings
   settingsInputs.loadFontBtn.addEventListener("click", handleLoadFontClick)
   settingsInputs.chooseImageBtn.addEventListener("click", () =>
@@ -238,9 +265,12 @@ function setupEventListeners() {
     "change",
     handleImageFileSelect
   )
+
   // Todo List Interaction
   const todoColumn = document.querySelector(".column-todos")
   if (todoColumn) todoColumn.addEventListener("click", handleListClick)
+  else console.error(".column-todos not found")
+
   openAddTodoModalBtn.addEventListener("click", openModal)
   // Add Todo Modal Interactions
   modalCloseBtn.addEventListener("click", closeModal)
@@ -306,7 +336,7 @@ function saveState() {
       offsetY: state.offsetY,
       settingsCollapsed: state.settingsCollapsed,
       runInTray: state.runInTray,
-      quickAddShortcut: state.quickAddShortcut, // Save shortcut
+      quickAddShortcut: state.quickAddShortcut,
     }
     localStorage.setItem("todoAppState", JSON.stringify(stateToSave))
   } catch (e) {
@@ -431,7 +461,10 @@ async function generateTodoImageAndUpdatePreview() {
     screenWidth,
     screenHeight,
   } = state
-  if (!ctx || !canvas) return
+  if (!ctx || !canvas) {
+    console.error("Canvas context not available.")
+    return Promise.reject("Canvas context unavailable.")
+  }
   if (canvas.width !== screenWidth || canvas.height !== screenHeight)
     setCanvasAndPreviewSize(screenWidth, screenHeight)
   const itemFontSize = parseInt(fontSize, 10) || 48
@@ -441,48 +474,59 @@ async function generateTodoImageAndUpdatePreview() {
   const padding = Math.max(60, itemFontSize * 1.5)
   const lineSpacing = Math.round(itemFontSize * 0.6)
   const titleFontSize = Math.round(itemFontSize * 1.2)
-  ctx.clearRect(0, 0, screenWidth, screenHeight)
-  if (backgroundType === "image" && backgroundImageDataUrl) {
-    try {
-      await drawBackgroundImage(
-        ctx,
-        await loadImage(backgroundImageDataUrl),
+
+  // Use Promise.resolve() to ensure async operation even for color background
+  return Promise.resolve()
+    .then(() => {
+      ctx.clearRect(0, 0, screenWidth, screenHeight)
+      if (backgroundType === "image" && backgroundImageDataUrl) {
+        return loadImage(backgroundImageDataUrl)
+          .then((img) =>
+            drawBackgroundImage(ctx, img, screenWidth, screenHeight)
+          )
+          .catch((error) => {
+            console.error("BG Image Error:", error)
+            drawBackgroundColor(ctx, bgColor, screenWidth, screenHeight)
+          })
+      } else {
+        drawBackgroundColor(ctx, bgColor, screenWidth, screenHeight)
+        // No need to return anything here, the promise chain continues
+      }
+    })
+    .then(() => {
+      const { startX, startY } = calculateTextStartPosition(
         screenWidth,
-        screenHeight
+        screenHeight,
+        padding,
+        titleFontSize,
+        itemFontSize,
+        lineSpacing,
+        linesToDraw.length,
+        textPosition,
+        offsetX,
+        offsetY
       )
-    } catch (e) {
-      console.error("BG Image Error:", e)
-      drawBackgroundColor(ctx, bgColor, screenWidth, screenHeight)
-    }
-  } else {
-    drawBackgroundColor(ctx, bgColor, screenWidth, screenHeight)
-  }
-  const { startX, startY } = calculateTextStartPosition(
-    screenWidth,
-    screenHeight,
-    padding,
-    titleFontSize,
-    itemFontSize,
-    lineSpacing,
-    linesToDraw.length,
-    textPosition,
-    offsetX,
-    offsetY
-  )
-  drawTextElements(ctx, {
-    title,
-    textColor,
-    textAlign,
-    fontName: activeFontFamily,
-    titleFontSize,
-    itemFontSize,
-    lineSpacing,
-    lines: linesToDraw,
-    startX,
-    startY,
-    listStyle,
-  })
-  updatePreviewImage()
+      drawTextElements(ctx, {
+        title,
+        textColor,
+        textAlign,
+        fontName: activeFontFamily,
+        titleFontSize,
+        itemFontSize,
+        lineSpacing,
+        lines: linesToDraw,
+        startX,
+        startY,
+        listStyle,
+      })
+      updatePreviewImage() // This generates the data URL synchronously
+    })
+    .catch((err) => {
+      console.error("Error during image generation process:", err)
+      updatePreviewImage() // Attempt to update preview even on error
+      // Optionally re-throw or handle differently
+      throw err // Re-throw if needed downstream
+    })
 }
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -635,7 +679,6 @@ function updatePreviewImage() {
 }
 
 // --- Event Handlers ---
-
 function handleSettingChange(event) {
   const target = event.target
   let settingChanged = false,
@@ -748,11 +791,6 @@ function handleSettingChange(event) {
             requiresSave = false
           }
           break
-        case "quick-add-shortcut":
-          requiresRegeneration = false
-          settingChanged = false
-          requiresSave = false
-          break
         default:
           requiresRegeneration = false
           settingChanged = false
@@ -772,7 +810,6 @@ function handleSettingChange(event) {
     }
   }
 }
-
 function updateShortcutInputVisibility() {
   if (settingsInputs.shortcutDisplayGroup)
     settingsInputs.shortcutDisplayGroup.classList.toggle(
@@ -988,19 +1025,17 @@ function handleModalSubmit(event) {
 
 // --- Record Shortcut Modal Logic ---
 function openRecordShortcutModal() {
-  console.log("Opening record shortcut modal...")
   isRecordingShortcut = true
   pressedKeys.clear()
   lastMainKeyPressed = null
   currentRecordedString = ""
-  updateRecordShortcutDisplay("Press keys...") // Initial message
+  updateRecordShortcutDisplay("Press keys...")
   recordSaveBtn.disabled = true
   recordShortcutModal.classList.remove("hidden")
   document.addEventListener("keydown", handleShortcutKeyDown, true)
   document.addEventListener("keyup", handleShortcutKeyUp, true)
 }
 function closeRecordShortcutModal() {
-  console.log("Closing record shortcut modal.")
   isRecordingShortcut = false
   recordShortcutModal.classList.add("hidden")
   document.removeEventListener("keydown", handleShortcutKeyDown, true)
@@ -1010,55 +1045,46 @@ function handleShortcutKeyDown(event) {
   if (!isRecordingShortcut) return
   event.preventDefault()
   event.stopPropagation()
-  const key = event.key
-  // Use event.code for physical key mapping, less prone to layout changes
-  const code = event.code
-  // console.log("Key Down:", key, code, "Ctrl:", event.ctrlKey, "Shift:", event.shiftKey, "Alt:", event.altKey, "Meta:", event.metaKey);
-
-  // Clear previous attempt if a non-modifier is pressed without valid modifiers active
-  const isModifier =
+  const key = event.key,
+    code = event.code
+  const isMod =
     ["Control", "Shift", "Alt", "Meta", "ContextMenu"].includes(key) ||
     code.startsWith("Control") ||
     code.startsWith("Shift") ||
     code.startsWith("Alt") ||
     code.startsWith("Meta")
-
-  if (!isModifier) {
-    // If this is the first *main* key, keep modifiers pressed BEFORE it
+  if (!isMod) {
     if (!lastMainKeyPressed) {
-      pressedKeys.clear() // Clear only if starting a new combo potentially
+      pressedKeys.clear()
       if (event.ctrlKey) pressedKeys.add("Control")
       if (event.shiftKey) pressedKeys.add("Shift")
       if (event.altKey) pressedKeys.add("Alt")
       if (event.metaKey) pressedKeys.add("Meta")
-      pressedKeys.add(key) // Add the main key
+      pressedKeys.add(key)
       lastMainKeyPressed = key
-      currentRecordedString = buildAcceleratorString() // Build potential string
-      updateRecordShortcutDisplay(null, buildAcceleratorStringParts()) // Update display
-      recordSaveBtn.disabled = !isValidAccelerator(currentRecordedString) // Enable save if valid *now*
-      if (isValidAccelerator(currentRecordedString)) {
-        // Stop recording immediately on valid combo detection
-        console.log("Valid combo detected on keydown:", currentRecordedString)
+      currentRecordedString = buildAcceleratorString()
+      const isValid = isValidAccelerator(currentRecordedString)
+      updateRecordShortcutDisplay(null, buildAcceleratorStringParts())
+      recordSaveBtn.disabled = !isValid
+      if (isValid) {
         isRecordingShortcut = false
         document.removeEventListener("keydown", handleShortcutKeyDown, true)
         document.removeEventListener("keyup", handleShortcutKeyUp, true)
         updateRecordShortcutDisplay(
           "Recorded!",
           buildAcceleratorStringParts(true)
-        ) // Show final combo
+        )
       } else {
         updateRecordShortcutDisplay(
           "Modifier needed!",
           buildAcceleratorStringParts()
-        ) // Show what was pressed but invalid
-        currentRecordedString = "" // Clear invalid string
-        lastMainKeyPressed = null // Allow trying again
-        pressedKeys.clear() // Reset keys for next try
+        )
+        currentRecordedString = ""
+        lastMainKeyPressed = null
+        pressedKeys.clear()
       }
     }
-    // Ignore subsequent non-modifier keys while recording one combo
   } else {
-    // Just add modifier to the set if it's not the main key yet
     if (!lastMainKeyPressed) {
       pressedKeys.add(key)
       updateRecordShortcutDisplay(
@@ -1068,45 +1094,37 @@ function handleShortcutKeyDown(event) {
     }
   }
 }
-// KeyUp is now primarily just for resetting modifier state visually if needed, main logic in KeyDown
 function handleShortcutKeyUp(event) {
   if (!isRecordingShortcut) return
-  // No preventDefault/stopPropagation needed usually for keyup in this context
   const key = event.key
-  // Remove released modifier key from the set *if* recording didn't stop
-  // (It might have stopped in keydown if a valid combo was made)
   if (isRecordingShortcut) {
     if (["Control", "Shift", "Alt", "Meta"].includes(key)) {
       pressedKeys.delete(key)
-      // If only modifiers were held and one is released, update display
-      if (!lastMainKeyPressed) {
+      if (!lastMainKeyPressed)
         updateRecordShortcutDisplay(
           "Press main key...",
           buildAcceleratorStringParts()
         )
-      }
     }
   }
-  // Reset pressedKeys completely if Esc was used to cancel (handled in global handler -> closeRecordShortcutModal)
 }
-function updateRecordShortcutDisplay(message = null, parts = []) {
-  shortcutDisplayArea.innerHTML = "" // Clear previous
-  if (message) {
-    const msgSpan = document.createElement("span")
-    msgSpan.textContent = message
-    shortcutDisplayArea.appendChild(msgSpan)
+function updateRecordShortcutDisplay(msg = null, parts = []) {
+  shortcutDisplayArea.innerHTML = ""
+  if (msg) {
+    const s = document.createElement("span")
+    s.textContent = msg
+    shortcutDisplayArea.appendChild(s)
   }
   if (parts.length > 0) {
-    parts.forEach((part) => {
-      const span = document.createElement("span")
-      span.className = "key-display"
-      if (["CmdOrCtrl", "Alt", "Shift", "Super"].includes(part))
-        span.classList.add("modifier")
-      span.textContent = mapKeyForDisplay(part)
-      shortcutDisplayArea.appendChild(span)
+    parts.forEach((p) => {
+      const s = document.createElement("span")
+      s.className = "key-display"
+      if (["CmdOrCtrl", "Alt", "Shift", "Super"].includes(p))
+        s.classList.add("modifier")
+      s.textContent = mapKeyForDisplay(p)
+      shortcutDisplayArea.appendChild(s)
     })
-  } else if (!message) {
-    // Default placeholder if no message and no parts
+  } else if (!msg) {
     shortcutDisplayArea.innerHTML = "<span>Press keys...</span>"
   }
 }
@@ -1159,56 +1177,44 @@ function mapKeyForDisplay(k) {
   }
 }
 function buildAcceleratorStringParts(useCurrentState = false) {
-  // Added flag
-  // Use the current live state from 'pressedKeys' unless explicitly told to use the recorded string state
   const keySet = useCurrentState
     ? new Set(
         currentRecordedString
           .split("+")
           .map((p) =>
             p === "CmdOrCtrl"
-              ? window.navigator.platform.toUpperCase().includes("MAC")
+              ? navigator.platform.toUpperCase().includes("MAC")
                 ? "Meta"
                 : "Control"
               : p
           )
       )
     : pressedKeys
-  const modifiers = []
-  const keys = []
-  const platformIsMac = window.navigator.platform.toUpperCase().includes("MAC")
-
-  // Order: Ctrl, Alt, Shift, Meta/Cmd for display consistency (Electron normalizes on registration)
-  if (keySet.has("Control") || (keySet.has("CmdOrCtrl") && !platformIsMac))
-    modifiers.push("Ctrl")
-  if (keySet.has("Alt")) modifiers.push("Alt")
-  if (keySet.has("Shift")) modifiers.push("Shift")
-  if (keySet.has("Meta") || (keySet.has("CmdOrCtrl") && platformIsMac))
-    modifiers.push("Cmd") // Use Cmd for display generally
-
-  keySet.forEach((k) => {
-    if (!["Control", "Shift", "Alt", "Meta", "CmdOrCtrl"].includes(k)) {
-      // Don't add raw modifier names
-      keys.push(mapKeyToAccelerator(k)) // Use Electron naming for consistency
-    }
+  const m = [],
+    k = []
+  const isMac = navigator.platform.toUpperCase().includes("MAC")
+  if (keySet.has("Control") || (keySet.has("CmdOrCtrl") && !isMac))
+    m.push("Ctrl")
+  if (keySet.has("Alt")) m.push("Alt")
+  if (keySet.has("Shift")) m.push("Shift")
+  if (keySet.has("Meta") || (keySet.has("CmdOrCtrl") && isMac)) m.push("Cmd")
+  keySet.forEach((key) => {
+    if (!["Control", "Shift", "Alt", "Meta", "CmdOrCtrl"].includes(key))
+      k.push(mapKeyToAccelerator(key))
   })
-  // Sort modifiers alphabetically for display consistency? Optional.
-  // modifiers.sort();
-  return [...modifiers, ...keys] // Return parts for display/building string
+  return [...m, ...k]
 }
 function buildAcceleratorString() {
-  // Builds string from CURRENTLY pressed keys (pressedKeys set)
-  const m = []
-  const k = []
+  const m = [],
+    k = []
   if (pressedKeys.has("Meta") || pressedKeys.has("Control"))
-    m.push("CommandOrControl") // Use Electron's cross-platform name
+    m.push("CommandOrControl")
   if (pressedKeys.has("Alt")) m.push("Alt")
   if (pressedKeys.has("Shift")) m.push("Shift")
   pressedKeys.forEach((key) => {
     if (!["Control", "Shift", "Alt", "Meta"].includes(key))
       k.push(mapKeyToAccelerator(key))
   })
-  // Ensure main key is last for Electron format
   return [...m, ...k].join("+")
 }
 function mapKeyToAccelerator(k) {
@@ -1336,7 +1342,7 @@ function isValidAccelerator(accel) {
 }
 function handleSaveShortcut() {
   if (!currentRecordedString || !isValidAccelerator(currentRecordedString)) {
-    alert("Invalid shortcut recorded.")
+    alert("Invalid shortcut.")
     recordSaveBtn.disabled = true
     return
   }
@@ -1411,12 +1417,14 @@ async function handleApplyWallpaper() {
     return
   applyWallpaperBtn.disabled = true
   const span = applyWallpaperBtn.querySelector("span")
-  const ogTxt = span ? span.textContent : "Apply"
+  const ogTxt = span ? span.textContent : "Apply Wallpaper"
   if (span) span.textContent = "Applying..."
+  console.log("Applying wallpaper...")
   try {
     const data = state.lastGeneratedImageDataUrl
     const result = await window.electronAPI.updateWallpaper(data)
     if (result?.success) {
+      console.log("Wallpaper update successful.")
       if (span) span.textContent = "Applied!"
       setTimeout(() => {
         if (applyWallpaperBtn.disabled && span?.textContent === "Applied!") {
@@ -1428,19 +1436,19 @@ async function handleApplyWallpaper() {
       throw new Error(result?.error || "Unknown error")
     }
   } catch (err) {
-    console.error("Wallpaper Apply Error:", err)
+    console.error("Wallpaper update failed:", err)
     alert(`Failed:\n${err.message}`)
     if (span) span.textContent = ogTxt
     applyWallpaperBtn.disabled = false
   }
 }
 
-// --- Handler for Auto-Apply Task ---
+// --- Handler for Auto-Apply Task --- (Changed name to match preload)
 async function handleQuickAddTaskAndApply(taskText) {
   console.log("Renderer received task and apply trigger:", taskText)
   if (addTodo(taskText)) {
     renderTodoList()
-    saveState()
+    saveState() // Save new todo list state immediately
     try {
       await generateTodoImageAndUpdatePreview()
       if (state.lastGeneratedImageDataUrl) await handleApplyWallpaper()

@@ -6,32 +6,51 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';"
     />
-    <title>Quick Add Task</title>
+    <title>Quick Task</title>
     <link rel="stylesheet" href="quick-add-style.css" />
   </head>
   <body>
-    <div class="container">
+    <div class="quick-add-container">
       <form id="quick-add-form">
-        <input
-          type="text"
-          id="quick-add-input"
-          placeholder="Enter new task..."
-          autofocus
-          required
-        />
-        <div class="actions">
-          <button
-            type="button"
-            id="quick-cancel-btn"
-            class="button button-secondary"
+        <div class="input-wrapper">
+          <svg
+            class="search-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 16 16"
+            fill="currentColor"
+            width="16"
+            height="16"
           >
-            Cancel (Esc)
-          </button>
-          <button type="submit" class="button button-primary">
-            Add Task (Enter)
-          </button>
+            <path
+              d="M8.75 3.75a.75.75 0 0 0-1.5 0v3.5h-3.5a.75.75 0 0 0 0 1.5h3.5v3.5a.75.75 0 0 0 1.5 0v-3.5h3.5a.75.75 0 0 0 0-1.5h-3.5v-3.5Z"
+            />
+          </svg>
+          <input
+            type="text"
+            id="quick-add-input"
+            placeholder="Add a new task..."
+            autofocus
+            required
+          />
         </div>
       </form>
+      <div class="task-lists-container scrollable-content">
+        <section class="task-section">
+          <h3 class="task-section-header">Active</h3>
+          <ul id="quick-active-list">
+            <!-- Active tasks will be rendered here -->
+            <li class="empty-message">Loading tasks...</li>
+          </ul>
+        </section>
+        <section class="task-section">
+          <h3 class="task-section-header">Completed</h3>
+          <ul id="quick-completed-list">
+            <!-- Completed tasks will be rendered here -->
+            <li class="empty-message">Loading tasks...</li>
+          </ul>
+        </section>
+      </div>
+      <div class="quick-add-footer">Press Enter to add, Esc to cancel</div>
     </div>
     <script src="./quick-add-renderer.js"></script>
   </body>
