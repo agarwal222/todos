@@ -1,5 +1,5 @@
 {
-  "name": "Visido",
+  "name": "visido",
   "version": "1.1.0",
   "description": "Displays your active tasks directly on your desktop wallpaper.",
   "main": "main.js",
@@ -21,14 +21,15 @@
   "license": "MIT",
   "devDependencies": {
     "electron": "^29.1.5",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.9.1"
   },
   "dependencies": {
     "wallpaper": "^6.1.1"
   },
   "build": {
-    "appId": "com.yourcompany.todowallpaper",
-    "productName": "Todo Wallpaper",
+    "appId": "com.yourcompany.visido",
+    "productName": "Visido",
+    "asar": false,
     "files": [
       "!node_modules/.cache",
       "!dist/",
@@ -39,9 +40,14 @@
       "buildResources": "assets",
       "output": "dist"
     },
+    "asarUnpack": [
+      "**/node_modules/wallpaper/source/windows-wallpaper.exe",
+      "**/node_modules/wallpaper/vendor/**",
+      "**/node_modules/wallpaper/source/**"
+    ],
     "win": {
       "target": "nsis",
-      "icon": "assets/icon.ico"
+      "icon": "assets/icon.png"
     },
     "mac": {
       "target": "dmg",
