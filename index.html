@@ -201,10 +201,7 @@
           </div>
           <div class="scrollable-content">
             <!-- Text & Layout Section -->
-            <div
-              class="setting-section collapsible"
-              data-section-id="text-layout"
-            >
+            <div class="setting-section" data-section-id="text-layout">
               <button
                 class="setting-section-toggle"
                 aria-expanded="true"
@@ -230,6 +227,8 @@
                 class="setting-section-content"
                 id="section-content-text-layout"
               >
+                <!-- Sub-Group: Appearance -->
+                <h4 class="sub-setting-header">Appearance</h4>
                 <div class="sub-setting-group">
                   <div class="input-group">
                     <label for="wallpaper-title-input">Title</label
@@ -262,6 +261,7 @@
                       value="48"
                       min="10"
                       max="200"
+                      title="Font size in pixels"
                     />
                   </div>
                   <div class="input-group">
@@ -291,13 +291,16 @@
                       value="1.0"
                       min="0"
                       max="1"
-                      step="0.1"
+                      step="0.05"
+                      title="Overall opacity for text and background panel"
                     />
                     <span class="checkbox-hint"
                       >Affects text & panel if enabled.</span
                     >
                   </div>
                 </div>
+                <!-- Sub-Group: Positioning -->
+                <h4 class="sub-setting-header">Positioning</h4>
                 <div class="sub-setting-group">
                   <div class="input-group">
                     <label for="text-position">Position</label
@@ -328,6 +331,7 @@
                       class="input input-number"
                       value="0"
                       step="5"
+                      title="Horizontal offset in pixels"
                     />
                   </div>
                   <div class="input-group">
@@ -338,12 +342,17 @@
                       class="input input-number"
                       value="0"
                       step="5"
+                      title="Vertical offset in pixels"
                     />
                   </div>
                 </div>
+                <!-- Sub-Group: Spacing & Columns -->
+                <h4 class="sub-setting-header">Spacing & Columns</h4>
                 <div class="sub-setting-group">
                   <div class="input-group">
-                    <label for="title-spacing-input" title="Space after title"
+                    <label
+                      for="title-spacing-input"
+                      title="Space between title and first item"
                       >Title Spacing</label
                     ><input
                       type="number"
@@ -356,7 +365,9 @@
                     />
                   </div>
                   <div class="input-group">
-                    <label for="item-spacing-input" title="Space between items"
+                    <label
+                      for="item-spacing-input"
+                      title="Vertical space between list items"
                       >Item Spacing</label
                     ><input
                       type="number"
@@ -371,7 +382,7 @@
                   <div class="input-group">
                     <label
                       for="max-items-input"
-                      title="Max items before new column"
+                      title="Max items before starting a new column"
                       >Max Items/Col</label
                     ><input
                       type="number"
@@ -384,7 +395,9 @@
                     />
                   </div>
                   <div class="input-group">
-                    <label for="column-gap-input" title="Space between columns"
+                    <label
+                      for="column-gap-input"
+                      title="Horizontal space between columns"
                       >Column Gap</label
                     ><input
                       type="number"
@@ -399,11 +412,9 @@
                 </div>
               </div>
             </div>
+
             <!-- Text Background Section -->
-            <div
-              class="setting-section collapsible"
-              data-section-id="text-background"
-            >
+            <div class="setting-section" data-section-id="text-background">
               <button
                 class="setting-section-toggle"
                 aria-expanded="true"
@@ -463,7 +474,8 @@
                       value="0.5"
                       min="0"
                       max="1"
-                      step="0.1"
+                      step="0.05"
+                      title="Opacity of the panel itself"
                     />
                   </div>
                   <div class="input-group padding-group">
@@ -476,7 +488,7 @@
                       min="0"
                       max="100"
                       step="5"
-                      title="Padding Inline (X)"
+                      title="Inline (Left/Right) Padding"
                     /><input
                       type="number"
                       id="text-bg-padding-block"
@@ -485,7 +497,7 @@
                       min="0"
                       max="100"
                       step="5"
-                      title="Padding Block (Y)"
+                      title="Block (Top/Bottom) Padding"
                     />
                   </div>
                   <div class="input-group">
@@ -498,6 +510,7 @@
                       min="0"
                       max="50"
                       step="1"
+                      title="Corner roundness"
                     />
                   </div>
                   <div class="input-group color-picker-group">
@@ -528,78 +541,9 @@
                 </div>
               </div>
             </div>
-            <!-- App Behavior Section -->
-            <div
-              class="setting-section collapsible"
-              data-section-id="app-behavior"
-            >
-              <button
-                class="setting-section-toggle"
-                aria-expanded="true"
-                aria-controls="section-content-app-behavior"
-              >
-                <h3>App Behavior</h3>
-                <svg
-                  class="toggle-icon"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  width="16"
-                  height="16"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-              </button>
-              <div
-                class="setting-section-content"
-                id="section-content-app-behavior"
-              >
-                <div class="input-group">
-                  <label for="run-in-tray-checkbox">Run in Tray</label
-                  ><input
-                    type="checkbox"
-                    id="run-in-tray-checkbox"
-                    class="checkbox-input"
-                  /><span class="checkbox-hint"
-                    >Hide window on close, enable Quick Add.</span
-                  >
-                </div>
-                <div class="input-group shortcut-display-group hidden">
-                  <label>Quick Add Key</label
-                  ><span
-                    id="current-shortcut-display"
-                    class="shortcut-display"
-                  ></span
-                  ><button
-                    id="change-shortcut-btn"
-                    class="button button-secondary"
-                  >
-                    Change
-                  </button>
-                </div>
-                <div
-                  class="input-group hidden"
-                  id="quick-add-translucent-group"
-                >
-                  <label for="quick-add-translucent-checkbox"
-                    >Translucent UI</label
-                  ><input
-                    type="checkbox"
-                    id="quick-add-translucent-checkbox"
-                    class="checkbox-input"
-                  /><span class="checkbox-hint"
-                    >Enable background blur (macOS) or transparency
-                    (Win/Linux).</span
-                  >
-                </div>
-              </div>
-            </div>
+
             <!-- Font Section -->
-            <div class="setting-section collapsible" data-section-id="font">
+            <div class="setting-section" data-section-id="font">
               <button
                 class="setting-section-toggle"
                 aria-expanded="true"
@@ -684,17 +628,15 @@
                 </div>
               </div>
             </div>
-            <!-- Background Section -->
-            <div
-              class="setting-section collapsible"
-              data-section-id="background"
-            >
+
+            <!-- Wallpaper Background Section -->
+            <div class="setting-section" data-section-id="background">
               <button
                 class="setting-section-toggle"
                 aria-expanded="true"
                 aria-controls="section-content-background"
               >
-                <h3>Background</h3>
+                <h3>Wallpaper Background</h3>
                 <svg
                   class="toggle-icon"
                   xmlns="http://www.w3.org/2000/svg"
@@ -785,6 +727,74 @@
                     accept="image/png, image/jpeg, image/webp"
                     class="hidden"
                   />
+                </div>
+              </div>
+            </div>
+
+            <!-- App Behavior Section -->
+            <div class="setting-section" data-section-id="app-behavior">
+              <button
+                class="setting-section-toggle"
+                aria-expanded="true"
+                aria-controls="section-content-app-behavior"
+              >
+                <h3>App Behavior</h3>
+                <svg
+                  class="toggle-icon"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                  width="16"
+                  height="16"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </button>
+              <div
+                class="setting-section-content"
+                id="section-content-app-behavior"
+              >
+                <div class="input-group">
+                  <label for="run-in-tray-checkbox">Run in Tray</label
+                  ><input
+                    type="checkbox"
+                    id="run-in-tray-checkbox"
+                    class="checkbox-input"
+                  /><span class="checkbox-hint"
+                    >Hide window on close, enable Quick Add.</span
+                  >
+                </div>
+                <div class="input-group shortcut-display-group hidden">
+                  <label>Quick Add Key</label
+                  ><span
+                    id="current-shortcut-display"
+                    class="shortcut-display"
+                  ></span
+                  ><button
+                    id="change-shortcut-btn"
+                    class="button button-secondary"
+                  >
+                    Change
+                  </button>
+                </div>
+                <div
+                  class="input-group hidden"
+                  id="quick-add-translucent-group"
+                >
+                  <label for="quick-add-translucent-checkbox"
+                    >Translucent UI</label
+                  ><input
+                    type="checkbox"
+                    id="quick-add-translucent-checkbox"
+                    class="checkbox-input"
+                  /><span class="checkbox-hint"
+                    >Enable background blur (macOS) or transparency
+                    (Win/Linux).</span
+                  >
                 </div>
               </div>
             </div>
