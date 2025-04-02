@@ -1,95 +1,59 @@
+
 /* quick-add-style.css */
 :root {
-    --bg-color-solid: #1C1C1E; /* Solid dark grey */
-    --bg-color-translucent: rgba(38, 38, 41, 0.85); /* Semi-transparent dark grey for Win/Linux */
+    --bg-color-solid: #2E2E30;
+    --bg-color-translucent-fallback: rgba(46, 46, 48, 0.9);
     --foreground: #EAEAEB;
     --muted-foreground: #8E8E93;
-    --input-bg: rgba(90, 90, 90, 0.3); /* Subtle input background */
-    --border: rgba(70, 70, 70, 0.6);
-    --primary: #0A84FF; /* Apple Blue */
-    --hover-bg: rgba(80, 80, 80, 0.3);
-    --radius: 10px; /* More rounded corners */
+    --input-bg: rgba(70, 70, 72, 0.6);
+    --border: rgba(80, 80, 80, 0.7);
+    --primary: #0A84FF;
+    --hover-bg: rgba(85, 85, 90, 0.4);
+    --radius: 12px;
     --spacing-xs: 4px; --spacing-sm: 8px; --spacing-md: 12px; --spacing-lg: 16px;
-    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif; /* System Font Stack */
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
     --scrollbar-thumb: rgba(120, 120, 120, 0.6);
     --scrollbar-thumb-hover: rgba(140, 140, 140, 0.8);
-    --max-task-item-height: 34px; /* Control item height */
-    --header-height: 24px; /* Height for sticky headers */
+    --task-item-height: 38px;
+    --header-height: 28px;
+    --list-padding-bottom: var(--spacing-sm);
+    /* Max height calculation removed from here - window size controls this */
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; border: 0 solid hsl(var(--border)); }
-html, body { height: 100%; overflow: hidden; }
+* { box-sizing: border-box; margin: 0; padding: 0; border: 0 solid transparent; }
+html, body { height: 100%; overflow: hidden; } /* Keep overflow hidden */
 
 body {
     font-family: var(--font-sans);
-    background-color: transparent; /* Let main process handle background/vibrancy */
+    background-color: transparent !important;
     color: var(--foreground);
     padding: 0;
     border-radius: var(--radius);
     overflow: hidden;
-    /* Removed border/shadow - handled by window options potentially */
     display: flex;
-    flex-direction: column; /* Body itself is the main container now */
+    flex-direction: column;
+    height: 100%;
     font-size: 14px;
     line-height: 1.4;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
-/* Apply background based on setting (passed via body class) */
-body.translucent {
-    /* Style when translucency is ON (already handled by window options mostly) */
-}
-body:not(.translucent) {
-    background-color: var(--bg-color-solid);
-}
+body:not(.translucent) { background-color: var(--bg-color-solid); border: 1px solid var(--border); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 5px 15px rgba(0,0,0,0.2); }
+body.translucent:not([data-platform="darwin"]) { background-color: var(--bg-color-translucent-fallback); border: 1px solid rgba(90, 90, 90, 0.4); }
 
-
-/* .quick-add-container { No longer needed } */
-
-#quick-add-form {
-    padding: var(--spacing-md) var(--spacing-lg);
-    flex-shrink: 0;
-    border-bottom: 1px solid var(--border);
-    /* background-color: inherit; /* Ensure it matches body bg */ 
-}
-
-.input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.input-icon {
-    position: absolute;
-    left: var(--spacing-md);
-    color: var(--muted-foreground);
-    width: 16px;
-    height: 16px;
-    pointer-events: none;
-}
-
-#quick-add-input {
-    flex-grow: 1;
-    padding: var(--spacing-sm) var(--spacing-md) var(--spacing-sm) calc(var(--spacing-md) * 2 + 18px);
-    border: none;
-    border-radius: calc(var(--radius) / 1.5); /* Slightly less rounded */
-    background-color: var(--input-bg);
-    color: var(--foreground);
-    font-size: 1.1rem;
-    outline: none;
-    height: 40px; /* Spotlight-like height */
-}
-#quick-add-input:focus {
-    box-shadow: 0 0 0 2px var(--primary); /* Focus ring */
-}
-#quick-add-input::placeholder {
-    color: var(--muted-foreground);
-}
+#quick-add-form { padding: var(--spacing-md) var(--spacing-lg); flex-shrink: 0; border-bottom: 1px solid var(--border); background-color: inherit; }
+.input-wrapper { position: relative; display: flex; align-items: center; }
+.input-icon { position: absolute; left: var(--spacing-md); color: var(--muted-foreground); width: 18px; height: 18px; pointer-events: none; }
+#quick-add-input { flex-grow: 1; padding: var(--spacing-sm) var(--spacing-md) var(--spacing-sm) calc(var(--spacing-md) + 18px + var(--spacing-sm)); border: 1px solid transparent; border-radius: 8px; background-color: var(--input-bg); color: var(--foreground); font-size: 1.15rem; outline: none; height: 42px; transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s; }
+#quick-add-input:hover { background-color: rgba(80, 80, 82, 0.6); }
+#quick-add-input:focus { border-color: transparent; box-shadow: 0 0 0 2px var(--primary); background-color: rgba(60, 60, 62, 0.7); }
+#quick-add-input::placeholder { color: var(--muted-foreground); }
 
 .task-lists-container {
     flex-grow: 1;
-    overflow-y: auto;
-    padding: var(--spacing-sm) 0; /* Padding top/bottom, no side padding */
-    max-height: calc(7.5 * var(--max-task-item-height) + 2 * var(--header-height)); /* Show ~7.5 items + headers */
+    overflow-y: auto; /* Scrollbar appears if content exceeds calculated window height */
+    padding: var(--spacing-xs) 0 var(--list-padding-bottom) 0;
+    /* No max-height here, let window size dictate */
     scrollbar-width: thin;
     scrollbar-color: var(--scrollbar-thumb) transparent;
 }
@@ -97,106 +61,23 @@ body:not(.translucent) {
 .task-lists-container::-webkit-scrollbar-thumb { background-color: var(--scrollbar-thumb); border-radius: 3px; }
 .task-lists-container::-webkit-scrollbar-thumb:hover { background-color: var(--scrollbar-thumb-hover); }
 
-
-.task-section {
-    margin-bottom: var(--spacing-sm); /* Reduced margin between sections */
-}
+.task-section { margin-bottom: var(--spacing-sm); }
 .task-section:last-child { margin-bottom: 0; }
+.task-section-header { font-size: 0.7rem; font-weight: 600; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.05em; padding: var(--spacing-xs) var(--spacing-lg); position: sticky; top: 0; z-index: 10; height: var(--header-height); display: flex; align-items: center; background-color: inherit; }
+body.translucent .task-section-header { backdrop-filter: blur(12px) saturate(180%); background-color: rgba(46, 46, 48, 0.85); }
+body:not(.translucent) .task-section-header { background-color: var(--bg-color-solid); }
 
-.task-section-header {
-    font-size: 0.75rem; /* Smaller header */
-    font-weight: 600;
-    color: var(--muted-foreground);
-    text-transform: uppercase;
-    padding: var(--spacing-xs) var(--spacing-lg); /* Match list item padding */
-    position: sticky;
-    top: 0;
-    /* Use body's background for stickiness */
-    background-color: inherit;
-    z-index: 10;
-    height: var(--header-height);
-    display: flex;
-    align-items: center;
-}
-/* Add backdrop blur if translucent for sticky header */
-body.translucent .task-section-header {
-    backdrop-filter: blur(10px);
-    background-color: rgba(38, 38, 41, 0.7); /* Match translucent BG but slightly less transparent */
-}
-body:not(.translucent) .task-section-header {
-    background-color: var(--bg-color-solid); /* Match solid BG */
-}
+.task-section ul { list-style: none; padding: 0 var(--spacing-sm); }
+.quick-task-item { display: flex; align-items: center; padding: 0 var(--spacing-sm); margin: 0; border-radius: 6px; height: var(--task-item-height); overflow: hidden; cursor: default; transition: background-color 0.1s ease-in-out; }
+.quick-task-item:hover { background-color: var(--hover-bg); }
+.quick-task-item .checkbox-icon { width: 18px; height: 18px; margin-right: var(--spacing-sm); flex-shrink: 0; color: var(--muted-foreground); opacity: 0.8; }
+.quick-task-item.done .checkbox-icon { color: var(--primary); opacity: 1; }
+.quick-task-item .text { flex-grow: 1; font-size: 0.9rem; color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: var(--task-item-height); }
+.quick-task-item.done .text { text-decoration: none; color: var(--muted-foreground); opacity: 0.7; }
 
+.list-placeholder, .empty-message { color: var(--muted-foreground); font-style: italic; text-align: center; padding: var(--spacing-lg); font-size: 0.85rem; }
 
-.task-section ul {
-    list-style: none;
-    padding: 0 var(--spacing-xs); /* Add slight horizontal padding for list */
-}
+.quick-add-footer { text-align: center; padding: var(--spacing-sm) 0 var(--spacing-md) 0; font-size: 0.75rem; color: var(--muted-foreground); border-top: 1px solid var(--border); flex-shrink: 0; background-color: inherit; }
+body.translucent .quick-add-footer { backdrop-filter: blur(12px) saturate(180%); background-color: rgba(46, 46, 48, 0.85); }
+body:not(.translucent) .quick-add-footer { background-color: var(--bg-color-solid); }
 
-.quick-task-item {
-    display: flex;
-    align-items: center;
-    padding: var(--spacing-xs) var(--spacing-sm); /* Vertical padding controls height */
-    margin: 0 var(--spacing-xs); /* Add horizontal margin instead of list padding */
-    border-radius: calc(var(--radius) / 1.5);
-    height: var(--max-task-item-height);
-    overflow: hidden; /* Prevent content overflow */
-    cursor: default; /* Not interactive */
-    transition: background-color 0.1s ease-in-out;
-}
-
-.quick-task-item:hover {
-    background-color: var(--hover-bg);
-}
-
-.quick-task-item .checkbox-icon { /* Use SVG for checkbox */
-    width: 16px;
-    height: 16px;
-    margin-right: var(--spacing-md);
-    flex-shrink: 0;
-    color: var(--muted-foreground); /* Default color */
-}
-.quick-task-item.done .checkbox-icon {
-    color: var(--primary); /* Color when done */
-}
-
-
-.quick-task-item .text {
-    flex-grow: 1;
-    font-size: 0.9rem;
-    color: var(--foreground);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.quick-task-item.done .text {
-    text-decoration: line-through;
-    color: var(--muted-foreground);
-    opacity: 0.8;
-}
-
-.list-placeholder, /* Combined styles for placeholders */
-.empty-message {
-    color: var(--muted-foreground);
-    font-style: italic;
-    text-align: center;
-    padding: var(--spacing-md) var(--spacing-lg);
-    font-size: 0.85rem;
-}
-
-.quick-add-footer {
-    text-align: center;
-    padding: var(--spacing-sm) 0 var(--spacing-md) 0;
-    font-size: 0.75rem;
-    color: var(--muted-foreground);
-    border-top: 1px solid var(--border);
-    flex-shrink: 0;
-    background-color: inherit; /* Match body bg */
-}
-body.translucent .quick-add-footer {
-    backdrop-filter: blur(10px);
-    background-color: rgba(38, 38, 41, 0.7);
-}
-body:not(.translucent) .quick-add-footer {
-    background-color: var(--bg-color-solid);
-}

@@ -8,13 +8,6 @@ ipcRenderer.on("screen-dimensions", (event, dimensions) => {
   screenDimensions = dimensions
 })
 
-// Listen for initial settings from main process for main window
-// We might need this if main needs to push settings on launch
-// ipcRenderer.on("initial-settings", (event, settings) => {
-//   console.log("Preload received initial settings:", settings);
-//   // Potentially store or forward these if needed immediately by renderer on load
-// });
-
 contextBridge.exposeInMainWorld("electronAPI", {
   // == APIs for Main Window Renderer ==
   updateWallpaper: (imageDataUrl) =>
@@ -61,6 +54,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return () => ipcRenderer.removeListener(channel, listener)
   },
   getPlatform: () => process.platform,
+  onForceSettingUpdate: (callback) => {
+    const channel = "force-setting-update"
+    const listener = (event, settingsToUpdate) => callback(settingsToUpdate)
+    ipcRenderer.on(channel, listener)
+    return () => ipcRenderer.removeListener(channel, listener)
+  },
 
   // == APIs for Quick Add Renderer ==
   sendTaskToMain: (taskText) =>
@@ -72,14 +71,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on(channel, listener)
     return () => ipcRenderer.removeListener(channel, listener)
   },
-  // ** NEW: Listener for Quick Add Settings **
   onQuickAddSettings: (callback) => {
     const channel = "quickadd-settings"
     const listener = (event, settings) => callback(settings)
     ipcRenderer.on(channel, listener)
     return () => ipcRenderer.removeListener(channel, listener)
   },
-  // Removed requestTodosForOverlay - main handles the flow now
+  // ** NEW: Send resize request **
+  resizeQuickAdd: (height) => ipcRenderer.send("resize-quick-add", { height }),
 })
 
 console.log("Preload script finished exposing API successfully.")

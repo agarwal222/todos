@@ -23,17 +23,25 @@ let isQuitting = false
 let appSettings = {
   runInTray: false,
   quickAddShortcut: "CommandOrControl+Shift+N",
-  quickAddTranslucent: process.platform === "darwin", // Default to true on Mac, false otherwise
+  quickAddTranslucent: process.platform === "darwin",
 }
 let currentShortcut = null
 
 const DEFAULT_SHORTCUT = "CommandOrControl+Shift+N"
+const QUICK_ADD_SOLID_BG = "#2E2E30"
+const QUICK_ADD_VIBRANCY_FALLBACK_BG = "rgba(46, 46, 48, 0.9)"
+const QUICK_ADD_MIN_HEIGHT = 100 // Minimum height for the window
+const QUICK_ADD_MAX_HEIGHT_FACTOR = 1.5 // Allow window to be up to 1.5x screen height (should be clamped by screen size anyway)
 
 // --- Main Window Creation ---
+// ... (createWindow remains the same) ...
 function createWindow() {
   const primaryDisplay = screen.getPrimaryDisplay()
   const screenDimensions = primaryDisplay.size
-
+  const titleBarOverlayOptions =
+    process.platform === "darwin"
+      ? { height: 30 }
+      : { color: "#00000000", symbolColor: "#a0a0a0", height: 30 }
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -46,33 +54,21 @@ function createWindow() {
     },
     show: false,
     frame: false,
-    titleBarStyle: "hidden", // Needed for frameless window controls space
-    titleBarOverlay: {
-      // Add minimal overlay for traffic lights space on Mac
-      color: "#00000000", // Transparent
-      symbolColor: "#a0a0a0", // Grey symbols
-      height: 30, // Adjust as needed
-    },
+    backgroundColor: "#111827",
   })
-
   mainWindow.loadFile("index.html")
-
   mainWindow.webContents.on("did-finish-load", () => {
     mainWindow.webContents.send("screen-dimensions", screenDimensions)
     mainWindow.webContents.send("window-state-changed", {
       isMaximized: mainWindow.isMaximized(),
       isFullScreen: mainWindow.isFullScreen(),
     })
-    // Send initial settings *after* renderer might have loaded its state
     setTimeout(() => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow && !mainWindow.isDestroyed())
         mainWindow.webContents.send("initial-settings", appSettings)
-      }
-    }, 100) // Small delay
+    }, 100)
     mainWindow.show()
   })
-
-  // Window state change listeners... (remain the same)
   mainWindow.on("maximize", () => {
     if (mainWindow && !mainWindow.isDestroyed())
       mainWindow.webContents.send("window-state-changed", {
@@ -101,7 +97,6 @@ function createWindow() {
         isFullScreen: false,
       })
   })
-
   mainWindow.on("close", (event) => {
     if (appSettings.runInTray && !isQuitting) {
       event.preventDefault()
@@ -112,7 +107,6 @@ function createWindow() {
       mainWindow = null
     }
   })
-
   mainWindow.on("minimize", (event) => {
     if (appSettings.runInTray && process.platform !== "darwin") {
       event.preventDefault()
@@ -120,32 +114,26 @@ function createWindow() {
       console.log("Main window hidden to tray on minimize.")
     }
   })
-
   mainWindow.on("closed", () => {
     mainWindow = null
     if (!appSettings.runInTray || process.platform !== "darwin") {
       app.quit()
     }
-  })
-
-  // mainWindow.webContents.openDevTools();
+  }) /* mainWindow.webContents.openDevTools(); */
 }
 
 // --- Tray Icon Creation ---
+// ... (createTray remains the same) ...
 function createTray() {
   if (tray) return
   const iconName =
     process.platform === "win32" ? "icon.ico" : "iconTemplate.png"
   const iconPath = path.join(__dirname, "assets", iconName)
-
   try {
     tray = new Tray(iconPath)
-    if (process.platform === "darwin") {
-      tray.setIgnoreDoubleClickEvents(true) // Use single click on Mac too
-    }
+    if (process.platform === "darwin") tray.setIgnoreDoubleClickEvents(true)
   } catch (err) {
     console.error("Tray icon creation failed:", err)
-    // Try fallback if needed
     try {
       const fallbackPath = path.join(__dirname, "assets", "icon.png")
       if (fs.existsSync(fallbackPath)) {
@@ -153,14 +141,13 @@ function createTray() {
         console.log("Used fallback tray icon.")
       } else {
         console.error("Fallback tray icon not found.")
-        return // Cannot create tray
+        return
       }
     } catch (fallbackErr) {
       console.error("Fallback tray icon creation also failed:", fallbackErr)
       return
     }
   }
-
   const contextMenu = Menu.buildFromTemplate([
     { label: "Show Visido", click: () => showMainWindow() },
     { type: "separator" },
@@ -172,7 +159,6 @@ function createTray() {
       },
     },
   ])
-
   tray.setToolTip("Visido - Wallpaper Tasks")
   tray.setContextMenu(contextMenu)
   tray.on("click", () => showMainWindow())
@@ -180,6 +166,7 @@ function createTray() {
 }
 
 // --- Remove Tray Icon ---
+// ... (destroyTray remains the same) ...
 function destroyTray() {
   if (tray) {
     tray.destroy()
@@ -189,6 +176,7 @@ function destroyTray() {
 }
 
 // --- Show Main Window ---
+// ... (showMainWindow remains the same) ...
 function showMainWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.show()
@@ -201,6 +189,7 @@ function showMainWindow() {
 }
 
 // --- Global Shortcut ---
+// ... (registerGlobalShortcut, unregisterCurrentShortcut remain the same) ...
 function registerGlobalShortcut() {
   const shortcutToRegister = appSettings.quickAddShortcut || DEFAULT_SHORTCUT
   if (currentShortcut && currentShortcut !== shortcutToRegister)
@@ -271,20 +260,35 @@ function createOrShowQuickAddWindow() {
   }
 
   const primaryDisplay = screen.getPrimaryDisplay()
-  const { width: screenWidth } = primaryDisplay.size
-  const winWidth = 600 // Wider for Spotlight look
-  const winHeight = 450 // Adjusted height
+  const { width: screenWidth, height: screenHeight } = primaryDisplay.size // Get screen height
+  const winWidth = 600
+  // Start with a minimal height, renderer will tell us the correct height
+  const initialHeight = QUICK_ADD_MIN_HEIGHT
+  const isMac = process.platform === "darwin"
+  const useTranslucency = appSettings.quickAddTranslucent
+  let bgColor = QUICK_ADD_SOLID_BG
+  let transparent = false
+  let vibrancyType = null
 
-  // Determine background/transparency based on setting and platform
+  if (useTranslucency) {
+    if (isMac) {
+      bgColor = "#00000000"
+      vibrancyType = "hud"
+    } else {
+      bgColor = QUICK_ADD_VIBRANCY_FALLBACK_BG
+      transparent = true
+    }
+  }
+
   let windowOptions = {
     width: winWidth,
-    height: winHeight,
+    height: initialHeight, // Start small
     x: Math.round(screenWidth / 2 - winWidth / 2),
     y: Math.round(
       primaryDisplay.workArea.y + primaryDisplay.workArea.height * 0.15
-    ), // Position relative to work area top
+    ),
     frame: false,
-    resizable: false, // Typically not resizable
+    resizable: false,
     movable: true,
     skipTaskbar: true,
     alwaysOnTop: true,
@@ -295,31 +299,17 @@ function createOrShowQuickAddWindow() {
       nodeIntegration: false,
       devTools: false,
     },
-  }
-
-  if (appSettings.quickAddTranslucent) {
-    if (process.platform === "darwin") {
-      windowOptions.vibrancy = "hud" // Or 'fullscreen-ui', 'sidebar', etc.
-      windowOptions.visualEffectState = "active"
-      windowOptions.backgroundColor = "#00000000" // Fully transparent for vibrancy
-    } else {
-      // Fallback for Windows/Linux: semi-transparent dark background
-      windowOptions.transparent = true // Required for semi-transparent BG on Win/Linux
-      windowOptions.backgroundColor = "#1C1C1EBB" // Dark grey with alpha (adjust BB as needed)
-      // Note: True transparency might have issues on some Linux DEs
-    }
-  } else {
-    // Solid background if translucency is off
-    windowOptions.backgroundColor = "#1C1C1E" // Solid dark grey
+    transparent: transparent,
+    backgroundColor: bgColor,
+    ...(vibrancyType && { vibrancy: vibrancyType }),
+    useContentSize: true, // Make height relative to content area
   }
 
   quickAddWindow = new BrowserWindow(windowOptions)
-
   quickAddWindow.loadFile(path.join(__dirname, "quick-add.html"))
 
   let todosForQuickAdd = null
   let quickAddWindowReady = false
-
   const responseListener = (event, todos) => {
     todosForQuickAdd = todos
     ipcMain.removeListener("current-todos-response", responseListener)
@@ -332,7 +322,6 @@ function createOrShowQuickAddWindow() {
     }
   }
   ipcMain.once("current-todos-response", responseListener)
-
   mainWindow.webContents.send("get-todos-request")
 
   quickAddWindow.webContents.on("did-finish-load", () => {
@@ -340,13 +329,12 @@ function createOrShowQuickAddWindow() {
     if (todosForQuickAdd !== null) {
       quickAddWindow.webContents.send("initial-todos", todosForQuickAdd)
     }
-    // Send translucency setting to renderer if needed for styling
     quickAddWindow.webContents.send("quickadd-settings", {
       translucent: appSettings.quickAddTranslucent,
     })
-    quickAddWindow.show()
+    // Don't show yet, wait for resize IPC
+    // quickAddWindow.show();
   })
-
   quickAddWindow.on("blur", () => {
     if (quickAddWindow && !quickAddWindow.isDestroyed()) quickAddWindow.close()
   })
@@ -357,6 +345,7 @@ function createOrShowQuickAddWindow() {
 }
 
 // --- IPC Handlers ---
+// ... (get-screen-dimensions, get-system-fonts, font loading helpers, update-wallpaper remain the same) ...
 ipcMain.handle("get-screen-dimensions", () => screen.getPrimaryDisplay().size)
 ipcMain.handle("get-system-fonts", async () => {
   try {
@@ -516,41 +505,51 @@ ipcMain.handle("update-wallpaper", async (event, imageDataUrl) => {
 })
 ipcMain.on("update-settings", (event, settings) => {
   console.log("Main received settings update:", settings)
-  const wasTrayMode = appSettings.runInTray
-  const trayModeChanged = appSettings.runInTray !== settings.runInTray
-  const newShortcut = settings.quickAddShortcut || DEFAULT_SHORTCUT
-  const shortcutChanged = appSettings.quickAddShortcut !== newShortcut
+  const trayModeChanged =
+    typeof settings.runInTray === "boolean" &&
+    appSettings.runInTray !== settings.runInTray
+  const newShortcut =
+    settings.quickAddShortcut ||
+    appSettings.quickAddShortcut ||
+    DEFAULT_SHORTCUT
+  const shortcutChanged = newShortcut !== appSettings.quickAddShortcut
   const translucencyChanged =
+    typeof settings.quickAddTranslucent === "boolean" &&
     appSettings.quickAddTranslucent !== settings.quickAddTranslucent
-
-  // Update all settings
-  appSettings = { ...appSettings, ...settings }
-
-  // Handle Tray Mode Changes
+  appSettings = { ...appSettings, ...settings, quickAddShortcut: newShortcut }
   if (trayModeChanged) {
     if (appSettings.runInTray) {
       createTray()
-      registerGlobalShortcut() // Register shortcut when tray enabled
+      registerGlobalShortcut()
       if (process.platform === "darwin") app.dock?.hide()
     } else {
       destroyTray()
-      unregisterCurrentShortcut() // Unregister shortcut when tray disabled
+      unregisterCurrentShortcut()
       if (process.platform === "darwin") app.dock?.show()
-      if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible())
         showMainWindow()
-      }
     }
   } else if (appSettings.runInTray && shortcutChanged) {
-    // If tray mode didn't change but shortcut did, re-register
     registerGlobalShortcut()
   }
-
-  // If translucency changed, close and reopen quick add window next time it's triggered
   if (translucencyChanged && quickAddWindow && !quickAddWindow.isDestroyed()) {
-    console.log("Quick Add translucency changed, will apply on next open.")
-    quickAddWindow.close() // Close existing window
+    console.log("Quick Add translucency changed, closing current window.")
+    quickAddWindow.close()
   }
 })
+ipcMain.on(
+  "setting-update-error",
+  (event, { setting, error, fallbackValue }) => {
+    console.warn(
+      `Setting update failed for '${setting}': ${error}. Falling back to ${fallbackValue}`
+    )
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("force-setting-update", {
+        [setting]: fallbackValue,
+      })
+    }
+  }
+)
 ipcMain.on("add-task-from-overlay", (event, taskText) => {
   console.log("Main received task from overlay:", taskText)
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -575,6 +574,33 @@ ipcMain.on("window-maximize-restore", (event) => {
 })
 ipcMain.on("window-close", (event) => {
   BrowserWindow.fromWebContents(event.sender)?.close()
+})
+
+// ** NEW: Listen for resize request from Quick Add **
+ipcMain.on("resize-quick-add", (event, { height }) => {
+  if (quickAddWindow && !quickAddWindow.isDestroyed()) {
+    try {
+      const currentBounds = quickAddWindow.getBounds()
+      const maxHeight = Math.round(
+        screen.getPrimaryDisplay().workArea.height * QUICK_ADD_MAX_HEIGHT_FACTOR
+      ) // Max height constraint
+      const newHeight = Math.max(
+        QUICK_ADD_MIN_HEIGHT,
+        Math.min(Math.round(height), maxHeight)
+      ) // Clamp height
+
+      console.log(`Resizing Quick Add window to height: ${newHeight}`)
+      quickAddWindow.setSize(currentBounds.width, newHeight, false) // Resize (no animation)
+
+      // Only show *after* the first resize attempt
+      if (!quickAddWindow.isVisible()) {
+        quickAddWindow.show()
+        quickAddWindow.focus() // Ensure it gets focus
+      }
+    } catch (err) {
+      console.error("Failed to resize quick add window:", err)
+    }
+  }
 })
 
 // --- App Lifecycle ---
