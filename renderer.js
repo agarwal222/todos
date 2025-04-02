@@ -140,7 +140,6 @@ async function initialize() {
   initializeColorPickers()
   applyStateToUI()
 
-  // Ensure preview container starts in loading state
   previewContainer.classList.remove("loaded")
 
   window.electronAPI.updateSettings({
@@ -173,11 +172,10 @@ async function initialize() {
   fontLoadPromise
     .catch((err) => console.warn("Font loading rejected:", err))
     .finally(() => {
-      // Generate first preview AFTER font attempt
       generateTodoImageAndUpdatePreview()
     })
 
-  setupEventListeners()
+  setupEventListeners() // Call AFTER function definitions below
   initializeCollapsibleSections()
   window.electronAPI.onAddTaskAndApply(handleQuickAddTaskAndApply)
   window.electronAPI.onShortcutError(handleShortcutError)
@@ -207,7 +205,6 @@ async function populateSystemFonts() {
   try {
     systemFontsCache = await window.electronAPI.getSystemFonts()
     settingsInputs.systemFontSelect.innerHTML = ""
-
     if (!systemFontsCache || systemFontsCache.length === 0) {
       const option = document.createElement("option")
       option.value = ""
@@ -216,12 +213,10 @@ async function populateSystemFonts() {
       settingsInputs.systemFontSelect.appendChild(option)
       return
     }
-
     const defaultOption = document.createElement("option")
     defaultOption.value = ""
     defaultOption.textContent = "Select System Font..."
     settingsInputs.systemFontSelect.appendChild(defaultOption)
-
     systemFontsCache.forEach((font) => {
       const option = document.createElement("option")
       option.value = font
@@ -260,7 +255,6 @@ function initializeColorPickers() {
       },
     },
   }
-
   textColorPickr = Pickr.create({
     ...pickrOptions,
     el: settingsInputs.textColorPickerEl,
@@ -288,7 +282,6 @@ function initializeColorPickers() {
         .toString()
       settingsInputs.textColorHex.classList.remove("invalid")
     })
-
   bgColorPickr = Pickr.create({
     ...pickrOptions,
     el: settingsInputs.bgColorPickerEl,
@@ -346,7 +339,6 @@ function applyStateToUI() {
   settingsInputs.bgTypeImage.checked = state.backgroundType === "image"
   settingsInputs.imageFilenameSpan.textContent =
     state.backgroundImageName || "No file chosen"
-
   if (textColorPickr)
     textColorPickr.setColor(state.textColor || DEFAULT_TEXT_COLOR, true)
   settingsInputs.textColorHex.value = state.textColor || DEFAULT_TEXT_COLOR
@@ -355,21 +347,17 @@ function applyStateToUI() {
     bgColorPickr.setColor(state.bgColor || DEFAULT_BG_COLOR, true)
   settingsInputs.bgColorHex.value = state.bgColor || DEFAULT_BG_COLOR
   settingsInputs.bgColorHex.classList.remove("invalid")
-
   if (state.fontSource === "system" && state.systemFontFamily) {
     settingsInputs.systemFontSelect.value = state.systemFontFamily
   } else {
     settingsInputs.systemFontSelect.value = ""
   }
-
   if (settingsInputs.runInTrayCheckbox)
     settingsInputs.runInTrayCheckbox.checked = state.runInTray
   if (settingsInputs.currentShortcutDisplay)
     settingsInputs.currentShortcutDisplay.textContent = formatAccelerator(
       state.quickAddShortcut || DEFAULT_SHORTCUT
     )
-  else console.warn("#current-shortcut-display not found")
-
   updateFontControlsVisibility()
   updateFontStatus(
     state.customFontStatus,
@@ -383,18 +371,33 @@ function applyStateToUI() {
 }
 
 // ===========================================================
-//  EVENT HANDLERS AND HELPERS
+//  MOVED EVENT HANDLERS AND HELPERS BEFORE setupEventListeners
 // ===========================================================
 
+// --- Global Keyboard Shortcut Handler --- Moved UP
+function handleGlobalKeyDown(event) {
+  if (!addTodoModal.classList.contains("hidden")) {
+    if (event.key === "Escape") closeModal()
+  } else if (isRecordingShortcut) {
+    if (event.key === "Escape") closeRecordShortcutModal()
+  } else {
+    if ((event.ctrlKey || event.metaKey) && event.key === "n") {
+      event.preventDefault()
+      openModal()
+    }
+    if (event.altKey && event.key === "s") {
+      event.preventDefault()
+      handleToggleSettings()
+    }
+  }
+}
+
 // --- Event Handlers ---
-// Helper to validate hex color codes
 function isValidHexColor(hex) {
   if (!hex) return false
   const hexRegex = /^#([0-9A-F]{3,4}|[0-9A-F]{6}|[0-9A-F]{8})$/i
   return hexRegex.test(hex)
 }
-
-// Handler for Hex Input Changes
 function handleHexInputChange(event) {
   const input = event.target
   const value = input.value.trim()
@@ -421,8 +424,6 @@ function handleHexInputChange(event) {
     input.classList.add("invalid")
   }
 }
-
-// Main Setting Change Handler
 function handleSettingChange(event) {
   const target = event.target
   let settingChanged = false,
@@ -700,7 +701,10 @@ function setupEventListeners() {
   recordShortcutModal.addEventListener("click", (e) => {
     if (e.target === recordShortcutModal) closeRecordShortcutModal()
   })
+
+  // Use handleGlobalKeyDown directly here (now defined above)
   document.addEventListener("keydown", handleGlobalKeyDown)
+
   settingsColumn.addEventListener("click", (e) => {
     const t = e.target.closest(".setting-section-toggle")
     if (t) handleSettingToggleClick(t)
@@ -708,8 +712,6 @@ function setupEventListeners() {
   console.log("Event listeners setup complete.")
 }
 
-// --- Rest of the functions (State Management, Todo CRUD, UI Rendering, Image Gen, etc.) remain the same as the previous correct version ---
-// ... (Keep all the functions from loadState down to initialize()) ...
 // --- State Management (load/save) - Remains the same ---
 function saveState() {
   try {
@@ -1213,22 +1215,20 @@ function drawTextElementsMultiCol(ctx, p) {
 function updatePreviewImage() {
   try {
     state.lastGeneratedImageDataUrl = canvas.toDataURL("image/png")
-    // Add listeners BEFORE setting src
     previewAreaImg.onload = () => {
       console.log("Preview image loaded successfully.")
-      previewContainer.classList.add("loaded") // Hide loader, show image
+      previewContainer.classList.add("loaded")
     }
     previewAreaImg.onerror = () => {
       console.error("Preview image failed to load from data URL.")
-      previewContainer.classList.remove("loaded") // Keep loader visible on error
-      previewAreaImg.src = "" // Clear potentially broken src
-      // Optionally update loader text
+      previewContainer.classList.remove("loaded")
+      previewAreaImg.src = ""
       if (previewLoader) previewLoader.textContent = "Preview Error"
     }
-    previewAreaImg.src = state.lastGeneratedImageDataUrl // Set src AFTER listeners
+    previewAreaImg.src = state.lastGeneratedImageDataUrl
   } catch (e) {
     console.error("Preview Gen Error (canvas.toDataURL or setting src):", e)
-    previewContainer.classList.remove("loaded") // Keep loader visible
+    previewContainer.classList.remove("loaded")
     previewAreaImg.src = ""
     state.lastGeneratedImageDataUrl = null
     if (previewLoader) previewLoader.textContent = "Generation Error"
