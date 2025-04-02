@@ -32,7 +32,7 @@ body {
 body[data-platform="darwin"] .window-controls { order: -1; padding-left: var(--spacing-md); padding-right: 0; }
 body[data-platform="darwin"] .header-left { margin-left: 65px; }
 
-input[type="text"], input[type="url"], input[type="number"], textarea {
+input[type="text"], input[type="url"], input[type="number"], textarea, select { /* Added select */
     user-select: auto; -webkit-user-select: auto; -moz-user-select: auto; -ms-user-select: auto;
 }
 .filename-display, .shortcut-display, .font-status-display, .todo-text {
@@ -116,7 +116,7 @@ body:not(.maximized) .maximize-restore-btn .icon-restore { display: none; }
 .input-color { width: 32px; height: 32px; border: 1px solid hsl(var(--input)); border-radius: var(--radius); cursor: pointer; padding: 3px; background-color: transparent; flex-shrink: 0; appearance: none; -webkit-appearance: none; }
 .input-color::-webkit-color-swatch-wrapper { padding: 0; } .input-color::-webkit-color-swatch { border: none; border-radius: calc(var(--radius) - 3px); }
 .select { appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23a1a1aa'%3e%3cpath fill-rule='evenodd' d='M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z' clip-rule='evenodd'/%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right var(--spacing-sm) center; background-size: 1em; padding-right: calc(var(--spacing-sm) * 2 + 1em); }
-.radio-group { grid-column: 2 / 4; display: flex; gap: var(--spacing-lg); align-items: center; }
+.radio-group { grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-lg); align-items: center; } /* Allow wrap */
 .radio-group label { font-size: 0.85rem; flex-basis: auto; text-align: left; display: flex; align-items: center; cursor: pointer; color: hsl(var(--foreground)); }
 .radio-group input[type="radio"] { accent-color: hsl(var(--primary)); margin-right: var(--spacing-xs); width: 14px; height: 14px;}
 .checkbox-input { grid-column: 2 / 3; justify-self: start; width: 16px; height: 16px; accent-color: hsl(var(--primary)); margin-top: 2px; }
@@ -131,15 +131,16 @@ body:not(.maximized) .maximize-restore-btn .icon-restore { display: none; }
 #change-shortcut-btn { grid-column: 3 / 4; justify-self: end; padding: var(--spacing-xs) var(--spacing-sm); height: 28px; }
 
 /* Font Controls */
-#google-font-controls { display: contents; }
-#google-font-controls > .input-group:first-of-type > *:nth-child(2):last-child { grid-column: 2 / 4; }
-#google-font-controls > .input-group:nth-of-type(2) > label { visibility: hidden; }
+#system-font-controls.hidden,
+#google-font-controls.hidden { display: none; }
+#system-font-controls > select,
+#google-font-controls > input { grid-column: 2 / 4; } /* Ensure they span full width */
 #google-font-controls > .input-group:nth-of-type(2) > button { grid-column: 2 / 3; justify-self: start; }
-#google-font-controls > .input-group:nth-of-type(3) > span { grid-column: 2 / 4; }
 .font-status-display { grid-column: 2 / 4; font-size: 0.8rem; color: hsl(var(--muted-foreground)); font-style: italic; padding: var(--spacing-xs) 0; min-height: 20px; display: inline-block; }
 .font-status-display.loading { color: hsl(var(--warning-foreground)); font-style: normal; background-color: transparent; padding: 2px 0;}
 .font-status-display.error { color: hsl(var(--destructive-foreground)); background-color: hsl(var(--destructive)/0.8); padding: 2px 6px; border-radius: 4px; font-style: normal; }
 .font-status-display.loaded { color: hsl(var(--success-foreground)); background-color: hsl(var(--success)/0.8); padding: 2px 6px; border-radius: 4px; font-style: normal; }
+#system-font-select { max-width: 100%; } /* Ensure dropdown doesn't overflow */
 
 /* Buttons */
 .button { display: inline-flex; align-items: center; justify-content: center; padding: var(--spacing-sm) var(--spacing-md); border-radius: var(--radius); cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: background-color var(--transition-speed), box-shadow var(--transition-speed), color var(--transition-speed), opacity var(--transition-speed); outline: none; white-space: nowrap; height: 32px; }

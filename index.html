@@ -19,7 +19,7 @@
     <div class="app-shell">
       <!-- App Header -->
       <header class="app-header">
-        <div class="header-left"><h1 class="app-title">Todo Wallpaper</h1></div>
+        <div class="header-left"><h1 class="app-title">Visido</h1></div>
         <div class="header-right">
           <button
             id="apply-wallpaper-btn"
@@ -475,25 +475,43 @@
                         checked
                       />
                       Default</label
-                    ><label
+                    >
+                    <label
+                      ><input
+                        type="radio"
+                        name="font-source"
+                        value="system"
+                        id="font-source-system"
+                      />
+                      System</label
+                    >
+                    <label
                       ><input
                         type="radio"
                         name="font-source"
                         value="google"
                         id="font-source-google"
                       />
-                      Google Font</label
+                      Google</label
                     >
                   </div>
                 </div>
+                <!-- System Font Controls -->
+                <div id="system-font-controls" class="input-group hidden">
+                  <label for="system-font-select">System Font</label
+                  ><select id="system-font-select" class="select">
+                    <option value="" disabled selected>Loading fonts...</option>
+                  </select>
+                </div>
+                <!-- Google Font Controls -->
                 <div id="google-font-controls" class="hidden">
                   <div class="input-group">
-                    <label for="google-font-url">URL</label
+                    <label for="google-font-name">Font Name</label
                     ><input
-                      type="url"
-                      id="google-font-url"
+                      type="text"
+                      id="google-font-name"
                       class="input"
-                      placeholder="https://fonts.googleapis.com/css2?family=..."
+                      placeholder="e.g., Roboto, Open Sans"
                     />
                   </div>
                   <div class="input-group">
@@ -502,12 +520,13 @@
                       Load Font
                     </button>
                   </div>
-                  <div class="input-group">
-                    <label>Status</label
-                    ><span id="font-status" class="font-status-display"
-                      >Default: Inter</span
-                    >
-                  </div>
+                </div>
+                <!-- Common Font Status -->
+                <div class="input-group">
+                  <label>Status</label
+                  ><span id="font-status" class="font-status-display"
+                    >Default: Inter</span
+                  >
                 </div>
               </div>
             </div>

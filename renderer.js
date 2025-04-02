@@ -23,7 +23,7 @@ const settingsInputs = {
   title: document.getElementById("wallpaper-title-input"),
   textColor: document.getElementById("text-color"),
   fontSize: document.getElementById("font-size"),
-  fontWeight: document.getElementById("font-weight-select"), // Added
+  fontWeight: document.getElementById("font-weight-select"),
   listStyle: document.getElementById("list-style-select"),
   textPosition: document.getElementById("text-position"),
   textAlign: document.getElementById("text-align-select"),
@@ -34,9 +34,12 @@ const settingsInputs = {
   maxItems: document.getElementById("max-items-input"),
   columnGap: document.getElementById("column-gap-input"),
   fontSourceDefault: document.getElementById("font-source-default"),
+  fontSourceSystem: document.getElementById("font-source-system"), // Added
   fontSourceGoogle: document.getElementById("font-source-google"),
+  systemFontControls: document.getElementById("system-font-controls"), // Added
+  systemFontSelect: document.getElementById("system-font-select"), // Added
   googleFontControls: document.getElementById("google-font-controls"),
-  googleFontUrl: document.getElementById("google-font-url"),
+  googleFontName: document.getElementById("google-font-name"), // Changed from URL
   loadFontBtn: document.getElementById("load-font-btn"),
   fontStatus: document.getElementById("font-status"),
   bgTypeColor: document.getElementById("bg-type-color"),
@@ -72,19 +75,20 @@ const ctx = canvas.getContext("2d")
 
 // --- Application State ---
 const DEFAULT_FONT = "Inter"
-const DEFAULT_WEIGHT = "400" // Added
+const DEFAULT_WEIGHT = "400"
 const DEFAULT_SHORTCUT = "CommandOrControl+Shift+N"
 let state = {
   todos: [],
   title: "My Tasks",
   listStyle: "bullet",
-  fontSource: "default",
-  googleFontUrl: "",
-  activeFontFamily: DEFAULT_FONT,
-  fontWeight: DEFAULT_WEIGHT, // Added
-  customFontStatus: "idle",
+  fontSource: "default", // 'default', 'system', 'google'
+  systemFontFamily: "", // Store selected system font
+  googleFontName: "", // Store google font name
+  activeFontFamily: DEFAULT_FONT, // Currently rendered font
+  fontWeight: DEFAULT_WEIGHT,
+  customFontStatus: "idle", // 'idle', 'loading', 'loaded', 'error'
   customFontError: null,
-  backgroundType: "color",
+  backgroundType: "color", // 'color', 'image'
   bgColor: "#111827",
   backgroundImageDataUrl: null,
   backgroundImageName: null,
@@ -109,9 +113,11 @@ let isRecordingShortcut = false
 let pressedKeys = new Set()
 let currentRecordedString = ""
 let lastMainKeyPressed = null
+let systemFontsCache = [] // Cache system fonts
 
 // --- Initialization ---
-function initialize() {
+async function initialize() {
+  // Make initialize async
   console.log("Initializing Renderer...")
   const dimensions = window.electronAPI.getScreenDimensions()
   if (dimensions?.width && dimensions?.height) {
@@ -122,23 +128,41 @@ function initialize() {
   }
   setCanvasAndPreviewSize(state.screenWidth, state.screenHeight)
   loadState()
-  applyStateToUI()
+
+  // Populate system fonts BEFORE applying state to UI
+  await populateSystemFonts()
+
+  applyStateToUI() // Apply state AFTER fonts are potentially loaded/selected
+
   window.electronAPI.updateSettings({
     runInTray: state.runInTray,
     quickAddShortcut: state.quickAddShortcut,
   })
-  let fontLoadPromise = Promise.resolve()
-  if (state.fontSource === "google" && state.googleFontUrl) {
-    fontLoadPromise = loadAndApplyCustomFont(state.googleFontUrl, false)
-  } else {
-    updateFontStatus("idle", DEFAULT_FONT)
+
+  // Font loading now happens based on state applied in applyStateToUI
+  // We just need to ensure the initial preview generation happens
+  try {
+    // If google font was loaded previously, try to load it now (no save)
+    if (state.fontSource === "google" && state.googleFontName) {
+      await loadAndApplyGoogleFont(state.googleFontName, false)
+    } else if (state.fontSource === "system" && state.systemFontFamily) {
+      state.activeFontFamily = state.systemFontFamily
+      updateFontStatus("loaded", state.activeFontFamily)
+    } else {
+      state.activeFontFamily = DEFAULT_FONT
+      updateFontStatus("idle", DEFAULT_FONT)
+    }
+  } catch (err) {
+    console.warn("Initial font setup/load failed:", err)
+    state.activeFontFamily = DEFAULT_FONT // Fallback
+    state.fontSource = "default"
+    applyStateToUI() // Re-apply UI if font failed
+    updateFontStatus("error", DEFAULT_FONT, "Initial load failed")
+  } finally {
+    generateTodoImageAndUpdatePreview() // Generate preview after font setup
   }
+
   renderTodoList()
-  fontLoadPromise
-    .catch((err) => console.warn("Initial font load failed:", err))
-    .finally(() => {
-      generateTodoImageAndUpdatePreview()
-    })
   setupEventListeners()
   initializeCollapsibleSections()
   window.electronAPI.onAddTaskAndApply(handleQuickAddTaskAndApply)
@@ -164,12 +188,47 @@ function setCanvasAndPreviewSize(width, height) {
     )
 }
 
+// --- Populate System Fonts ---
+async function populateSystemFonts() {
+  try {
+    systemFontsCache = await window.electronAPI.getSystemFonts()
+    settingsInputs.systemFontSelect.innerHTML = "" // Clear loading message
+
+    if (!systemFontsCache || systemFontsCache.length === 0) {
+      const option = document.createElement("option")
+      option.value = ""
+      option.textContent = "No fonts found"
+      option.disabled = true
+      settingsInputs.systemFontSelect.appendChild(option)
+      return
+    }
+
+    // Add a default/placeholder option
+    const defaultOption = document.createElement("option")
+    defaultOption.value = ""
+    defaultOption.textContent = "Select System Font..."
+    defaultOption.disabled = true
+    settingsInputs.systemFontSelect.appendChild(defaultOption)
+
+    systemFontsCache.forEach((font) => {
+      const option = document.createElement("option")
+      option.value = font
+      option.textContent = font
+      settingsInputs.systemFontSelect.appendChild(option)
+    })
+  } catch (error) {
+    console.error("Error fetching system fonts:", error)
+    settingsInputs.systemFontSelect.innerHTML =
+      '<option value="" disabled selected>Error loading fonts</option>'
+  }
+}
+
 // --- Apply State to UI ---
 function applyStateToUI() {
   settingsInputs.title.value = state.title
   settingsInputs.textColor.value = state.textColor
   settingsInputs.fontSize.value = state.fontSize
-  settingsInputs.fontWeight.value = state.fontWeight // Added
+  settingsInputs.fontWeight.value = state.fontWeight
   settingsInputs.listStyle.value = state.listStyle
   settingsInputs.textPosition.value = state.textPosition
   settingsInputs.textAlign.value = state.textAlign
@@ -180,13 +239,23 @@ function applyStateToUI() {
   settingsInputs.maxItems.value = state.maxItemsPerColumn
   settingsInputs.columnGap.value = state.columnGap
   settingsInputs.bgColor.value = state.bgColor
-  settingsInputs.googleFontUrl.value = state.googleFontUrl || ""
+  settingsInputs.googleFontName.value = state.googleFontName || "" // Use name
   settingsInputs.fontSourceDefault.checked = state.fontSource === "default"
+  settingsInputs.fontSourceSystem.checked = state.fontSource === "system" // Added
   settingsInputs.fontSourceGoogle.checked = state.fontSource === "google"
   settingsInputs.bgTypeColor.checked = state.backgroundType === "color"
   settingsInputs.bgTypeImage.checked = state.backgroundType === "image"
   settingsInputs.imageFilenameSpan.textContent =
     state.backgroundImageName || "No file chosen"
+
+  // Select the correct system font in the dropdown
+  if (state.fontSource === "system" && state.systemFontFamily) {
+    settingsInputs.systemFontSelect.value = state.systemFontFamily
+  } else {
+    // Ensure placeholder is selected if no system font is active or available
+    settingsInputs.systemFontSelect.value = ""
+  }
+
   if (settingsInputs.runInTrayCheckbox)
     settingsInputs.runInTrayCheckbox.checked = state.runInTray
   if (settingsInputs.currentShortcutDisplay)
@@ -194,6 +263,7 @@ function applyStateToUI() {
       state.quickAddShortcut || DEFAULT_SHORTCUT
     )
   else console.warn("#current-shortcut-display not found")
+
   updateFontControlsVisibility()
   updateFontStatus(
     state.customFontStatus,
@@ -236,7 +306,7 @@ function setupEventListeners() {
       input.type !== "file" &&
       input.type !== "button" &&
       !input.classList.contains("button") &&
-      !input.id.endsWith("-controls") &&
+      !input.id.endsWith("-controls") && // Exclude container divs
       input.id !== "font-status" &&
       input.id !== "image-filename" &&
       input.id !== "load-font-btn" &&
@@ -251,6 +321,13 @@ function setupEventListeners() {
         input.type === "checkbox"
           ? "change"
           : "input"
+      input.addEventListener(eventType, handleSettingChange)
+    } else if (
+      input &&
+      (input.id === "system-font-select" || input.id === "google-font-name")
+    ) {
+      // Add listeners specifically for system font select and google name input
+      const eventType = input.tagName === "SELECT" ? "change" : "input"
       input.addEventListener(eventType, handleSettingChange)
     }
   })
@@ -330,9 +407,10 @@ function saveState() {
       title: state.title,
       listStyle: state.listStyle,
       fontSource: state.fontSource,
-      googleFontUrl: state.googleFontUrl,
-      activeFontFamily: state.activeFontFamily,
-      fontWeight: state.fontWeight, // Added
+      systemFontFamily: state.systemFontFamily, // Added
+      googleFontName: state.googleFontName, // Added
+      // activeFontFamily: state.activeFontFamily, // Don't save this, derive it
+      fontWeight: state.fontWeight,
       backgroundType: state.backgroundType,
       bgColor: state.bgColor,
       backgroundImageDataUrl: state.backgroundImageDataUrl,
@@ -351,14 +429,14 @@ function saveState() {
       runInTray: state.runInTray,
       quickAddShortcut: state.quickAddShortcut,
     }
-    localStorage.setItem("todoAppState", JSON.stringify(stateToSave))
+    localStorage.setItem("visidoState", JSON.stringify(stateToSave)) // Changed key slightly
   } catch (e) {
     console.error("Save State Error:", e)
   }
 }
 function loadState() {
   try {
-    const savedState = localStorage.getItem("todoAppState")
+    const savedState = localStorage.getItem("visidoState") // Changed key slightly
     if (savedState) {
       const parsedState = JSON.parse(savedState)
       const currentScreenDims = {
@@ -371,18 +449,20 @@ function loadState() {
         itemSpacing: 20,
         maxItemsPerColumn: 10,
         columnGap: 50,
-        activeFontFamily: DEFAULT_FONT,
-        fontWeight: DEFAULT_WEIGHT, // Added
+        // activeFontFamily: DEFAULT_FONT, // Derive this
+        fontWeight: DEFAULT_WEIGHT,
         quickAddShortcut: DEFAULT_SHORTCUT,
         runInTray: false,
         settingsCollapsed: false,
         fontSource: "default",
+        systemFontFamily: "", // Added
+        googleFontName: "", // Added
       }
       state = {
-        ...state,
-        ...defaults,
-        ...parsedState,
-        ...currentScreenDims,
+        ...state, // Keep existing state (like screen dims)
+        ...defaults, // Apply defaults
+        ...parsedState, // Override with saved state
+        ...currentScreenDims, // Ensure screen dims are current
         todos: Array.isArray(parsedState.todos) ? parsedState.todos : [],
         settingsCollapsed:
           typeof parsedState.settingsCollapsed === "boolean"
@@ -395,9 +475,10 @@ function loadState() {
         fontSize:
           typeof parsedState.fontSize === "number" ? parsedState.fontSize : 48,
         fontWeight:
-          typeof parsedState.fontWeight === "string" // Check if saved fontWeight is valid string
+          typeof parsedState.fontWeight === "string" &&
+          ["300", "400", "500", "600", "700"].includes(parsedState.fontWeight)
             ? parsedState.fontWeight
-            : defaults.fontWeight, // Added
+            : defaults.fontWeight,
         offsetX:
           typeof parsedState.offsetX === "number" ? parsedState.offsetX : 0,
         offsetY:
@@ -419,31 +500,70 @@ function loadState() {
           typeof parsedState.columnGap === "number"
             ? parsedState.columnGap
             : defaults.columnGap,
-        activeFontFamily:
-          parsedState.activeFontFamily || defaults.activeFontFamily,
         quickAddShortcut:
           parsedState.quickAddShortcut || defaults.quickAddShortcut,
-        customFontStatus: "idle",
+        customFontStatus: "idle", // Reset status on load
         customFontError: null,
+      }
+
+      // Derive activeFontFamily after loading state
+      if (state.fontSource === "system" && state.systemFontFamily) {
+        state.activeFontFamily = state.systemFontFamily
+      } else if (state.fontSource === "google" && state.googleFontName) {
+        // We will attempt to load this in initialize()
+        state.activeFontFamily = state.googleFontName // Set temporarily
+      } else {
+        state.fontSource = "default" // Ensure default if others invalid
+        state.activeFontFamily = DEFAULT_FONT
       }
     } else {
       // Defaults for a completely fresh start
-      state.quickAddShortcut = DEFAULT_SHORTCUT
-      state.titleBottomMargin = 40
-      state.itemSpacing = 20
-      state.maxItemsPerColumn = 10
-      state.columnGap = 50
-      state.fontWeight = DEFAULT_WEIGHT // Added
+      state = {
+        ...state, // Keep screen dims if already set
+        todos: [],
+        title: "My Tasks",
+        listStyle: "bullet",
+        fontSource: "default",
+        systemFontFamily: "",
+        googleFontName: "",
+        activeFontFamily: DEFAULT_FONT,
+        fontWeight: DEFAULT_WEIGHT,
+        customFontStatus: "idle",
+        customFontError: null,
+        backgroundType: "color",
+        bgColor: "#111827",
+        backgroundImageDataUrl: null,
+        backgroundImageName: null,
+        textColor: "#f3f4f6",
+        textPosition: "top-left",
+        fontSize: 48,
+        textAlign: "left",
+        offsetX: 0,
+        offsetY: 0,
+        titleBottomMargin: 40,
+        itemSpacing: 20,
+        maxItemsPerColumn: 10,
+        columnGap: 50,
+        lastGeneratedImageDataUrl: null,
+        settingsCollapsed: false,
+        runInTray: false,
+        quickAddShortcut: DEFAULT_SHORTCUT,
+      }
+      console.log("No saved state found, using defaults.")
     }
   } catch (e) {
     console.error("Load State Error:", e)
-    // Fallback defaults in case of error
-    state.quickAddShortcut = DEFAULT_SHORTCUT
-    state.titleBottomMargin = 40
-    state.itemSpacing = 20
-    state.maxItemsPerColumn = 10
-    state.columnGap = 50
-    state.fontWeight = DEFAULT_WEIGHT // Added
+    // Apply minimal defaults in case of catastrophic error
+    state = {
+      ...state, // Keep screen dims if possible
+      todos: [],
+      title: "My Tasks",
+      fontSource: "default",
+      activeFontFamily: DEFAULT_FONT,
+      fontWeight: DEFAULT_WEIGHT,
+      quickAddShortcut: DEFAULT_SHORTCUT,
+      // ... other essential defaults
+    }
   }
 }
 
@@ -512,8 +632,8 @@ async function generateTodoImageAndUpdatePreview() {
   const {
     title,
     listStyle,
-    activeFontFamily,
-    fontWeight, // Get font weight
+    activeFontFamily, // Use the derived active font
+    fontWeight,
     backgroundType,
     bgColor,
     backgroundImageDataUrl,
@@ -537,6 +657,9 @@ async function generateTodoImageAndUpdatePreview() {
   }
   if (canvas.width !== screenWidth || canvas.height !== screenHeight)
     setCanvasAndPreviewSize(screenWidth, screenHeight)
+
+  const currentActiveFont = activeFontFamily || DEFAULT_FONT // Fallback
+
   const itemFontSize = parseInt(fontSize, 10) || 48
   const linesToDraw = todos
     .filter((t) => !t.done)
@@ -582,8 +705,8 @@ async function generateTodoImageAndUpdatePreview() {
         title,
         textColor,
         textAlign,
-        fontName: activeFontFamily,
-        fontWeight, // Pass font weight
+        fontName: currentActiveFont, // Use current active font
+        fontWeight,
         titleFontSize,
         itemFontSize,
         titleSpacing,
@@ -603,6 +726,7 @@ async function generateTodoImageAndUpdatePreview() {
       throw err
     })
 }
+// --- loadImage, drawBackgroundColor, drawBackgroundImage - remain the same ---
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const i = new Image()
@@ -632,6 +756,7 @@ function drawBackgroundImage(ctx, img, cw, ch) {
   }
   ctx.drawImage(img, dx, dy, dw, dh)
 }
+// --- calculateTextStartPositionMultiCol - remains the same ---
 function calculateTextStartPositionMultiCol(
   cw,
   ch,
@@ -663,7 +788,7 @@ function calculateTextStartPositionMultiCol(
       sx = cw / 2
       sy = p
       break
-    case "top-right": // Added
+    case "top-right":
       sx = cw - p
       sy = p
       break
@@ -675,7 +800,6 @@ function calculateTextStartPositionMultiCol(
       sx = cw / 2
       sy = Math.max(p, ch / 2 - requiredHeight / 2)
       break
-    // Center-right is handled by alignment, same Y as center-left
     case "bottom-left":
       sx = p
       sy = ch - p - requiredHeight
@@ -684,32 +808,28 @@ function calculateTextStartPositionMultiCol(
       sx = cw / 2
       sy = ch - p - requiredHeight
       break
-    case "bottom-right": // Added
+    case "bottom-right":
       sx = cw - p
       sy = ch - p - requiredHeight
       break
-    default: // Fallback to top-left
+    default:
       sx = p
       sy = p
       break
   }
-
-  // Ensure text doesn't overflow vertically
   sy = Math.max(p, sy)
   if (sy + requiredHeight > ch - p) sy = ch - p - requiredHeight
   sy = Math.max(p, sy)
-
-  // Return calculated position plus offsets
   return { startX: sx + ox, startY: sy + oy, requiredHeight }
 }
-
+// --- drawTextElementsMultiCol - remains the same (already uses fontWeight) ---
 function drawTextElementsMultiCol(ctx, p) {
   const {
     title,
     textColor,
     textAlign,
     fontName,
-    fontWeight, // Use font weight
+    fontWeight,
     titleFontSize,
     itemFontSize,
     titleSpacing,
@@ -731,16 +851,16 @@ function drawTextElementsMultiCol(ctx, p) {
     currentY = startY,
     columnWidth = 0
   ctx.fillStyle = textColor
-  // Use fontWeight in font string
-  const titleWeight = Math.max(fontWeight, 600) // Make title at least semi-bold
+  const titleWeight = Math.max(parseInt(fontWeight, 10) || 400, 600) // Ensure title is at least semi-bold
   const tfs = `${titleWeight} ${titleFontSize}px "${fontName}"`,
-    ftfs = `${titleWeight} ${titleFontSize}px ${DEFAULT_FONT}`
-  ctx.font = tfs
+    ftfs = `${titleWeight} ${titleFontSize}px ${DEFAULT_FONT}` // Fallback font string
   let titleWidth = 0
   try {
+    ctx.font = tfs
     titleWidth = ctx.measureText(title).width
     ctx.fillText(title, startX, currentY)
   } catch (e) {
+    console.warn(`Failed to draw title with font ${fontName}. Falling back.`, e)
     ctx.font = ftfs
     titleWidth = ctx.measureText(title).width
     ctx.fillText(title, startX, currentY)
@@ -748,10 +868,9 @@ function drawTextElementsMultiCol(ctx, p) {
   columnWidth = Math.max(columnWidth, titleWidth)
   currentY += titleFontSize + titleSpacing
   let initialItemY = currentY
-  // Use fontWeight in item font string
-  const ifs = `${fontWeight} ${itemFontSize}px "${fontName}"`,
-    fifs = `${fontWeight} ${itemFontSize}px ${DEFAULT_FONT}`
-  ctx.font = ifs
+  const itemWeight = parseInt(fontWeight, 10) || 400
+  const ifs = `${itemWeight} ${itemFontSize}px "${fontName}"`,
+    fifs = `${itemWeight} ${itemFontSize}px ${DEFAULT_FONT}` // Fallback item font string
   lines.forEach((item, idx) => {
     if (idx > 0 && idx % maxItemsPerColumn === 0) {
       currentX += columnWidth + columnGap
@@ -779,6 +898,10 @@ function drawTextElementsMultiCol(ctx, p) {
       itemWidth = ctx.measureText(itxt).width
       ctx.fillText(itxt, currentX, currentY)
     } catch (e) {
+      console.warn(
+        `Failed to draw item with font ${fontName}. Falling back.`,
+        e
+      )
       ctx.font = fifs
       itemWidth = ctx.measureText(itxt).width
       ctx.fillText(itxt, currentX, currentY)
@@ -792,6 +915,7 @@ function drawTextElementsMultiCol(ctx, p) {
   ctx.shadowOffsetX = 0
   ctx.shadowOffsetY = 0
 }
+// --- updatePreviewImage - remains the same ---
 function updatePreviewImage() {
   try {
     state.lastGeneratedImageDataUrl = canvas.toDataURL("image/png")
@@ -813,22 +937,43 @@ function handleSettingChange(event) {
   const id = target.id
   let value = target.type === "checkbox" ? target.checked : target.value
   const key = target.name || id
+
   switch (key) {
     case "font-source":
       if (target.checked) {
-        value = target.value
+        value = target.value // 'default', 'system', 'google'
         if (state.fontSource !== value) {
           state.fontSource = value
           settingChanged = true
           updateFontControlsVisibility()
-          if (value === "default" && state.activeFontFamily !== DEFAULT_FONT) {
+          // Update active font based on the new source
+          if (value === "default") {
             state.activeFontFamily = DEFAULT_FONT
             updateFontStatus("idle", DEFAULT_FONT)
-          } else {
+          } else if (value === "system") {
+            const selectedSystemFont = settingsInputs.systemFontSelect.value
+            if (selectedSystemFont) {
+              state.activeFontFamily = selectedSystemFont
+              state.systemFontFamily = selectedSystemFont
+              updateFontStatus("loaded", selectedSystemFont)
+            } else {
+              state.activeFontFamily = DEFAULT_FONT // Fallback if none selected
+              updateFontStatus("idle", DEFAULT_FONT)
+              requiresRegeneration = false // Don't regen if no font selected yet
+            }
+          } else if (value === "google") {
+            // Don't change active font yet, wait for load button
             requiresRegeneration = false
-            updateFontStatus("idle", state.activeFontFamily)
+            // Update status based on whether a font *was* loaded previously
+            if (state.googleFontName && state.customFontStatus === "loaded") {
+              // If a google font was previously successfully loaded, keep its status
+              updateFontStatus("loaded", state.activeFontFamily)
+            } else {
+              updateFontStatus("idle", state.activeFontFamily) // Or reset status
+            }
           }
         } else {
+          // Clicked the already selected radio
           settingChanged = false
           requiresRegeneration = false
           requiresSave = false
@@ -869,6 +1014,7 @@ function handleSettingChange(event) {
       }
       break
     default:
+      // Handle specific inputs by ID
       switch (id) {
         case "wallpaper-title-input":
           state.title = value
@@ -882,7 +1028,7 @@ function handleSettingChange(event) {
           state.fontSize = parseInt(value, 10) || 48
           settingChanged = true
           break
-        case "font-weight-select": // Added
+        case "font-weight-select":
           state.fontWeight = value
           settingChanged = true
           break
@@ -926,17 +1072,37 @@ function handleSettingChange(event) {
           state.bgColor = value
           settingChanged = true
           break
-        case "google-font-url":
-          if (state.googleFontUrl !== value.trim()) {
-            state.googleFontUrl = value.trim()
-            requiresRegeneration = false
-            requiresSave = false
+        case "system-font-select": // Handle system font selection
+          if (state.fontSource === "system" && value) {
+            state.activeFontFamily = value
+            state.systemFontFamily = value
+            settingChanged = true
+            updateFontStatus("loaded", value)
+          } else if (state.fontSource === "system" && !value) {
+            // If they somehow unselect
+            state.activeFontFamily = DEFAULT_FONT
+            state.systemFontFamily = ""
+            settingChanged = true
+            updateFontStatus("idle", DEFAULT_FONT)
           } else {
-            requiresRegeneration = false
-            requiresSave = false
+            // Changed while system not active? Just save, don't apply yet.
+            state.systemFontFamily = value
+            settingChanged = true
+            requiresRegeneration = false // Don't regen if system not active
+          }
+          break
+        case "google-font-name": // Handle Google font name input
+          state.googleFontName = value.trim()
+          settingChanged = true // Save the name change
+          requiresRegeneration = false // Don't regen on typing
+          // Reset status if user types a new name after a successful load
+          if (state.customFontStatus === "loaded") {
+            updateFontStatus("idle", state.activeFontFamily)
+            state.customFontStatus = "idle" // Update state directly
           }
           break
         default:
+          // Unhandled input - likely a container or non-state element
           requiresRegeneration = false
           settingChanged = false
           requiresSave = false
@@ -944,9 +1110,15 @@ function handleSettingChange(event) {
       }
       break
   }
+
+  // Apply changes
   if (settingChanged) {
-    if (requiresRegeneration) generateTodoImageAndUpdatePreview()
-    if (requiresSave) saveState()
+    if (requiresRegeneration) {
+      generateTodoImageAndUpdatePreview()
+    }
+    if (requiresSave) {
+      saveState()
+    }
     if (needsIpcUpdate && id === "run-in-tray-checkbox") {
       window.electronAPI.updateSettings({
         runInTray: state.runInTray,
@@ -955,6 +1127,7 @@ function handleSettingChange(event) {
     }
   }
 }
+// --- updateShortcutInputVisibility - remains the same ---
 function updateShortcutInputVisibility() {
   if (settingsInputs.shortcutDisplayGroup)
     settingsInputs.shortcutDisplayGroup.classList.toggle(
@@ -963,7 +1136,7 @@ function updateShortcutInputVisibility() {
     )
 }
 
-// --- Collapsible Settings Logic ---
+// --- Collapsible Settings Logic - remains the same ---
 function initializeCollapsibleSections() {
   const tBtns = settingsColumn.querySelectorAll(".setting-section-toggle")
   tBtns.forEach((b) => {
@@ -1019,59 +1192,95 @@ function handleSettingToggleClick(button) {
 
 // --- Font Loading Logic ---
 async function handleLoadFontClick() {
-  const url = settingsInputs.googleFontUrl.value.trim()
-  if (!url || !url.startsWith("https://fonts.googleapis.com/css")) {
-    updateFontStatus("error", state.activeFontFamily, "Invalid URL")
+  const fontName = settingsInputs.googleFontName.value.trim()
+  if (!fontName) {
+    updateFontStatus("error", state.activeFontFamily, "Enter Google Font name")
     return
   }
-  await loadAndApplyCustomFont(url, true)
+  await loadAndApplyGoogleFont(fontName, true) // Pass true to save state on success
 }
-async function loadAndApplyCustomFont(fontUrl, shouldSaveState = true) {
-  updateFontStatus("loading", state.activeFontFamily)
-  let loadedFF = DEFAULT_FONT
-  try {
-    const r = await window.electronAPI.loadGoogleFont(fontUrl)
-    if (r.success && r.fontFamily && r.fontDataUrl) {
-      loadedFF = r.fontFamily
-      // Note: We assume the loaded font CSS contains the desired weights.
-      // For simplicity, we don't parse/add individual weights here.
-      // We just use the family name.
-      // For a more robust solution, you'd parse weights from the CSS/URL
-      // and create multiple FontFace objects if needed.
-      const ff = new FontFace(loadedFF, `url(${r.fontDataUrl})`) // Load the base font
-      await ff.load()
-      if (!document.fonts.has(ff)) document.fonts.add(ff)
 
-      state.activeFontFamily = loadedFF
+async function loadAndApplyGoogleFont(fontName, shouldSaveState = true) {
+  updateFontStatus("loading", state.activeFontFamily)
+  try {
+    // Get selected weight
+    const fontWeight = state.fontWeight || DEFAULT_WEIGHT
+    const result = await window.electronAPI.loadGoogleFontByName(
+      fontName,
+      fontWeight
+    )
+
+    if (result.success && result.fontFamily && result.fontDataUrl) {
+      const actualFontFamily = result.fontFamily // Use family name from response
+      const actualWeight = result.fontWeight // Use actual loaded weight
+
+      // Create FontFace object
+      // The 'descriptor' argument is less commonly needed unless specifying ranges, etc.
+      const fontFace = new FontFace(
+        actualFontFamily,
+        `url(${result.fontDataUrl})`,
+        { weight: actualWeight }
+      )
+
+      await fontFace.load() // Load the font data
+
+      // Check if already added to avoid duplicates (less critical with specific weights)
+      // let exists = false;
+      // document.fonts.forEach(ff => {
+      //     if (ff.family === actualFontFamily && ff.weight === actualWeight) exists = true;
+      // });
+      // if (!exists) {
+      //     document.fonts.add(fontFace);
+      // }
+
+      // Always add - browser should handle duplicates if properties match exactly.
+      // Crucially, this makes the specific weight available.
+      document.fonts.add(fontFace)
+
+      // Wait briefly for the font to be usable by the canvas
+      await document.fonts.ready
+
+      console.log(`Font loaded and added: ${actualFontFamily} ${actualWeight}`)
+
+      state.activeFontFamily = actualFontFamily
+      state.googleFontName = fontName // Keep the user-entered name
       state.customFontStatus = "loaded"
       state.customFontError = null
-      state.googleFontUrl = fontUrl
-      updateFontStatus("loaded", loadedFF)
+      updateFontStatus("loaded", actualFontFamily)
       generateTodoImageAndUpdatePreview()
       if (shouldSaveState) saveState()
     } else {
-      throw new Error(r.error || "Failed details")
+      throw new Error(result.error || "Failed details")
     }
   } catch (e) {
-    console.error("Font Load Error:", e)
+    console.error("Google Font Load Error:", e)
     state.customFontStatus = "error"
     state.customFontError = e.message
-    state.activeFontFamily = DEFAULT_FONT
-    updateFontStatus("error", DEFAULT_FONT, e.message)
-    generateTodoImageAndUpdatePreview()
+    // Don't change active font on error, keep previous or default
+    updateFontStatus("error", state.activeFontFamily, e.message)
+    // Optionally regenerate preview with the fallback font if needed
+    // generateTodoImageAndUpdatePreview();
   }
 }
+
 function updateFontControlsVisibility() {
+  const source = state.fontSource
+  settingsInputs.systemFontControls.classList.toggle(
+    "hidden",
+    source !== "system"
+  )
   settingsInputs.googleFontControls.classList.toggle(
     "hidden",
-    state.fontSource !== "google"
+    source !== "google"
   )
 }
-function updateFontStatus(status, fontFamily, error = null) {
-  state.customFontStatus = status
+
+function updateFontStatus(status, displayFontFamily, error = null) {
+  state.customFontStatus = status // Ensure internal state matches displayed status
   state.customFontError = error
   let txt = ""
-  settingsInputs.fontStatus.className = "font-status-display"
+  settingsInputs.fontStatus.className = "font-status-display" // Reset classes
+
   switch (status) {
     case "loading":
       txt = "Loading..."
@@ -1079,28 +1288,40 @@ function updateFontStatus(status, fontFamily, error = null) {
       settingsInputs.loadFontBtn.disabled = true
       break
     case "loaded":
-      txt = `Active: ${fontFamily}`
+      txt = `Active: ${displayFontFamily || DEFAULT_FONT}`
       settingsInputs.fontStatus.classList.add("loaded")
       settingsInputs.loadFontBtn.disabled = false
       break
     case "error":
-      txt = `Error: ${error || "Unknown"}`
+      txt = `Error: ${error || "Unknown"}. Using: ${
+        displayFontFamily || DEFAULT_FONT
+      }`
       settingsInputs.fontStatus.classList.add("error")
       settingsInputs.loadFontBtn.disabled = false
       break
+    case "idle":
     default:
-      txt =
-        state.fontSource === "google" && state.activeFontFamily !== DEFAULT_FONT
-          ? `Active: ${state.activeFontFamily}`
-          : `Default: ${DEFAULT_FONT}`
-      settingsInputs.loadFontBtn.disabled = false
+      if (state.fontSource === "default") {
+        txt = `Default: ${DEFAULT_FONT}`
+      } else if (state.fontSource === "system") {
+        txt = state.systemFontFamily
+          ? `System: ${state.systemFontFamily}`
+          : `System: (Select Font)`
+      } else if (state.fontSource === "google") {
+        txt = state.googleFontName
+          ? `Google: ${state.googleFontName} (Load)`
+          : `Google: (Enter Name)`
+      } else {
+        txt = `Active: ${displayFontFamily || DEFAULT_FONT}` // Fallback
+      }
+      settingsInputs.loadFontBtn.disabled = state.fontSource !== "google" // Disable load unless Google selected
       break
   }
   settingsInputs.fontStatus.textContent = txt
-  settingsInputs.fontStatus.title = error || txt
+  settingsInputs.fontStatus.title = error || txt // Show error on hover if present
 }
 
-// --- Settings Panel Toggle ---
+// --- Settings Panel Toggle - remains the same ---
 function handleToggleSettings() {
   state.settingsCollapsed = !state.settingsCollapsed
   settingsColumn.dataset.collapsed = state.settingsCollapsed
@@ -1116,7 +1337,7 @@ function updateToggleIcons(isCollapsed) {
   toggleSettingsBtn.setAttribute("aria-expanded", !isCollapsed)
 }
 
-// --- Todo List Click Handler ---
+// --- Todo List Click Handler - remains the same ---
 function handleListClick(event) {
   const t = event.target,
     li = t.closest(".todo-item")
@@ -1150,7 +1371,7 @@ function handleListClick(event) {
   }
 }
 
-// --- Add Todo Modal Logic ---
+// --- Add Todo Modal Logic - remains the same ---
 function openModal() {
   addTodoModal.classList.remove("hidden")
   setTimeout(() => modalTodoInput.focus(), 50)
@@ -1174,7 +1395,7 @@ function handleModalSubmit(event) {
   }
 }
 
-// --- Record Shortcut Modal Logic ---
+// --- Record Shortcut Modal Logic - remains the same ---
 function openRecordShortcutModal() {
   isRecordingShortcut = true
   pressedKeys.clear()
@@ -1270,7 +1491,17 @@ function updateRecordShortcutDisplay(msg = null, parts = []) {
     parts.forEach((p) => {
       const s = document.createElement("span")
       s.className = "key-display"
-      if (["CmdOrCtrl", "Alt", "Shift", "Super"].includes(p))
+      if (
+        [
+          "CmdOrCtrl",
+          "Alt",
+          "Shift",
+          "Super",
+          "Ctrl",
+          "Cmd",
+          "Option",
+        ].includes(p)
+      )
         s.classList.add("modifier")
       s.textContent = mapKeyForDisplay(p)
       shortcutDisplayArea.appendChild(s)
@@ -1290,7 +1521,7 @@ function mapKeyForDisplay(k) {
     case "META":
       return "Cmd"
     case "OPTION":
-    case "ALT": // Added Alt
+    case "ALT":
       return "Alt"
     case "ARROWUP":
       return "Up"
@@ -1511,7 +1742,7 @@ function handleSaveShortcut() {
   closeRecordShortcutModal()
 }
 
-// --- Image Handling ---
+// --- Image Handling - remains the same ---
 function updateBackgroundControlsVisibility() {
   const i = state.backgroundType === "image"
   settingsInputs.bgColorControls.classList.toggle("hidden", i)
@@ -1556,7 +1787,7 @@ function handleImageReadError(err) {
   handleClearImage()
 }
 
-// --- Apply Wallpaper (Manual & Auto) ---
+// --- Apply Wallpaper (Manual & Auto) - remains the same ---
 async function handleApplyWallpaper() {
   if (!state.lastGeneratedImageDataUrl) {
     console.warn("Apply Wallpaper: No image data.")
@@ -1595,12 +1826,12 @@ async function handleApplyWallpaper() {
   }
 }
 
-// --- Handler for Auto-Apply Task ---
+// --- Handler for Auto-Apply Task - remains the same ---
 async function handleQuickAddTaskAndApply(taskText) {
   console.log("Renderer received task and apply trigger:", taskText)
   if (addTodo(taskText)) {
     renderTodoList()
-    saveState() // Save new todo list state immediately
+    saveState()
     try {
       await generateTodoImageAndUpdatePreview()
       if (state.lastGeneratedImageDataUrl) await handleApplyWallpaper()
@@ -1611,7 +1842,7 @@ async function handleQuickAddTaskAndApply(taskText) {
   }
 }
 
-// --- Handler for Shortcut Error ---
+// --- Handler for Shortcut Error - remains the same ---
 function handleShortcutError(errorMessage) {
   console.error("Shortcut Error:", errorMessage)
   alert(`Shortcut Error:\n${errorMessage}\n\nPlease choose different keys.`)
@@ -1620,7 +1851,7 @@ function handleShortcutError(errorMessage) {
   if (settingsInputs.currentShortcutDisplay)
     settingsInputs.currentShortcutDisplay.textContent = formatAccelerator(
       state.quickAddShortcut
-    ) // Revert display only
+    )
   state.runInTray = false
   updateShortcutInputVisibility()
   saveState()
@@ -1630,7 +1861,7 @@ function handleShortcutError(errorMessage) {
   })
 }
 
-// --- Utility ---
+// --- Utility - remains the same ---
 function formatAccelerator(accelerator) {
   if (!accelerator) return ""
   const platform = window.electronAPI.getPlatform()
@@ -1646,18 +1877,16 @@ function formatAccelerator(accelerator) {
   return d.replace(/\+/g, " + ")
 }
 
-// Handler for Window State Changes from Main
+// --- handleWindowStateChange - remains the same ---
 function handleWindowStateChange({ isMaximized }) {
   console.log("Renderer received window state change - Maximized:", isMaximized)
   document.body.classList.toggle("maximized", isMaximized)
-  // Update button title/aria-label and icons
   if (maximizeRestoreBtn && maximizeIcon && restoreIcon) {
     maximizeRestoreBtn.title = isMaximized ? "Restore" : "Maximize"
     maximizeRestoreBtn.setAttribute(
       "aria-label",
       isMaximized ? "Restore" : "Maximize"
     )
-    // Toggle the 'hidden' class on the icons
     maximizeIcon.classList.toggle("hidden", isMaximized)
     restoreIcon.classList.toggle("hidden", !isMaximized)
   } else {

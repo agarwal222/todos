@@ -11,7 +11,6 @@ ipcRenderer.on("screen-dimensions", (event, dimensions) => {
 
 // --- Expose APIs to Renderers ---
 try {
-  // Add try-catch for debugging preload issues
   contextBridge.exposeInMainWorld("electronAPI", {
     // == APIs for Main Window Renderer ==
     updateWallpaper: (imageDataUrl) =>
@@ -21,8 +20,14 @@ try {
         console.warn("Preload: getScreenDimensions called early.")
       return screenDimensions
     },
-    loadGoogleFont: (fontUrl) =>
-      ipcRenderer.invoke("load-google-font", fontUrl),
+    // ** NEW: Get System Fonts **
+    getSystemFonts: () => ipcRenderer.invoke("get-system-fonts"),
+    // ** UPDATED: Load Google Font by Name **
+    loadGoogleFontByName: (fontName, fontWeight) =>
+      ipcRenderer.invoke("load-google-font-by-name", { fontName, fontWeight }),
+    // ** REMOVED old loadGoogleFont **
+    // loadGoogleFont: (fontUrl) => ipcRenderer.invoke('load-google-font', fontUrl),
+
     updateSettings: (settings) => ipcRenderer.send("update-settings", settings),
     onAddTaskAndApply: (callback) => {
       const channel = "add-task-and-apply"
@@ -78,8 +83,10 @@ try {
       ipcRenderer.on(channel, listener)
       return () => ipcRenderer.removeListener(channel, listener)
     },
-    requestTodosForOverlay: () => {
-      ipcRenderer.send("quick-add-ready-for-todos")
+    // Renamed for clarity
+    requestInitialTodosForOverlay: () => {
+      // No IPC needed here now, main requests from main renderer automatically
+      // console.log("Preload: Quick Add requesting initial todos - No longer sending IPC, main handles this");
     },
   })
 
