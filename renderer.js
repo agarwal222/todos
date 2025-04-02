@@ -1,6 +1,13 @@
 // renderer.js
 // Pickr is globally available via script tag in index.html
 
+// --- Constants (Moved to top) ---
+const DEFAULT_FONT = "Inter"
+const DEFAULT_WEIGHT = "400"
+const DEFAULT_TEXT_COLOR = "#f3f4f6"
+const DEFAULT_BG_COLOR = "#111827"
+const DEFAULT_SHORTCUT = "CommandOrControl+Shift+N"
+
 // --- DOM Elements ---
 const applyWallpaperBtn = document.getElementById("apply-wallpaper-btn")
 const toggleSettingsBtn = document.getElementById("toggle-settings-btn")
@@ -56,6 +63,9 @@ const settingsInputs = {
   imageFileInput: document.getElementById("image-file-input"),
   imageFilenameSpan: document.getElementById("image-filename"),
   runInTrayCheckbox: document.getElementById("run-in-tray-checkbox"),
+  quickAddTranslucentCheckbox: document.getElementById(
+    "quick-add-translucent-checkbox"
+  ),
   shortcutDisplayGroup: document.querySelector(".shortcut-display-group"),
   currentShortcutDisplay: document.getElementById("current-shortcut-display"),
   changeShortcutBtn: document.getElementById("change-shortcut-btn"),
@@ -78,11 +88,6 @@ const canvas = document.getElementById("image-canvas")
 const ctx = canvas.getContext("2d")
 
 // --- Application State ---
-const DEFAULT_FONT = "Inter"
-const DEFAULT_WEIGHT = "400"
-const DEFAULT_TEXT_COLOR = "#f3f4f6"
-const DEFAULT_BG_COLOR = "#111827"
-const DEFAULT_SHORTCUT = "CommandOrControl+Shift+N"
 let state = {
   todos: [],
   title: "My Tasks",
@@ -90,15 +95,15 @@ let state = {
   fontSource: "default",
   systemFontFamily: "",
   googleFontName: "",
-  activeFontFamily: DEFAULT_FONT,
-  fontWeight: DEFAULT_WEIGHT,
+  activeFontFamily: DEFAULT_FONT, // Use constant
+  fontWeight: DEFAULT_WEIGHT, // Use constant
   customFontStatus: "idle",
   customFontError: null,
   backgroundType: "color",
-  bgColor: DEFAULT_BG_COLOR,
+  bgColor: DEFAULT_BG_COLOR, // Use constant
   backgroundImageDataUrl: null,
   backgroundImageName: null,
-  textColor: DEFAULT_TEXT_COLOR,
+  textColor: DEFAULT_TEXT_COLOR, // Use constant
   textPosition: "top-left",
   fontSize: 48,
   textAlign: "left",
@@ -111,7 +116,8 @@ let state = {
   lastGeneratedImageDataUrl: null,
   settingsCollapsed: false,
   runInTray: false,
-  quickAddShortcut: DEFAULT_SHORTCUT,
+  quickAddShortcut: DEFAULT_SHORTCUT, // Use constant
+  quickAddTranslucent: false,
   screenWidth: 1920,
   screenHeight: 1080,
 }
@@ -124,6 +130,7 @@ let textColorPickr = null
 let bgColorPickr = null
 
 // --- Initialization ---
+// ... (Keep initialize function as is) ...
 async function initialize() {
   console.log("Initializing Renderer...")
   const dimensions = window.electronAPI.getScreenDimensions()
@@ -135,18 +142,15 @@ async function initialize() {
   }
   setCanvasAndPreviewSize(state.screenWidth, state.screenHeight)
   loadState()
-
   await populateSystemFonts()
   initializeColorPickers()
   applyStateToUI()
-
   previewContainer.classList.remove("loaded")
-
   window.electronAPI.updateSettings({
     runInTray: state.runInTray,
     quickAddShortcut: state.quickAddShortcut,
+    quickAddTranslucent: state.quickAddTranslucent,
   })
-
   let fontLoadPromise = Promise.resolve()
   try {
     if (state.fontSource === "google" && state.googleFontName) {
@@ -166,16 +170,13 @@ async function initialize() {
     applyStateToUI()
     updateFontStatus("error", DEFAULT_FONT, "Initial load failed")
   }
-
   renderTodoList()
-
   fontLoadPromise
     .catch((err) => console.warn("Font loading rejected:", err))
     .finally(() => {
       generateTodoImageAndUpdatePreview()
     })
-
-  setupEventListeners() // Call AFTER function definitions below
+  setupEventListeners()
   initializeCollapsibleSections()
   window.electronAPI.onAddTaskAndApply(handleQuickAddTaskAndApply)
   window.electronAPI.onShortcutError(handleShortcutError)
@@ -190,6 +191,7 @@ async function initialize() {
 }
 
 // --- Set Canvas & Preview Size ---
+// ... (Keep as is) ...
 function setCanvasAndPreviewSize(width, height) {
   canvas.width = width
   canvas.height = height
@@ -201,6 +203,7 @@ function setCanvasAndPreviewSize(width, height) {
 }
 
 // --- Populate System Fonts ---
+// ... (Keep as is) ...
 async function populateSystemFonts() {
   try {
     systemFontsCache = await window.electronAPI.getSystemFonts()
@@ -231,6 +234,7 @@ async function populateSystemFonts() {
 }
 
 // --- Initialize Color Pickers ---
+// ... (Keep as is) ...
 function initializeColorPickers() {
   const pickrOptions = {
     el: null,
@@ -308,16 +312,24 @@ function initializeColorPickers() {
     })
 }
 
-// --- Helper function moved UP ---
+// --- Helper function ---
 function updateShortcutInputVisibility() {
-  if (settingsInputs.shortcutDisplayGroup)
+  const isTrayEnabled = state.runInTray
+  if (settingsInputs.shortcutDisplayGroup) {
     settingsInputs.shortcutDisplayGroup.classList.toggle(
       "hidden",
-      !state.runInTray
+      !isTrayEnabled
     )
+  }
+  const translucencyGroup =
+    settingsInputs.quickAddTranslucentCheckbox?.closest(".input-group")
+  if (translucencyGroup) {
+    translucencyGroup.classList.toggle("hidden", !isTrayEnabled)
+  }
 }
 
 // --- Apply State to UI ---
+// ... (Keep as is) ...
 function applyStateToUI() {
   settingsInputs.title.value = state.title
   settingsInputs.fontSize.value = state.fontSize
@@ -354,6 +366,9 @@ function applyStateToUI() {
   }
   if (settingsInputs.runInTrayCheckbox)
     settingsInputs.runInTrayCheckbox.checked = state.runInTray
+  if (settingsInputs.quickAddTranslucentCheckbox)
+    settingsInputs.quickAddTranslucentCheckbox.checked =
+      state.quickAddTranslucent
   if (settingsInputs.currentShortcutDisplay)
     settingsInputs.currentShortcutDisplay.textContent = formatAccelerator(
       state.quickAddShortcut || DEFAULT_SHORTCUT
@@ -370,11 +385,8 @@ function applyStateToUI() {
   updateToggleIcons(state.settingsCollapsed)
 }
 
-// ===========================================================
-//  MOVED EVENT HANDLERS AND HELPERS BEFORE setupEventListeners
-// ===========================================================
-
-// --- Global Keyboard Shortcut Handler --- Moved UP
+// --- Global Keyboard Shortcut Handler ---
+// ... (Keep as is) ...
 function handleGlobalKeyDown(event) {
   if (!addTodoModal.classList.contains("hidden")) {
     if (event.key === "Escape") closeModal()
@@ -393,6 +405,7 @@ function handleGlobalKeyDown(event) {
 }
 
 // --- Event Handlers ---
+// ... (isValidHexColor, handleHexInputChange, handleSettingChange remain the same) ...
 function isValidHexColor(hex) {
   if (!hex) return false
   const hexRegex = /^#([0-9A-F]{3,4}|[0-9A-F]{6}|[0-9A-F]{8})$/i
@@ -503,10 +516,20 @@ function handleSettingChange(event) {
           requiresRegeneration = false
           requiresSave = false
         }
-      } else {
-        requiresRegeneration = false
-        settingChanged = false
-        requiresSave = false
+      }
+      break
+    case "quick-add-translucent-checkbox":
+      if (id === "quick-add-translucent-checkbox") {
+        if (state.quickAddTranslucent !== value) {
+          state.quickAddTranslucent = value
+          settingChanged = true
+          requiresRegeneration = false
+          needsIpcUpdate = true
+        } else {
+          settingChanged = false
+          requiresRegeneration = false
+          requiresSave = false
+        }
       }
       break
     default:
@@ -607,20 +630,22 @@ function handleSettingChange(event) {
   if (settingChanged) {
     if (requiresRegeneration) generateTodoImageAndUpdatePreview()
     if (requiresSave) saveState()
-    if (needsIpcUpdate && id === "run-in-tray-checkbox")
+    if (needsIpcUpdate) {
       window.electronAPI.updateSettings({
         runInTray: state.runInTray,
         quickAddShortcut: state.quickAddShortcut,
+        quickAddTranslucent: state.quickAddTranslucent,
       })
+    }
   }
 }
 
 // --- Setup Event Listeners (Function Definition) ---
+// ... (Keep as is) ...
 function setupEventListeners() {
   console.log("Setting up event listeners...")
   applyWallpaperBtn.addEventListener("click", handleApplyWallpaper)
   toggleSettingsBtn.addEventListener("click", handleToggleSettings)
-
   if (minimizeBtn)
     minimizeBtn.addEventListener("click", () =>
       window.electronAPI.minimizeWindow()
@@ -631,7 +656,6 @@ function setupEventListeners() {
     )
   if (closeBtn)
     closeBtn.addEventListener("click", () => window.electronAPI.closeWindow())
-
   Object.keys(settingsInputs).forEach((key) => {
     const input = settingsInputs[key]
     if (
@@ -666,10 +690,8 @@ function setupEventListeners() {
       input.addEventListener(eventType, handleSettingChange)
     }
   })
-
   settingsInputs.textColorHex.addEventListener("input", handleHexInputChange)
   settingsInputs.bgColorHex.addEventListener("input", handleHexInputChange)
-
   if (settingsInputs.changeShortcutBtn)
     settingsInputs.changeShortcutBtn.addEventListener(
       "click",
@@ -684,10 +706,8 @@ function setupEventListeners() {
     "change",
     handleImageFileSelect
   )
-
   const todoColumn = document.querySelector(".column-todos")
   if (todoColumn) todoColumn.addEventListener("click", handleListClick)
-
   openAddTodoModalBtn.addEventListener("click", openModal)
   modalCloseBtn.addEventListener("click", closeModal)
   modalCancelBtn.addEventListener("click", closeModal)
@@ -701,10 +721,7 @@ function setupEventListeners() {
   recordShortcutModal.addEventListener("click", (e) => {
     if (e.target === recordShortcutModal) closeRecordShortcutModal()
   })
-
-  // Use handleGlobalKeyDown directly here (now defined above)
   document.addEventListener("keydown", handleGlobalKeyDown)
-
   settingsColumn.addEventListener("click", (e) => {
     const t = e.target.closest(".setting-section-toggle")
     if (t) handleSettingToggleClick(t)
@@ -712,7 +729,8 @@ function setupEventListeners() {
   console.log("Event listeners setup complete.")
 }
 
-// --- State Management (load/save) - Remains the same ---
+// --- State Management (load/save) ---
+// ... (Keep as is) ...
 function saveState() {
   try {
     const stateToSave = {
@@ -740,6 +758,7 @@ function saveState() {
       settingsCollapsed: state.settingsCollapsed,
       runInTray: state.runInTray,
       quickAddShortcut: state.quickAddShortcut,
+      quickAddTranslucent: state.quickAddTranslucent,
     }
     localStorage.setItem("visidoState", JSON.stringify(stateToSave))
   } catch (e) {
@@ -749,6 +768,8 @@ function saveState() {
 function loadState() {
   try {
     const savedState = localStorage.getItem("visidoState")
+    const platform = window.electronAPI?.getPlatform() || "win32"
+    const platformDefaultTranslucent = platform === "darwin"
     if (savedState) {
       const parsedState = JSON.parse(savedState)
       const currentScreenDims = {
@@ -769,6 +790,7 @@ function loadState() {
         googleFontName: "",
         textColor: DEFAULT_TEXT_COLOR,
         bgColor: DEFAULT_BG_COLOR,
+        quickAddTranslucent: platformDefaultTranslucent,
       }
       state = {
         ...state,
@@ -784,6 +806,10 @@ function loadState() {
           typeof parsedState.runInTray === "boolean"
             ? parsedState.runInTray
             : defaults.runInTray,
+        quickAddTranslucent:
+          typeof parsedState.quickAddTranslucent === "boolean"
+            ? parsedState.quickAddTranslucent
+            : platformDefaultTranslucent,
         fontSize:
           typeof parsedState.fontSize === "number" ? parsedState.fontSize : 48,
         fontWeight:
@@ -856,11 +882,13 @@ function loadState() {
         settingsCollapsed: false,
         runInTray: false,
         quickAddShortcut: DEFAULT_SHORTCUT,
+        quickAddTranslucent: platformDefaultTranslucent,
       }
       console.log("No saved state found, using defaults.")
     }
   } catch (e) {
     console.error("Load State Error:", e)
+    const platform = window.electronAPI?.getPlatform() || "win32"
     state = {
       ...state,
       todos: [],
@@ -871,9 +899,13 @@ function loadState() {
       quickAddShortcut: DEFAULT_SHORTCUT,
       textColor: DEFAULT_TEXT_COLOR,
       bgColor: DEFAULT_BG_COLOR,
+      quickAddTranslucent: platform === "darwin",
     }
   }
 }
+
+// --- Rest of the code (Todo CRUD, UI Rendering, Image Gen, Font Loading, etc.) remains the same ---
+// ... (Keep all functions from addTodo down to initialize()) ...
 function addTodo(text) {
   const t = text.trim()
   if (t) {
@@ -971,7 +1003,7 @@ async function generateTodoImageAndUpdatePreview() {
   const colGap = Math.max(0, parseInt(columnGap, 10) || 50)
   const titleFontSize = Math.round(itemFontSize * 1.2)
   previewContainer.classList.remove("loaded")
-  /* Show loader */ return Promise.resolve()
+  return Promise.resolve()
     .then(() => {
       ctx.clearRect(0, 0, screenWidth, screenHeight)
       if (backgroundType === "image" && backgroundImageDataUrl) {
@@ -1024,7 +1056,7 @@ async function generateTodoImageAndUpdatePreview() {
     .catch((err) => {
       console.error("Error during image generation process:", err)
       updatePreviewImage()
-      /* Still update to maybe show broken state */ throw err
+      throw err
     })
 }
 function loadImage(src) {
@@ -1743,6 +1775,7 @@ function handleSaveShortcut() {
       window.electronAPI.updateSettings({
         runInTray: state.runInTray,
         quickAddShortcut: state.quickAddShortcut,
+        quickAddTranslucent: state.quickAddTranslucent,
       })
   }
   closeRecordShortcutModal()
@@ -1856,6 +1889,7 @@ function handleShortcutError(errorMessage) {
   window.electronAPI.updateSettings({
     runInTray: false,
     quickAddShortcut: state.quickAddShortcut,
+    quickAddTranslucent: state.quickAddTranslucent,
   })
 }
 function formatAccelerator(accelerator) {

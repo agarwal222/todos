@@ -1,46 +1,55 @@
 /* quick-add-style.css */
 :root {
-    --background: 240 6% 10%; /* Slightly lighter dark */
-    --foreground: 0 0% 96%;
-    --muted-foreground: 240 5% 64.9%;
-    --input-bg: 240 4% 14%;
-    --border: 240 4% 18%;
-    --primary: 262.1 83.3% 62%; /* Slightly brighter primary */
-    --radius: 0.6rem;
-    --spacing-xs: 0.25rem; --spacing-sm: 0.5rem; --spacing-md: 0.75rem; --spacing-lg: 1rem;
-    --font-sans: sans-serif; /* System default */
+    --bg-color-solid: #1C1C1E; /* Solid dark grey */
+    --bg-color-translucent: rgba(38, 38, 41, 0.85); /* Semi-transparent dark grey for Win/Linux */
+    --foreground: #EAEAEB;
+    --muted-foreground: #8E8E93;
+    --input-bg: rgba(90, 90, 90, 0.3); /* Subtle input background */
+    --border: rgba(70, 70, 70, 0.6);
+    --primary: #0A84FF; /* Apple Blue */
+    --hover-bg: rgba(80, 80, 80, 0.3);
+    --radius: 10px; /* More rounded corners */
+    --spacing-xs: 4px; --spacing-sm: 8px; --spacing-md: 12px; --spacing-lg: 16px;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif; /* System Font Stack */
+    --scrollbar-thumb: rgba(120, 120, 120, 0.6);
+    --scrollbar-thumb-hover: rgba(140, 140, 140, 0.8);
+    --max-task-item-height: 34px; /* Control item height */
+    --header-height: 24px; /* Height for sticky headers */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; border: 0 solid hsl(var(--border)); }
-html, body { height: 100%; overflow: hidden; } /* Prevent scrollbars on body */
+html, body { height: 100%; overflow: hidden; }
 
 body {
     font-family: var(--font-sans);
-    background-color: hsl(var(--background) / 0.85); /* Translucent background */
-    backdrop-filter: blur(10px);
-    color: hsl(var(--foreground));
-    padding: 0; /* No padding on body */
+    background-color: transparent; /* Let main process handle background/vibrancy */
+    color: var(--foreground);
+    padding: 0;
     border-radius: var(--radius);
     overflow: hidden;
-    border: 1px solid hsl(var(--border) / 0.5);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-    display: flex; /* Use flex for container */
-    justify-content: center;
-    align-items: flex-start; /* Align container to top */
+    /* Removed border/shadow - handled by window options potentially */
+    display: flex;
+    flex-direction: column; /* Body itself is the main container now */
+    font-size: 14px;
+    line-height: 1.4;
 }
 
-.quick-add-container {
-    width: 100%;
-    max-height: 80vh; /* Limit height */
-    display: flex;
-    flex-direction: column;
-    overflow: hidden; /* Prevent container itself from scrolling */
+/* Apply background based on setting (passed via body class) */
+body.translucent {
+    /* Style when translucency is ON (already handled by window options mostly) */
 }
+body:not(.translucent) {
+    background-color: var(--bg-color-solid);
+}
+
+
+/* .quick-add-container { No longer needed } */
 
 #quick-add-form {
     padding: var(--spacing-md) var(--spacing-lg);
-    border-bottom: 1px solid hsl(var(--border));
     flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+    /* background-color: inherit; /* Ensure it matches body bg */ 
 }
 
 .input-wrapper {
@@ -49,130 +58,145 @@ body {
     align-items: center;
 }
 
-.search-icon {
+.input-icon {
     position: absolute;
     left: var(--spacing-md);
-    color: hsl(var(--muted-foreground));
-    width: 18px;
-    height: 18px;
-    pointer-events: none; /* Don't interfere with input focus */
+    color: var(--muted-foreground);
+    width: 16px;
+    height: 16px;
+    pointer-events: none;
 }
 
 #quick-add-input {
     flex-grow: 1;
-    padding: var(--spacing-md) var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) * 2 + 18px); /* Left padding for icon */
-    border: none; /* Remove border */
-    border-radius: var(--radius);
-    background-color: hsl(var(--input-bg));
-    color: hsl(var(--foreground));
-    font-size: 1.1rem; /* Larger input font */
+    padding: var(--spacing-sm) var(--spacing-md) var(--spacing-sm) calc(var(--spacing-md) * 2 + 18px);
+    border: none;
+    border-radius: calc(var(--radius) / 1.5); /* Slightly less rounded */
+    background-color: var(--input-bg);
+    color: var(--foreground);
+    font-size: 1.1rem;
     outline: none;
-    height: 44px;
+    height: 40px; /* Spotlight-like height */
 }
 #quick-add-input:focus {
-    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.7); /* Focus ring */
+    box-shadow: 0 0 0 2px var(--primary); /* Focus ring */
 }
 #quick-add-input::placeholder {
-    color: hsl(var(--muted-foreground));
+    color: var(--muted-foreground);
 }
-
 
 .task-lists-container {
-    flex-grow: 1; /* Allow lists area to take remaining space */
-    overflow-y: auto; /* Enable scrolling ONLY for the lists */
-    padding: var(--spacing-sm) var(--spacing-lg);
-    /* Custom Scrollbar */
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: var(--spacing-sm) 0; /* Padding top/bottom, no side padding */
+    max-height: calc(7.5 * var(--max-task-item-height) + 2 * var(--header-height)); /* Show ~7.5 items + headers */
     scrollbar-width: thin;
-    scrollbar-color: hsl(var(--muted-foreground)/0.5) transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
 }
-.task-lists-container::-webkit-scrollbar { width: 6px; }
-.task-lists-container::-webkit-scrollbar-track { background: transparent; }
-.task-lists-container::-webkit-scrollbar-thumb { background-color: hsl(var(--muted-foreground)/0.5); border-radius: 3px; }
-.task-lists-container::-webkit-scrollbar-thumb:hover { background-color: hsl(var(--muted-foreground)/0.8); }
+.task-lists-container::-webkit-scrollbar { width: 5px; background: transparent; }
+.task-lists-container::-webkit-scrollbar-thumb { background-color: var(--scrollbar-thumb); border-radius: 3px; }
+.task-lists-container::-webkit-scrollbar-thumb:hover { background-color: var(--scrollbar-thumb-hover); }
 
 
 .task-section {
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: var(--spacing-sm); /* Reduced margin between sections */
 }
-.task-section:last-child {
-    margin-bottom: 0;
-}
+.task-section:last-child { margin-bottom: 0; }
 
 .task-section-header {
-    font-size: 0.8rem;
+    font-size: 0.75rem; /* Smaller header */
     font-weight: 600;
-    color: hsl(var(--muted-foreground));
+    color: var(--muted-foreground);
     text-transform: uppercase;
-    padding: var(--spacing-sm) 0;
-    position: sticky; /* Keep headers visible while scrolling */
+    padding: var(--spacing-xs) var(--spacing-lg); /* Match list item padding */
+    position: sticky;
     top: 0;
-    background-color: hsl(var(--background) / 0.9); /* Ensure header bg matches body during scroll */
+    /* Use body's background for stickiness */
+    background-color: inherit;
     z-index: 10;
+    height: var(--header-height);
+    display: flex;
+    align-items: center;
 }
+/* Add backdrop blur if translucent for sticky header */
+body.translucent .task-section-header {
+    backdrop-filter: blur(10px);
+    background-color: rgba(38, 38, 41, 0.7); /* Match translucent BG but slightly less transparent */
+}
+body:not(.translucent) .task-section-header {
+    background-color: var(--bg-color-solid); /* Match solid BG */
+}
+
 
 .task-section ul {
     list-style: none;
-    padding: 0;
+    padding: 0 var(--spacing-xs); /* Add slight horizontal padding for list */
 }
 
 .quick-task-item {
     display: flex;
     align-items: center;
-    padding: var(--spacing-sm) var(--spacing-xs); /* Smaller padding */
+    padding: var(--spacing-xs) var(--spacing-sm); /* Vertical padding controls height */
+    margin: 0 var(--spacing-xs); /* Add horizontal margin instead of list padding */
     border-radius: calc(var(--radius) / 1.5);
-    margin-bottom: var(--spacing-xs);
-    transition: background-color 0.15s ease-in-out;
+    height: var(--max-task-item-height);
+    overflow: hidden; /* Prevent content overflow */
+    cursor: default; /* Not interactive */
+    transition: background-color 0.1s ease-in-out;
 }
 
 .quick-task-item:hover {
-    background-color: hsl(var(--muted) / 0.3);
+    background-color: var(--hover-bg);
 }
 
-.quick-task-item .checkbox {
-    width: 14px;
-    height: 14px;
-    border: 1.5px solid hsl(var(--muted-foreground));
-    border-radius: 50%; /* Circle checkbox */
+.quick-task-item .checkbox-icon { /* Use SVG for checkbox */
+    width: 16px;
+    height: 16px;
     margin-right: var(--spacing-md);
     flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    color: var(--muted-foreground); /* Default color */
 }
-.quick-task-item.done .checkbox {
-    border-color: hsl(var(--primary));
-    background-color: hsl(var(--primary));
+.quick-task-item.done .checkbox-icon {
+    color: var(--primary); /* Color when done */
 }
-/* Optional: Add checkmark inside */
-/* .quick-task-item.done .checkbox::after { content: '✔'; color: var(--primary-foreground); font-size: 10px; } */
+
 
 .quick-task-item .text {
     flex-grow: 1;
     font-size: 0.9rem;
-    color: hsl(var(--foreground));
+    color: var(--foreground);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 .quick-task-item.done .text {
     text-decoration: line-through;
-    color: hsl(var(--muted-foreground));
-    opacity: 0.7;
+    color: var(--muted-foreground);
+    opacity: 0.8;
 }
 
+.list-placeholder, /* Combined styles for placeholders */
 .empty-message {
-    color: hsl(var(--muted-foreground));
+    color: var(--muted-foreground);
     font-style: italic;
     text-align: center;
-    padding: var(--spacing-md);
+    padding: var(--spacing-md) var(--spacing-lg);
     font-size: 0.85rem;
 }
 
 .quick-add-footer {
     text-align: center;
-    padding: var(--spacing-sm) 0;
+    padding: var(--spacing-sm) 0 var(--spacing-md) 0;
     font-size: 0.75rem;
-    color: hsl(var(--muted-foreground));
-    border-top: 1px solid hsl(var(--border));
+    color: var(--muted-foreground);
+    border-top: 1px solid var(--border);
     flex-shrink: 0;
+    background-color: inherit; /* Match body bg */
+}
+body.translucent .quick-add-footer {
+    backdrop-filter: blur(10px);
+    background-color: rgba(38, 38, 41, 0.7);
+}
+body:not(.translucent) .quick-add-footer {
+    background-color: var(--bg-color-solid);
 }

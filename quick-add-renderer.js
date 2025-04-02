@@ -1,9 +1,12 @@
 const quickAddInput = document.getElementById("quick-add-input")
 const quickAddForm = document.getElementById("quick-add-form")
-const activeListUl = document.getElementById("quick-active-list")
-const completedListUl = document.getElementById("quick-completed-list")
+const taskListsContainer = document.getElementById("task-lists-container")
 
-let allTodos = [] // Store received todos
+let allTodos = []
+
+// Icons for tasks
+const circleIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="checkbox-icon"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-1.5A5.5 5.5 0 1 1 8 2.5a5.5 5.5 0 0 1 0 11Z"></path></svg>`
+const checkCircleIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="checkbox-icon"><path fill-rule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14Zm3.84-9.12a.75.75 0 0 0-1.18-.94l-2.97 2.97-1.22-1.22a.75.75 0 0 0-1.06 1.06l1.75 1.75a.75.75 0 0 0 1.06 0l3.62-3.62Z" clip-rule="evenodd"></path></svg>`
 
 // 1. Listen for initial todos from main process
 window.electronAPI.onInitialTodos((todos) => {
@@ -12,29 +15,49 @@ window.electronAPI.onInitialTodos((todos) => {
   renderQuickAddTodos()
 })
 
+// Listen for settings (specifically translucency)
+window.electronAPI.onQuickAddSettings((settings) => {
+  console.log("QuickAdd: Received settings", settings)
+  document.body.classList.toggle("translucent", !!settings.translucent)
+})
+
 // 2. Render received todos into lists
 function renderQuickAddTodos() {
-  activeListUl.innerHTML = "" // Clear placeholders/old items
-  completedListUl.innerHTML = ""
+  taskListsContainer.innerHTML = "" // Clear placeholder/old content
 
   const activeTodos = allTodos.filter((t) => !t.done)
   const completedTodos = allTodos.filter((t) => t.done)
 
-  if (activeTodos.length === 0) {
-    activeListUl.innerHTML = '<li class="empty-message">No active tasks</li>'
-  } else {
+  // Create Active Section
+  if (activeTodos.length > 0) {
+    const activeSection = document.createElement("section")
+    activeSection.className = "task-section"
+    activeSection.innerHTML = `<h3 class="task-section-header">Active</h3>`
+    const activeUl = document.createElement("ul")
     activeTodos.forEach((todo) =>
-      activeListUl.appendChild(createQuickTodoElement(todo))
+      activeUl.appendChild(createQuickTodoElement(todo))
     )
+    activeSection.appendChild(activeUl)
+    taskListsContainer.appendChild(activeSection)
   }
 
-  if (completedTodos.length === 0) {
-    completedListUl.innerHTML =
-      '<li class="empty-message">No completed tasks</li>'
-  } else {
+  // Create Completed Section
+  if (completedTodos.length > 0) {
+    const completedSection = document.createElement("section")
+    completedSection.className = "task-section"
+    completedSection.innerHTML = `<h3 class="task-section-header">Completed</h3>`
+    const completedUl = document.createElement("ul")
     completedTodos.forEach((todo) =>
-      completedListUl.appendChild(createQuickTodoElement(todo))
+      completedUl.appendChild(createQuickTodoElement(todo))
     )
+    completedSection.appendChild(completedUl)
+    taskListsContainer.appendChild(completedSection)
+  }
+
+  // Show message if no tasks at all
+  if (activeTodos.length === 0 && completedTodos.length === 0) {
+    taskListsContainer.innerHTML =
+      '<div class="empty-message">No tasks yet!</div>'
   }
 }
 
@@ -45,9 +68,8 @@ function createQuickTodoElement(todo) {
   if (todo.done) {
     li.classList.add("done")
   }
-  // Note: We are making these non-interactive for simplicity in the quick add overlay
   li.innerHTML = `
-        <div class="checkbox"></div>
+        ${todo.done ? checkCircleIconSVG : circleIconSVG}
         <span class="text">${escapeHTML(todo.text)}</span>
     `
   return li
@@ -66,12 +88,11 @@ quickAddForm.addEventListener("submit", (event) => {
   const taskText = quickAddInput.value.trim()
   if (taskText && window.electronAPI?.sendTaskToMain) {
     console.log("QuickAdd: Sending new task:", taskText)
-    window.electronAPI.sendTaskToMain(taskText) // Send ONLY the new task text
+    window.electronAPI.sendTaskToMain(taskText)
     quickAddInput.value = ""
-    // Main process will close the window after receiving the task and telling main renderer
+    // Main process will close the window
   } else {
     console.error("QuickAdd: API not available or task is empty.")
-    // Optionally provide visual feedback (e.g., shake input)
   }
 })
 
@@ -86,16 +107,11 @@ document.addEventListener("keydown", (event) => {
   }
 })
 
-// 5. Request initial todos when ready (moved from main process push)
+// 5. Request initial todos (no longer needed - main asks main renderer)
 window.addEventListener("DOMContentLoaded", () => {
   quickAddInput.focus()
-  console.log("QuickAdd: Requesting initial todos from main process...")
-  if (window.electronAPI?.requestTodosForOverlay) {
-    window.electronAPI.requestTodosForOverlay() // Ask main to get todos from main window
-  } else {
-    console.error("QuickAdd: requestTodosForOverlay API not available.")
-    renderQuickAddTodos() // Render empty lists if API fails
-  }
+  console.log("QuickAdd: DOM Loaded.")
+  // Requesting todos is now handled implicitly by main process flow
 })
 
 console.log("Quick Add Renderer loaded.")

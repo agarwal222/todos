@@ -7,12 +7,10 @@
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self';"
     />
     <title>Visido</title>
-    <!-- Pickr CSS -->
     <link
       rel="stylesheet"
       href="node_modules/@simonwep/pickr/dist/themes/nano.min.css"
     />
-    <!-- Your custom CSS -->
     <link rel="stylesheet" href="style.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -147,10 +145,7 @@
           </div>
         </div>
       </header>
-
-      <!-- Main Content Area -->
       <main class="app-main">
-        <!-- Todos Column -->
         <aside class="column column-todos">
           <div class="column-header">
             <h2 class="column-title">Active Tasks</h2>
@@ -182,15 +177,11 @@
             <ul id="completed-todo-list"></ul>
           </div>
         </aside>
-
-        <!-- Preview Column -->
         <section class="column column-preview">
           <div class="preview-area-container" id="preview-container">
-            <!-- Loading Indicator -->
             <div id="preview-loader" class="preview-loader">
               Loading Preview...
             </div>
-            <!-- Actual Preview Image -->
             <img id="preview-area" alt="Wallpaper Preview" src="" />
             <canvas
               id="image-canvas"
@@ -200,8 +191,6 @@
             ></canvas>
           </div>
         </section>
-
-        <!-- Settings Column -->
         <aside
           class="column column-settings"
           id="settings-column"
@@ -435,11 +424,12 @@
                     id="run-in-tray-checkbox"
                     class="checkbox-input"
                   /><span class="checkbox-hint"
-                    >Hide window on close, enable Quick Add shortcut.</span
+                    >Hide window on close, enable Quick Add.</span
                   >
                 </div>
+                <!-- Quick Add Settings (only visible if Run in Tray is checked) -->
                 <div class="input-group shortcut-display-group hidden">
-                  <label>Quick Add</label
+                  <label>Quick Add Key</label
                   ><span
                     id="current-shortcut-display"
                     class="shortcut-display"
@@ -450,6 +440,21 @@
                   >
                     Change
                   </button>
+                </div>
+                <div
+                  class="input-group hidden"
+                  id="quick-add-translucent-group"
+                >
+                  <label for="quick-add-translucent-checkbox"
+                    >Translucent UI</label
+                  ><input
+                    type="checkbox"
+                    id="quick-add-translucent-checkbox"
+                    class="checkbox-input"
+                  /><span class="checkbox-hint"
+                    >Enable background blur (macOS) or transparency
+                    (Win/Linux).</span
+                  >
                 </div>
               </div>
             </div>
@@ -489,8 +494,7 @@
                         checked
                       />
                       Default</label
-                    >
-                    <label
+                    ><label
                       ><input
                         type="radio"
                         name="font-source"
@@ -498,8 +502,7 @@
                         id="font-source-system"
                       />
                       System</label
-                    >
-                    <label
+                    ><label
                       ><input
                         type="radio"
                         name="font-source"
@@ -648,8 +651,6 @@
           </div>
         </aside>
       </main>
-
-      <!-- Add Todo Modal -->
       <div id="add-todo-modal" class="modal-overlay hidden">
         <div class="modal-content">
           <button
@@ -695,7 +696,6 @@
           </form>
         </div>
       </div>
-      <!-- Record Shortcut Modal -->
       <div id="record-shortcut-modal" class="modal-overlay hidden">
         <div class="modal-content record-shortcut-content">
           <button
@@ -743,9 +743,7 @@
         </div>
       </div>
     </div>
-    <!-- Pickr JS -->
     <script src="node_modules/@simonwep/pickr/dist/pickr.min.js"></script>
-    <!-- Your Renderer JS -->
     <script src="./renderer.js"></script>
   </body>
 </html>

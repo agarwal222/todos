@@ -6,23 +6,24 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';"
     />
-    <title>Quick Task</title>
+    <title>Quick Add Task</title>
     <link rel="stylesheet" href="quick-add-style.css" />
   </head>
   <body>
     <div class="quick-add-container">
       <form id="quick-add-form">
         <div class="input-wrapper">
+          <!-- Search/Add Icon -->
           <svg
-            class="search-icon"
+            class="input-icon"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 16 16"
             fill="currentColor"
-            width="16"
-            height="16"
           >
             <path
-              d="M8.75 3.75a.75.75 0 0 0-1.5 0v3.5h-3.5a.75.75 0 0 0 0 1.5h3.5v3.5a.75.75 0 0 0 1.5 0v-3.5h3.5a.75.75 0 0 0 0-1.5h-3.5v-3.5Z"
+              fill-rule="evenodd"
+              d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"
+              clip-rule="evenodd"
             />
           </svg>
           <input
@@ -31,25 +32,16 @@
             placeholder="Add a new task..."
             autofocus
             required
+            autocomplete="off"
           />
         </div>
       </form>
-      <div class="task-lists-container scrollable-content">
-        <section class="task-section">
-          <h3 class="task-section-header">Active</h3>
-          <ul id="quick-active-list">
-            <!-- Active tasks will be rendered here -->
-            <li class="empty-message">Loading tasks...</li>
-          </ul>
-        </section>
-        <section class="task-section">
-          <h3 class="task-section-header">Completed</h3>
-          <ul id="quick-completed-list">
-            <!-- Completed tasks will be rendered here -->
-            <li class="empty-message">Loading tasks...</li>
-          </ul>
-        </section>
+
+      <div class="task-lists-container" id="task-lists-container">
+        <!-- Tasks will be rendered here by JS -->
+        <div class="list-placeholder">Loading tasks...</div>
       </div>
+
       <div class="quick-add-footer">Press Enter to add, Esc to cancel</div>
     </div>
     <script src="./quick-add-renderer.js"></script>

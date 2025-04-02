@@ -7,27 +7,27 @@ const {
   Tray,
   Menu,
   globalShortcut,
-  dialog, // Added for potential error messages
+  dialog,
 } = require("electron")
 const path = require("node:path")
 const fs = require("node:fs")
 const os = require("node:os")
 const https = require("node:https")
-const fontList = require("font-list") // Added font-list
+const fontList = require("font-list")
 
 // Keep references
 let mainWindow = null
 let tray = null
 let quickAddWindow = null
-let isQuitting = false // Flag to prevent hiding on actual quit
+let isQuitting = false
 let appSettings = {
-  // Store settings received from renderer
   runInTray: false,
-  quickAddShortcut: "CommandOrControl+Shift+N", // Store shortcut setting, initialize with default
+  quickAddShortcut: "CommandOrControl+Shift+N",
+  quickAddTranslucent: process.platform === "darwin", // Default to true on Mac, false otherwise
 }
-let currentShortcut = null // Track the currently registered shortcut
+let currentShortcut = null
 
-const DEFAULT_SHORTCUT = "CommandOrControl+Shift+N" // Define default shortcut
+const DEFAULT_SHORTCUT = "CommandOrControl+Shift+N"
 
 // --- Main Window Creation ---
 function createWindow() {
@@ -35,7 +35,6 @@ function createWindow() {
   const screenDimensions = primaryDisplay.size
 
   mainWindow = new BrowserWindow({
-    // Assign to global mainWindow
     width: 1280,
     height: 800,
     minWidth: 900,
@@ -45,64 +44,69 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
-    show: false, // Don't show immediately
+    show: false,
     frame: false,
+    titleBarStyle: "hidden", // Needed for frameless window controls space
+    titleBarOverlay: {
+      // Add minimal overlay for traffic lights space on Mac
+      color: "#00000000", // Transparent
+      symbolColor: "#a0a0a0", // Grey symbols
+      height: 30, // Adjust as needed
+    },
   })
 
   mainWindow.loadFile("index.html")
 
-  // Send screen dimensions and initial window state once ready
   mainWindow.webContents.on("did-finish-load", () => {
     mainWindow.webContents.send("screen-dimensions", screenDimensions)
     mainWindow.webContents.send("window-state-changed", {
       isMaximized: mainWindow.isMaximized(),
       isFullScreen: mainWindow.isFullScreen(),
     })
+    // Send initial settings *after* renderer might have loaded its state
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("initial-settings", appSettings)
+      }
+    }, 100) // Small delay
     mainWindow.show()
   })
 
-  // --- Send state changes to renderer ---
+  // Window state change listeners... (remain the same)
   mainWindow.on("maximize", () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow && !mainWindow.isDestroyed())
       mainWindow.webContents.send("window-state-changed", {
         isMaximized: true,
         isFullScreen: mainWindow.isFullScreen(),
       })
-    }
   })
   mainWindow.on("unmaximize", () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow && !mainWindow.isDestroyed())
       mainWindow.webContents.send("window-state-changed", {
         isMaximized: false,
         isFullScreen: mainWindow.isFullScreen(),
       })
-    }
   })
   mainWindow.on("enter-full-screen", () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow && !mainWindow.isDestroyed())
       mainWindow.webContents.send("window-state-changed", {
         isMaximized: mainWindow.isMaximized(),
         isFullScreen: true,
       })
-    }
   })
   mainWindow.on("leave-full-screen", () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow && !mainWindow.isDestroyed())
       mainWindow.webContents.send("window-state-changed", {
         isMaximized: mainWindow.isMaximized(),
         isFullScreen: false,
       })
-    }
   })
 
-  // --- Modified Close/Minimize Behavior ---
   mainWindow.on("close", (event) => {
     if (appSettings.runInTray && !isQuitting) {
       event.preventDefault()
       mainWindow.hide()
-      if (process.platform === "darwin") {
-        app.dock?.hide()
-      }
+      if (process.platform === "darwin") app.dock?.hide()
       console.log("Main window hidden to tray.")
     } else {
       mainWindow = null
@@ -119,45 +123,42 @@ function createWindow() {
 
   mainWindow.on("closed", () => {
     mainWindow = null
-    if (!appSettings.runInTray && process.platform !== "darwin") {
+    if (!appSettings.runInTray || process.platform !== "darwin") {
       app.quit()
     }
   })
 
-  // mainWindow.webContents.openDevTools(); // Uncomment for debugging
+  // mainWindow.webContents.openDevTools();
 }
 
 // --- Tray Icon Creation ---
 function createTray() {
-  if (tray) {
-    console.log("Tray already exists.")
-    return
-  }
+  if (tray) return
   const iconName =
-    process.platform === "win32" ? "icon.ico" : "iconTemplate.png" // Use template icon on Mac
+    process.platform === "win32" ? "icon.ico" : "iconTemplate.png"
   const iconPath = path.join(__dirname, "assets", iconName)
 
-  if (!fs.existsSync(iconPath)) {
-    console.error(
-      "Tray icon not found at:",
-      iconPath,
-      "- Tray creation might fail visually."
-    )
-    // Attempt to create anyway, might use default or be invisible
-    try {
-      tray = new Tray(path.join(__dirname, "assets", "icon.png")) // Fallback generic png
-    } catch (err) {
-      console.error("Fallback tray icon creation failed:", err)
-      return // Exit if cannot create tray
-    }
-  } else {
+  try {
     tray = new Tray(iconPath)
-  }
-
-  // macOS specific: ensure template image works correctly
-  if (process.platform === "darwin") {
-    tray.setImage(iconPath) // Set the template image
-    tray.setIgnoreDoubleClickEvents(true) // Use single click on Mac too
+    if (process.platform === "darwin") {
+      tray.setIgnoreDoubleClickEvents(true) // Use single click on Mac too
+    }
+  } catch (err) {
+    console.error("Tray icon creation failed:", err)
+    // Try fallback if needed
+    try {
+      const fallbackPath = path.join(__dirname, "assets", "icon.png")
+      if (fs.existsSync(fallbackPath)) {
+        tray = new Tray(fallbackPath)
+        console.log("Used fallback tray icon.")
+      } else {
+        console.error("Fallback tray icon not found.")
+        return // Cannot create tray
+      }
+    } catch (fallbackErr) {
+      console.error("Fallback tray icon creation also failed:", fallbackErr)
+      return
+    }
   }
 
   const contextMenu = Menu.buildFromTemplate([
@@ -174,10 +175,7 @@ function createTray() {
 
   tray.setToolTip("Visido - Wallpaper Tasks")
   tray.setContextMenu(contextMenu)
-
-  tray.on("click", () => {
-    showMainWindow()
-  })
+  tray.on("click", () => showMainWindow())
   console.log("System tray icon created.")
 }
 
@@ -195,9 +193,7 @@ function showMainWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.show()
     mainWindow.focus()
-    if (process.platform === "darwin") {
-      app.dock?.show()
-    }
+    if (process.platform === "darwin") app.dock?.show()
   } else {
     console.log("Main window not available, recreating...")
     createWindow()
@@ -207,11 +203,8 @@ function showMainWindow() {
 // --- Global Shortcut ---
 function registerGlobalShortcut() {
   const shortcutToRegister = appSettings.quickAddShortcut || DEFAULT_SHORTCUT
-
-  if (currentShortcut && currentShortcut !== shortcutToRegister) {
+  if (currentShortcut && currentShortcut !== shortcutToRegister)
     unregisterCurrentShortcut()
-  }
-
   if (globalShortcut.isRegistered(shortcutToRegister)) {
     if (currentShortcut === shortcutToRegister) {
       console.log(
@@ -222,42 +215,37 @@ function registerGlobalShortcut() {
       console.error(
         `Failed to register global shortcut: ${shortcutToRegister}. It is already in use by another application.`
       )
-      if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow && !mainWindow.isDestroyed())
         mainWindow.webContents.send(
           "shortcut-error",
           `Failed to register shortcut: ${shortcutToRegister}. It is in use by another application.`
         )
-      }
       currentShortcut = null
       return
     }
   }
-
   console.log(`Attempting to register shortcut: ${shortcutToRegister}`)
   const ret = globalShortcut.register(shortcutToRegister, () => {
     console.log(`Shortcut ${shortcutToRegister} pressed`)
     createOrShowQuickAddWindow()
   })
-
   if (!ret) {
     console.error(
       "Failed to register global shortcut:",
       shortcutToRegister,
-      "(Unknown reason, possibly invalid format or system issue)"
+      "(Unknown reason)"
     )
-    if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow && !mainWindow.isDestroyed())
       mainWindow.webContents.send(
         "shortcut-error",
-        `Failed to register shortcut: ${shortcutToRegister}. Invalid format or system issue.`
+        `Failed to register shortcut: ${shortcutToRegister}.`
       )
-    }
     currentShortcut = null
   } else {
     console.log("Global shortcut registered:", shortcutToRegister)
     currentShortcut = shortcutToRegister
   }
 }
-
 function unregisterCurrentShortcut() {
   if (currentShortcut && globalShortcut.isRegistered(currentShortcut)) {
     globalShortcut.unregister(currentShortcut)
@@ -274,29 +262,29 @@ function unregisterCurrentShortcut() {
 // --- Quick Add Window ---
 function createOrShowQuickAddWindow() {
   if (quickAddWindow && !quickAddWindow.isDestroyed()) {
-    console.log("Quick Add window already open. Focusing.")
     quickAddWindow.focus()
     return
   }
-
   if (!mainWindow || mainWindow.isDestroyed()) {
-    console.error("Cannot open Quick Add: Main window not available.")
     dialog.showErrorBox("Error", "Main application window is not available.")
     return
   }
 
   const primaryDisplay = screen.getPrimaryDisplay()
-  const { width: screenWidth, height: screenHeight } = primaryDisplay.size
-  const winWidth = 500
-  const winHeight = 400
+  const { width: screenWidth } = primaryDisplay.size
+  const winWidth = 600 // Wider for Spotlight look
+  const winHeight = 450 // Adjusted height
 
-  quickAddWindow = new BrowserWindow({
+  // Determine background/transparency based on setting and platform
+  let windowOptions = {
     width: winWidth,
     height: winHeight,
     x: Math.round(screenWidth / 2 - winWidth / 2),
-    y: Math.round(screenHeight * 0.15),
+    y: Math.round(
+      primaryDisplay.workArea.y + primaryDisplay.workArea.height * 0.15
+    ), // Position relative to work area top
     frame: false,
-    resizable: false,
+    resizable: false, // Typically not resizable
     movable: true,
     skipTaskbar: true,
     alwaysOnTop: true,
@@ -307,114 +295,101 @@ function createOrShowQuickAddWindow() {
       nodeIntegration: false,
       devTools: false,
     },
-    visualEffectState: "active", // Mac vibrancy
-    backgroundColor: "#00000000", // Transparent background for vibrancy
-    ...(process.platform === "darwin" && { vibrancy: "under-window" }), // macOS vibrancy
-  })
+  }
 
-  // More aggressive transparency on Windows if needed (may cause issues)
-  // if (process.platform === 'win32') {
-  //   quickAddWindow.setOpacity(0.95); // Slight transparency
-  // }
+  if (appSettings.quickAddTranslucent) {
+    if (process.platform === "darwin") {
+      windowOptions.vibrancy = "hud" // Or 'fullscreen-ui', 'sidebar', etc.
+      windowOptions.visualEffectState = "active"
+      windowOptions.backgroundColor = "#00000000" // Fully transparent for vibrancy
+    } else {
+      // Fallback for Windows/Linux: semi-transparent dark background
+      windowOptions.transparent = true // Required for semi-transparent BG on Win/Linux
+      windowOptions.backgroundColor = "#1C1C1EBB" // Dark grey with alpha (adjust BB as needed)
+      // Note: True transparency might have issues on some Linux DEs
+    }
+  } else {
+    // Solid background if translucency is off
+    windowOptions.backgroundColor = "#1C1C1E" // Solid dark grey
+  }
+
+  quickAddWindow = new BrowserWindow(windowOptions)
 
   quickAddWindow.loadFile(path.join(__dirname, "quick-add.html"))
 
   let todosForQuickAdd = null
-  let quickAddWindowReady = false // Flag to track if quickAddWindow finished loading
+  let quickAddWindowReady = false
 
   const responseListener = (event, todos) => {
-    console.log("Main: Received current-todos-response from main window.")
     todosForQuickAdd = todos
     ipcMain.removeListener("current-todos-response", responseListener)
-
     if (
       quickAddWindowReady &&
       quickAddWindow &&
       !quickAddWindow.isDestroyed()
     ) {
-      console.log("Main: Sending initial-todos to quick add window now.")
       quickAddWindow.webContents.send("initial-todos", todosForQuickAdd)
     }
   }
   ipcMain.once("current-todos-response", responseListener)
 
-  console.log("Main: Sending get-todos-request to main window.")
   mainWindow.webContents.send("get-todos-request")
 
   quickAddWindow.webContents.on("did-finish-load", () => {
-    console.log("Main: Quick Add finished loading.")
-    quickAddWindowReady = true // Set flag
+    quickAddWindowReady = true
     if (todosForQuickAdd !== null) {
-      console.log("Main: Sending initial-todos to quick add window after load.")
       quickAddWindow.webContents.send("initial-todos", todosForQuickAdd)
     }
-    quickAddWindow.show() // Show after content is loaded
+    // Send translucency setting to renderer if needed for styling
+    quickAddWindow.webContents.send("quickadd-settings", {
+      translucent: appSettings.quickAddTranslucent,
+    })
+    quickAddWindow.show()
   })
-
-  // Removed ready-to-show listener as we now show on did-finish-load
 
   quickAddWindow.on("blur", () => {
-    if (quickAddWindow && !quickAddWindow.isDestroyed()) {
-      console.log("Quick Add window lost focus, closing.")
-      quickAddWindow.close()
-    }
+    if (quickAddWindow && !quickAddWindow.isDestroyed()) quickAddWindow.close()
   })
-
   quickAddWindow.on("closed", () => {
-    console.log("Quick Add window closed.")
     ipcMain.removeListener("current-todos-response", responseListener)
     quickAddWindow = null
   })
 }
 
 // --- IPC Handlers ---
-
 ipcMain.handle("get-screen-dimensions", () => screen.getPrimaryDisplay().size)
-
-// ** NEW: Get System Fonts **
 ipcMain.handle("get-system-fonts", async () => {
   try {
     const fonts = await fontList.getFonts({ disableQuoting: true })
-    // Basic filtering for common system/UI fonts that might not be desirable
     const filteredFonts = fonts.filter(
       (font) =>
         !/System|UI|Display|Emoji|Icons|Symbols|Logo|Brands|Private|Wingdings|Webdings/i.test(
           font
-        ) && !/^\./.test(font) // Remove hidden fonts starting with '.'
+        ) && !/^\./.test(font)
     )
-    return [...new Set(filteredFonts)].sort() // Remove duplicates and sort
+    return [...new Set(filteredFonts)].sort()
   } catch (error) {
     console.error("Failed to get system fonts:", error)
     return []
   }
 })
-
-// ** UPDATED: Load Google Font By Name **
 ipcMain.handle(
   "load-google-font-by-name",
   async (event, { fontName, fontWeight }) => {
-    if (!fontName) {
-      return { success: false, error: "Font name is required." }
-    }
+    if (!fontName) return { success: false, error: "Font name is required." }
     const requestedWeight = fontWeight || "400"
-    // Request multiple weights: requested, 400 (regular), 700 (bold) for flexibility
     const weightsToRequest = [...new Set([requestedWeight, "400", "700"])].join(
       ";"
     )
     const formattedName = fontName.replace(/ /g, "+")
     const fontUrl = `https://fonts.googleapis.com/css2?family=${formattedName}:wght@${weightsToRequest}&display=swap`
-
     console.log("Main: Loading Google Font CSS from:", fontUrl)
     try {
       const cssContent = await fetchGoogleFontCSS(fontUrl)
-      // console.log("CSS Content:", cssContent); // Debugging
-
-      // Regex to find font-family and woff2 url within @font-face blocks, capturing weight
       const fontFaceRegex =
         /@font-face\s*{[^{}]*?font-family:\s*['"]?([^;'"]+)['"]?[^{}]*?font-weight:\s*(\d+)[^{}]*?url\((https:\/\/fonts\.gstatic\.com\/s\/[^)]+\.woff2)\)[^{}]*?}/gs
       let match
       const availableFonts = []
-
       while ((match = fontFaceRegex.exec(cssContent)) !== null) {
         availableFonts.push({
           family: match[1],
@@ -422,11 +397,7 @@ ipcMain.handle(
           url: match[3],
         })
       }
-
-      // console.log("Available Fonts Parsed:", availableFonts); // Debugging
-
       if (availableFonts.length === 0) {
-        // Fallback for WOFF (less common now)
         const woffRegex =
           /@font-face\s*{[^{}]*?font-family:\s*['"]?([^;'"]+)['"]?[^{}]*?font-weight:\s*(\d+)[^{}]*?url\((https:\/\/fonts\.gstatic\.com\/s\/[^)]+\.woff)\)[^{}]*?}/gs
         while ((match = woffRegex.exec(cssContent)) !== null) {
@@ -434,35 +405,27 @@ ipcMain.handle(
             family: match[1],
             weight: match[2],
             url: match[3],
-            format: "woff", // Indicate format
+            format: "woff",
           })
         }
-        // console.log("Available WOFF Fonts Parsed:", availableFonts); // Debugging
       }
-
-      if (availableFonts.length === 0) {
+      if (availableFonts.length === 0)
         return { success: false, error: "Could not parse font details." }
-      }
-
-      // Find the best match for the requested weight
       let bestMatch = availableFonts.find((f) => f.weight === requestedWeight)
       if (!bestMatch) {
-        // Fallback to 400 or the first available if 400 isn't there
         bestMatch =
           availableFonts.find((f) => f.weight === "400") || availableFonts[0]
         console.warn(
           `Requested weight ${requestedWeight} not found, using ${bestMatch.weight}`
         )
       }
-
       console.log("Best font match:", bestMatch)
       const fontData = await fetchFontData(bestMatch.url)
       const mimeType = bestMatch.format === "woff" ? "font/woff" : "font/woff2"
-
       return {
         success: true,
-        fontFamily: bestMatch.family, // Return the actual family name from CSS
-        fontWeight: bestMatch.weight, // Return the actual loaded weight
+        fontFamily: bestMatch.family,
+        fontWeight: bestMatch.weight,
         fontDataUrl: `data:${mimeType};base64,${fontData}`,
       }
     } catch (error) {
@@ -471,8 +434,6 @@ ipcMain.handle(
     }
   }
 )
-
-// Helper: Fetch Google Font CSS (handles redirects)
 function fetchGoogleFontCSS(url) {
   return new Promise((resolve, reject) => {
     const options = {
@@ -488,7 +449,6 @@ function fetchGoogleFontCSS(url) {
           res.statusCode < 400 &&
           res.headers.location
         ) {
-          console.log("Following redirect to:", res.headers.location)
           return fetchGoogleFontCSS(res.headers.location)
             .then(resolve)
             .catch(reject)
@@ -503,8 +463,6 @@ function fetchGoogleFontCSS(url) {
       .on("error", (e) => reject(new Error(`CSS Request Error: ${e.message}`)))
   })
 }
-
-// Helper: Fetch Font Data (handles redirects)
 function fetchFontData(url) {
   return new Promise((resolve, reject) => {
     https
@@ -514,10 +472,6 @@ function fetchFontData(url) {
           res.statusCode < 400 &&
           res.headers.location
         ) {
-          console.log(
-            "Following redirect for font data to:",
-            res.headers.location
-          )
           return fetchFontData(res.headers.location).then(resolve).catch(reject)
         }
         if (res.statusCode !== 200) {
@@ -532,12 +486,9 @@ function fetchFontData(url) {
       .on("error", (e) => reject(new Error(`Font Request Error: ${e.message}`)))
   })
 }
-
-// Update Wallpaper
 ipcMain.handle("update-wallpaper", async (event, imageDataUrl) => {
   console.log("Main: Updating wallpaper...")
   try {
-    // Dynamic import for ESM module 'wallpaper'
     const { setWallpaper } = await import("wallpaper")
     const tempDir = os.tmpdir()
     const tempFilePath = path.join(
@@ -546,96 +497,84 @@ ipcMain.handle("update-wallpaper", async (event, imageDataUrl) => {
     )
     const base64Data = imageDataUrl.replace(/^data:image\/png;base64,/, "")
     const imageBuffer = Buffer.from(base64Data, "base64")
-
-    // Ensure temp directory exists (though os.tmpdir() usually does)
     await fs.promises.mkdir(tempDir, { recursive: true })
-
     await fs.promises.writeFile(tempFilePath, imageBuffer)
     console.log("Main: Wrote temp wallpaper file to:", tempFilePath)
-
-    await setWallpaper(tempFilePath, {
-      scale: "auto", // Let the library decide best scale
-      // screen: 'all' // Or specify a screen if needed
-    })
-
+    await setWallpaper(tempFilePath, { scale: "auto" })
     console.log("Main: Wallpaper set command issued.")
-
-    // Cleanup the temp file after a short delay
     setTimeout(() => {
       fs.unlink(tempFilePath, (err) => {
         if (err) console.error("Error deleting temp wallpaper file:", err)
         else console.log("Main: Deleted temp wallpaper file:", tempFilePath)
       })
-    }, 10000) // Increased delay slightly
-
+    }, 10000)
     return { success: true }
   } catch (error) {
     console.error("Main: Failed to set wallpaper:", error)
     return { success: false, error: error.message }
   }
 })
-
-// Listen for settings changes from main renderer
 ipcMain.on("update-settings", (event, settings) => {
   console.log("Main received settings update:", settings)
+  const wasTrayMode = appSettings.runInTray
   const trayModeChanged = appSettings.runInTray !== settings.runInTray
   const newShortcut = settings.quickAddShortcut || DEFAULT_SHORTCUT
   const shortcutChanged = appSettings.quickAddShortcut !== newShortcut
-  appSettings = { ...appSettings, ...settings, quickAddShortcut: newShortcut }
+  const translucencyChanged =
+    appSettings.quickAddTranslucent !== settings.quickAddTranslucent
 
-  if (appSettings.runInTray) {
-    if (trayModeChanged) createTray()
-    if (trayModeChanged || shortcutChanged) registerGlobalShortcut()
-    if (trayModeChanged && process.platform === "darwin") app.dock?.hide()
-  } else if (!appSettings.runInTray && trayModeChanged) {
-    destroyTray()
-    unregisterCurrentShortcut()
-    if (process.platform === "darwin") app.dock?.show()
-    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible())
-      showMainWindow()
+  // Update all settings
+  appSettings = { ...appSettings, ...settings }
+
+  // Handle Tray Mode Changes
+  if (trayModeChanged) {
+    if (appSettings.runInTray) {
+      createTray()
+      registerGlobalShortcut() // Register shortcut when tray enabled
+      if (process.platform === "darwin") app.dock?.hide()
+    } else {
+      destroyTray()
+      unregisterCurrentShortcut() // Unregister shortcut when tray disabled
+      if (process.platform === "darwin") app.dock?.show()
+      if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+        showMainWindow()
+      }
+    }
   } else if (appSettings.runInTray && shortcutChanged) {
-    // Handle shortcut changes even if tray mode didn't change
+    // If tray mode didn't change but shortcut did, re-register
     registerGlobalShortcut()
   }
-})
 
-// Listen for task from quick add renderer
+  // If translucency changed, close and reopen quick add window next time it's triggered
+  if (translucencyChanged && quickAddWindow && !quickAddWindow.isDestroyed()) {
+    console.log("Quick Add translucency changed, will apply on next open.")
+    quickAddWindow.close() // Close existing window
+  }
+})
 ipcMain.on("add-task-from-overlay", (event, taskText) => {
   console.log("Main received task from overlay:", taskText)
   if (mainWindow && !mainWindow.isDestroyed()) {
-    console.log("Sending add-task-and-apply to main window renderer...")
     mainWindow.webContents.send("add-task-and-apply", taskText)
   } else {
     console.warn("Main window not available for task.")
   }
   if (quickAddWindow && !quickAddWindow.isDestroyed()) quickAddWindow.close()
 })
-
-// Listen for close request from quick add renderer
 ipcMain.on("close-quick-add", () => {
   if (quickAddWindow && !quickAddWindow.isDestroyed()) quickAddWindow.close()
 })
-
-// Handle Window Control Actions from Renderer
 ipcMain.on("window-minimize", (event) => {
-  const win = BrowserWindow.fromWebContents(event.sender)
-  console.log("Main: Received minimize request")
-  win?.minimize()
+  BrowserWindow.fromWebContents(event.sender)?.minimize()
 })
-
 ipcMain.on("window-maximize-restore", (event) => {
   const win = BrowserWindow.fromWebContents(event.sender)
-  console.log("Main: Received maximize/restore request")
   if (win) {
     if (win.isMaximized()) win.unmaximize()
     else win.maximize()
   }
 })
-
 ipcMain.on("window-close", (event) => {
-  const win = BrowserWindow.fromWebContents(event.sender)
-  console.log("Main: Received close request")
-  win?.close()
+  BrowserWindow.fromWebContents(event.sender)?.close()
 })
 
 // --- App Lifecycle ---
@@ -647,7 +586,6 @@ app.whenReady().then(() => {
       showMainWindow()
   })
 })
-
 app.on("window-all-closed", () => {
   if (!appSettings.runInTray || process.platform !== "darwin") {
     app.quit()
@@ -655,11 +593,9 @@ app.on("window-all-closed", () => {
     console.log("Main window closed, app running in tray.")
   }
 })
-
 app.on("before-quit", () => {
   isQuitting = true
 })
-
 app.on("will-quit", () => {
   console.log("App quitting...")
   unregisterCurrentShortcut()
