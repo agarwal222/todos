@@ -6,7 +6,13 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self';"
     />
-    <title>Todo Wallpaper</title>
+    <title>Visido</title>
+    <!-- Pickr CSS -->
+    <link
+      rel="stylesheet"
+      href="node_modules/@simonwep/pickr/dist/themes/nano.min.css"
+    />
+    <!-- Your custom CSS -->
     <link rel="stylesheet" href="style.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -180,6 +186,11 @@
         <!-- Preview Column -->
         <section class="column column-preview">
           <div class="preview-area-container" id="preview-container">
+            <!-- Loading Indicator -->
+            <div id="preview-loader" class="preview-loader">
+              Loading Preview...
+            </div>
+            <!-- Actual Preview Image -->
             <img id="preview-area" alt="Wallpaper Preview" src="" />
             <canvas
               id="image-canvas"
@@ -241,13 +252,17 @@
                       value="My Tasks"
                     />
                   </div>
-                  <div class="input-group">
-                    <label for="text-color">Text Color</label
-                    ><input
-                      type="color"
-                      id="text-color"
-                      class="input-color"
-                      value="#f3f4f6"
+                  <div class="input-group color-picker-group">
+                    <label for="text-color-hex">Text Color</label>
+                    <div
+                      class="color-picker-widget"
+                      id="text-color-picker"
+                    ></div>
+                    <input
+                      type="text"
+                      id="text-color-hex"
+                      class="input input-hex"
+                      aria-label="Text color hex code"
                     />
                   </div>
                   <div class="input-group">
@@ -290,7 +305,6 @@
                       <option value="top-right">Top Right</option>
                       <option value="center-left">Center Left</option>
                       <option value="center">Center</option>
-                      <!-- No center-right, use alignment -->
                       <option value="bottom-left">Bottom Left</option>
                       <option value="bottom-center">Bottom Center</option>
                       <option value="bottom-right">Bottom Right</option>
@@ -496,14 +510,12 @@
                     >
                   </div>
                 </div>
-                <!-- System Font Controls -->
                 <div id="system-font-controls" class="input-group hidden">
                   <label for="system-font-select">System Font</label
                   ><select id="system-font-select" class="select">
                     <option value="" disabled selected>Loading fonts...</option>
                   </select>
                 </div>
-                <!-- Google Font Controls -->
                 <div id="google-font-controls" class="hidden">
                   <div class="input-group">
                     <label for="google-font-name">Font Name</label
@@ -521,7 +533,6 @@
                     </button>
                   </div>
                 </div>
-                <!-- Common Font Status -->
                 <div class="input-group">
                   <label>Status</label
                   ><span id="font-status" class="font-status-display"
@@ -583,13 +594,17 @@
                     >
                   </div>
                 </div>
-                <div id="bg-color-controls" class="input-group">
-                  <label for="bg-color">Color</label
-                  ><input
-                    type="color"
-                    id="bg-color"
-                    class="input-color"
-                    value="#111827"
+                <div
+                  id="bg-color-controls"
+                  class="input-group color-picker-group"
+                >
+                  <label for="bg-color-hex">Color</label>
+                  <div class="color-picker-widget" id="bg-color-picker"></div>
+                  <input
+                    type="text"
+                    id="bg-color-hex"
+                    class="input input-hex"
+                    aria-label="Background color hex code"
                   />
                 </div>
                 <div id="bg-image-controls" class="input-group hidden">
@@ -728,6 +743,9 @@
         </div>
       </div>
     </div>
+    <!-- Pickr JS -->
+    <script src="node_modules/@simonwep/pickr/dist/pickr.min.js"></script>
+    <!-- Your Renderer JS -->
     <script src="./renderer.js"></script>
   </body>
 </html>
