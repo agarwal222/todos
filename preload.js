@@ -77,8 +77,30 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on(channel, listener)
     return () => ipcRenderer.removeListener(channel, listener)
   },
-  // ** NEW: Send resize request **
   resizeQuickAdd: (height) => ipcRenderer.send("resize-quick-add", { height }),
+
+  // == Auto Updater APIs ==
+  onUpdateAvailable: (callback) => {
+    const channel = "update_available"
+    ipcRenderer.on(channel, (event, ...args) => callback(...args))
+    return () => ipcRenderer.removeAllListeners(channel)
+  },
+  onUpdateDownloaded: (callback) => {
+    const channel = "update_downloaded"
+    ipcRenderer.on(channel, (event, ...args) => callback(...args))
+    return () => ipcRenderer.removeAllListeners(channel)
+  },
+  onUpdateError: (callback) => {
+    const channel = "update_error"
+    ipcRenderer.on(channel, (event, ...args) => callback(...args))
+    return () => ipcRenderer.removeAllListeners(channel)
+  },
+  onDownloadProgress: (callback) => {
+    const channel = "download_progress"
+    ipcRenderer.on(channel, (event, ...args) => callback(...args))
+    return () => ipcRenderer.removeAllListeners(channel)
+  },
+  restartApp: () => ipcRenderer.send("restart_app"), // Send command to main to restart
 })
 
 console.log("Preload script finished exposing API successfully.")

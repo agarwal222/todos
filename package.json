@@ -17,7 +17,7 @@
     "productivity",
     "electron"
   ],
-  "author": "Your Name or GitHub Username",
+  "author": "utkarsh",
   "license": "MIT",
   "devDependencies": {
     "electron": "^29.1.5",
@@ -25,11 +25,13 @@
   },
   "dependencies": {
     "@simonwep/pickr": "^1.9.1",
+    "electron-log": "^5.3.3",
+    "electron-updater": "^6.6.2",
     "font-list": "^1.5.1",
     "wallpaper": "^6.1.1"
   },
   "build": {
-    "appId": "com.yourcompany.visido",
+    "appId": "com.utkarshdev.visido",
     "productName": "Visido",
     "asar": false,
     "files": [
@@ -45,11 +47,17 @@
     "asarUnpack": [
       "**/node_modules/wallpaper/source/windows-wallpaper.exe",
       "**/node_modules/wallpaper/vendor/**",
-      "**/node_modules/wallpaper/source/**"
+      "**/node_modules/wallpaper/source/**",
+      "**/node_modules/font-list/**" 
     ],
+    "publish": {
+      "provider": "github",
+      "owner": "agarwal222",
+      "repo": "todos"
+    },
     "win": {
       "target": "nsis",
-      "icon": "assets/icon.png"
+      "icon": "assets/icon.png" 
     },
     "mac": {
       "target": "dmg",

@@ -102,6 +102,14 @@ const recordModalCloseBtn = document.getElementById("record-modal-close-btn")
 const shortcutDisplayArea = document.getElementById("shortcut-display-area")
 const recordCancelBtn = document.getElementById("record-cancel-btn")
 const recordSaveBtn = document.getElementById("record-save-btn")
+
+// ** Add elements for update notifications **
+const updateNotificationArea = document.getElementById(
+  "update-notification-area"
+) // Assuming you add this div
+const updateMessage = document.getElementById("update-message")
+const restartButton = document.getElementById("restart-button")
+
 const recordInstructions = recordShortcutModal.querySelector(
   ".record-instructions"
 )
@@ -174,6 +182,7 @@ async function initialize() {
   setCanvasAndPreviewSize(state.screenWidth, state.screenHeight)
   loadState()
   await populateSystemFonts()
+  setupAutoUpdaterListeners()
   initializeColorPickers()
   applyStateToUI()
   previewContainer.classList.remove("loaded")
@@ -1093,6 +1102,76 @@ function setupEventListeners() {
   })
   console.log("Event listeners setup complete.")
 }
+
+function setupAutoUpdaterListeners() {
+  window.electronAPI.onUpdateAvailable((info) => {
+    console.log("Update available:", info)
+    showUpdateMessage(`Update v${info.version} available. Downloading...`)
+    // Optionally disable restart button until download completes
+    if (restartButton) restartButton.style.display = "none"
+  })
+
+  window.electronAPI.onUpdateDownloaded((info) => {
+    console.log("Update downloaded:", info)
+    showUpdateMessage(`Update v${info.version} downloaded. Restart to install.`)
+    // Show restart button
+    if (restartButton) restartButton.style.display = "inline-flex"
+  })
+
+  window.electronAPI.onUpdateError((err) => {
+    console.error("Update error:", err)
+    showUpdateMessage(`Error checking for updates: ${err}`)
+    // Hide restart button on error
+    if (restartButton) restartButton.style.display = "none"
+    // Hide the notification area after a delay on error
+    setTimeout(hideUpdateMessage, 8000)
+  })
+
+  window.electronAPI.onDownloadProgress((progressInfo) => {
+    console.log(`Download progress: ${progressInfo.percent}%`)
+    showUpdateMessage(
+      `Downloading update: ${Math.round(progressInfo.percent)}%`
+    )
+    // Update progress bar UI here if you add one
+  })
+
+  // Add click listener for the restart button
+  if (restartButton) {
+    restartButton.addEventListener("click", () => {
+      console.log("Restart button clicked")
+      window.electronAPI.restartApp()
+    })
+  }
+}
+
+function showUpdateMessage(message) {
+  if (updateNotificationArea && updateMessage) {
+    updateMessage.textContent = message
+    updateNotificationArea.classList.remove("hidden")
+    updateNotificationArea.classList.add("visible")
+  }
+}
+
+function hideUpdateMessage() {
+  if (updateNotificationArea) {
+    updateNotificationArea.classList.remove("visible")
+    // Optional: Add a class to trigger fade out animation
+    updateNotificationArea.classList.add("hiding")
+    // Use setTimeout to match animation duration before setting display: none
+    setTimeout(() => {
+      if (
+        updateNotificationArea &&
+        !updateNotificationArea.classList.contains("visible")
+      ) {
+        // Check if still hidden
+        updateNotificationArea.classList.add("hidden")
+        updateNotificationArea.classList.remove("hiding")
+        if (restartButton) restartButton.style.display = "none" // Ensure button is hidden
+      }
+    }, 500) // Match animation duration in CSS
+  }
+}
+
 // --- Rest of the code (Todo CRUD, UI Rendering, Image Gen, Font Loading, Modals, etc.) ---
 function addTodo(text) {
   const t = text.trim()
@@ -2406,6 +2485,29 @@ function handleWindowStateChange({ isMaximized }) {
     )
   }
 }
+
+function handleForcedSettingUpdate(settingsToUpdate) {
+  console.log("Renderer received forced setting update:", settingsToUpdate)
+  let stateChanged = false
+  for (const key in settingsToUpdate) {
+    if (state.hasOwnProperty(key) && state[key] !== settingsToUpdate[key]) {
+      state[key] = settingsToUpdate[key]
+      stateChanged = true
+      if (key === "quickAddTranslucent") {
+        if (settingsInputs.quickAddTranslucentCheckbox) {
+          settingsInputs.quickAddTranslucentCheckbox.checked =
+            state.quickAddTranslucent
+        }
+      }
+    }
+  }
+  if (stateChanged) {
+    console.log("Applying forced state changes to UI.")
+    applyStateToUI()
+    saveState()
+  }
+}
+
 function initializeCollapsibleSections() {
   const tBtns = settingsColumn.querySelectorAll(".setting-section-toggle")
   tBtns.forEach((b) => {

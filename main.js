@@ -8,12 +8,21 @@ const {
   Menu,
   globalShortcut,
   dialog,
+  Notification,
 } = require("electron")
 const path = require("node:path")
 const fs = require("node:fs")
 const os = require("node:os")
 const https = require("node:https")
 const fontList = require("font-list")
+const log = require("electron-log") // Import electron-log
+const { autoUpdater } = require("electron-updater") // Import autoUpdater
+
+// --- Configure Logging ---
+log.transports.file.level = "info" // Log info level messages to file
+log.transports.console.level = "info" // Log info level messages to console
+autoUpdater.logger = log // Pipe autoUpdater logs to electron-log
+log.info("App starting...") // Log app start
 
 // Keep references
 let mainWindow = null
@@ -30,11 +39,10 @@ let currentShortcut = null
 const DEFAULT_SHORTCUT = "CommandOrControl+Shift+N"
 const QUICK_ADD_SOLID_BG = "#2E2E30"
 const QUICK_ADD_VIBRANCY_FALLBACK_BG = "rgba(46, 46, 48, 0.9)"
-const QUICK_ADD_MIN_HEIGHT = 100 // Minimum height for the window
-const QUICK_ADD_MAX_HEIGHT_FACTOR = 1.5 // Allow window to be up to 1.5x screen height (should be clamped by screen size anyway)
+const QUICK_ADD_MIN_HEIGHT = 100
+const QUICK_ADD_MAX_HEIGHT_FACTOR = 1.5
 
 // --- Main Window Creation ---
-// ... (createWindow remains the same) ...
 function createWindow() {
   const primaryDisplay = screen.getPrimaryDisplay()
   const screenDimensions = primaryDisplay.size
@@ -42,6 +50,7 @@ function createWindow() {
     process.platform === "darwin"
       ? { height: 30 }
       : { color: "#00000000", symbolColor: "#a0a0a0", height: 30 }
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -56,6 +65,7 @@ function createWindow() {
     frame: false,
     backgroundColor: "#111827",
   })
+
   mainWindow.loadFile("index.html")
   mainWindow.webContents.on("did-finish-load", () => {
     mainWindow.webContents.send("screen-dimensions", screenDimensions)
@@ -68,6 +78,9 @@ function createWindow() {
         mainWindow.webContents.send("initial-settings", appSettings)
     }, 100)
     mainWindow.show()
+    // --- Check for Updates After Window Loads ---
+    log.info("Checking for updates...")
+    autoUpdater.checkForUpdatesAndNotify() // Check and notify on launch
   })
   mainWindow.on("maximize", () => {
     if (mainWindow && !mainWindow.isDestroyed())
@@ -119,11 +132,11 @@ function createWindow() {
     if (!appSettings.runInTray || process.platform !== "darwin") {
       app.quit()
     }
-  }) /* mainWindow.webContents.openDevTools(); */
+  })
+  // mainWindow.webContents.openDevTools();
 }
 
 // --- Tray Icon Creation ---
-// ... (createTray remains the same) ...
 function createTray() {
   if (tray) return
   const iconName =
@@ -166,7 +179,6 @@ function createTray() {
 }
 
 // --- Remove Tray Icon ---
-// ... (destroyTray remains the same) ...
 function destroyTray() {
   if (tray) {
     tray.destroy()
@@ -176,7 +188,6 @@ function destroyTray() {
 }
 
 // --- Show Main Window ---
-// ... (showMainWindow remains the same) ...
 function showMainWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.show()
@@ -189,7 +200,6 @@ function showMainWindow() {
 }
 
 // --- Global Shortcut ---
-// ... (registerGlobalShortcut, unregisterCurrentShortcut remain the same) ...
 function registerGlobalShortcut() {
   const shortcutToRegister = appSettings.quickAddShortcut || DEFAULT_SHORTCUT
   if (currentShortcut && currentShortcut !== shortcutToRegister)
@@ -260,16 +270,14 @@ function createOrShowQuickAddWindow() {
   }
 
   const primaryDisplay = screen.getPrimaryDisplay()
-  const { width: screenWidth, height: screenHeight } = primaryDisplay.size // Get screen height
+  const { width: screenWidth } = primaryDisplay.size
   const winWidth = 600
-  // Start with a minimal height, renderer will tell us the correct height
-  const initialHeight = QUICK_ADD_MIN_HEIGHT
+  const winHeight = 480
   const isMac = process.platform === "darwin"
   const useTranslucency = appSettings.quickAddTranslucent
   let bgColor = QUICK_ADD_SOLID_BG
   let transparent = false
   let vibrancyType = null
-
   if (useTranslucency) {
     if (isMac) {
       bgColor = "#00000000"
@@ -282,7 +290,7 @@ function createOrShowQuickAddWindow() {
 
   let windowOptions = {
     width: winWidth,
-    height: initialHeight, // Start small
+    height: winHeight,
     x: Math.round(screenWidth / 2 - winWidth / 2),
     y: Math.round(
       primaryDisplay.workArea.y + primaryDisplay.workArea.height * 0.15
@@ -302,7 +310,7 @@ function createOrShowQuickAddWindow() {
     transparent: transparent,
     backgroundColor: bgColor,
     ...(vibrancyType && { vibrancy: vibrancyType }),
-    useContentSize: true, // Make height relative to content area
+    useContentSize: true,
   }
 
   quickAddWindow = new BrowserWindow(windowOptions)
@@ -323,7 +331,6 @@ function createOrShowQuickAddWindow() {
   }
   ipcMain.once("current-todos-response", responseListener)
   mainWindow.webContents.send("get-todos-request")
-
   quickAddWindow.webContents.on("did-finish-load", () => {
     quickAddWindowReady = true
     if (todosForQuickAdd !== null) {
@@ -331,9 +338,7 @@ function createOrShowQuickAddWindow() {
     }
     quickAddWindow.webContents.send("quickadd-settings", {
       translucent: appSettings.quickAddTranslucent,
-    })
-    // Don't show yet, wait for resize IPC
-    // quickAddWindow.show();
+    }) /* Don't show here, wait for resize */
   })
   quickAddWindow.on("blur", () => {
     if (quickAddWindow && !quickAddWindow.isDestroyed()) quickAddWindow.close()
@@ -345,7 +350,6 @@ function createOrShowQuickAddWindow() {
 }
 
 // --- IPC Handlers ---
-// ... (get-screen-dimensions, get-system-fonts, font loading helpers, update-wallpaper remain the same) ...
 ipcMain.handle("get-screen-dimensions", () => screen.getPrimaryDisplay().size)
 ipcMain.handle("get-system-fonts", async () => {
   try {
@@ -575,32 +579,32 @@ ipcMain.on("window-maximize-restore", (event) => {
 ipcMain.on("window-close", (event) => {
   BrowserWindow.fromWebContents(event.sender)?.close()
 })
-
-// ** NEW: Listen for resize request from Quick Add **
 ipcMain.on("resize-quick-add", (event, { height }) => {
   if (quickAddWindow && !quickAddWindow.isDestroyed()) {
     try {
       const currentBounds = quickAddWindow.getBounds()
       const maxHeight = Math.round(
         screen.getPrimaryDisplay().workArea.height * QUICK_ADD_MAX_HEIGHT_FACTOR
-      ) // Max height constraint
+      )
       const newHeight = Math.max(
         QUICK_ADD_MIN_HEIGHT,
         Math.min(Math.round(height), maxHeight)
-      ) // Clamp height
-
+      )
       console.log(`Resizing Quick Add window to height: ${newHeight}`)
-      quickAddWindow.setSize(currentBounds.width, newHeight, false) // Resize (no animation)
-
-      // Only show *after* the first resize attempt
+      quickAddWindow.setSize(currentBounds.width, newHeight, false)
       if (!quickAddWindow.isVisible()) {
         quickAddWindow.show()
-        quickAddWindow.focus() // Ensure it gets focus
+        quickAddWindow.focus()
       }
     } catch (err) {
       console.error("Failed to resize quick add window:", err)
     }
   }
+})
+// ** NEW: Listen for restart app request **
+ipcMain.on("restart_app", () => {
+  log.info("Restarting app to install update...")
+  autoUpdater.quitAndInstall()
 })
 
 // --- App Lifecycle ---
@@ -626,4 +630,46 @@ app.on("will-quit", () => {
   console.log("App quitting...")
   unregisterCurrentShortcut()
   destroyTray()
+})
+
+// --- Auto Updater Event Listeners ---
+autoUpdater.on("update-available", (info) => {
+  log.info("Update available.", info)
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("update_available", info)
+  }
+})
+
+autoUpdater.on("update-not-available", (info) => {
+  log.info("Update not available.", info)
+})
+
+autoUpdater.on("error", (err) => {
+  log.error("Error in auto-updater.", err)
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("update_error", err.message)
+  }
+})
+
+autoUpdater.on("download-progress", (progressObj) => {
+  let log_message = "Download speed: " + progressObj.bytesPerSecond
+  log_message = log_message + " - Downloaded " + progressObj.percent + "%"
+  log_message =
+    log_message + " (" + progressObj.transferred + "/" + progressObj.total + ")"
+  log.info(log_message)
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("download_progress", progressObj)
+  }
+})
+
+autoUpdater.on("update-downloaded", (info) => {
+  log.info("Update downloaded.", info)
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("update_downloaded", info)
+  }
+  // Optional: Show a system notification that update is ready
+  new Notification({
+    title: "Visido Update Ready",
+    body: "A new version has been downloaded. Restart the application to apply the update.",
+  }).show()
 })
