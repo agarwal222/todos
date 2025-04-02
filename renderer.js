@@ -11,6 +11,7 @@ const DEFAULT_TEXT_BG_COLOR = "rgba(0, 0, 0, 0.5)"
 const DEFAULT_TEXT_BORDER_COLOR = "rgba(255, 255, 255, 0.1)"
 const DEFAULT_OVERALL_OPACITY = 1.0 // Default full opacity
 const DEFAULT_PANEL_OPACITY = 0.5 // Default for the panel itself
+const CONTEXT_MAX_LENGTH = 100 // Max characters for context
 
 // --- DOM Elements ---
 const applyWallpaperBtn = document.getElementById("apply-wallpaper-btn")
@@ -39,7 +40,7 @@ const settingsInputs = {
   fontSize: document.getElementById("font-size"),
   fontWeight: document.getElementById("font-weight-select"),
   listStyle: document.getElementById("list-style-select"),
-  overallOpacity: document.getElementById("overall-opacity"), // New
+  overallOpacity: document.getElementById("overall-opacity"),
   textPosition: document.getElementById("text-position"),
   textAlign: document.getElementById("text-align-select"),
   offsetX: document.getElementById("offset-x"),
@@ -53,9 +54,9 @@ const settingsInputs = {
   textBackgroundControls: document.getElementById("text-background-controls"),
   textBgColorPickerEl: document.getElementById("text-bg-color-picker"),
   textBgColorHex: document.getElementById("text-bg-color-hex"),
-  textPanelOpacity: document.getElementById("text-panel-opacity"), // Corrected key
-  textBgPaddingInline: document.getElementById("text-bg-padding-inline"), // Corrected key
-  textBgPaddingBlock: document.getElementById("text-bg-padding-block"), // Corrected key
+  textPanelOpacity: document.getElementById("text-panel-opacity"),
+  textBgPaddingInline: document.getElementById("text-bg-padding-inline"),
+  textBgPaddingBlock: document.getElementById("text-bg-padding-block"),
   textBgBorderRadius: document.getElementById("text-bg-border-radius"),
   textBorderColorPickerEl: document.getElementById("text-border-color-picker"),
   textBorderColorHex: document.getElementById("text-border-color-hex"),
@@ -133,7 +134,7 @@ let state = {
   itemSpacing: 20,
   maxItemsPerColumn: 10,
   columnGap: 50,
-  overallOpacity: DEFAULT_OVERALL_OPACITY, // Added
+  overallOpacity: DEFAULT_OVERALL_OPACITY,
   textBackgroundEnabled: false,
   textBackgroundColor: DEFAULT_TEXT_BG_COLOR,
   textBackgroundPaddingInline: 15,
@@ -262,7 +263,7 @@ async function populateSystemFonts() {
   }
 }
 
-// --- Initialize Color Pickers (Updated - Removed useAsButton) ---
+// --- Initialize Color Pickers ---
 function initializeColorPickers() {
   const pickrOptions = (elId, defaultColor, stateProp) => ({
     el: settingsInputs[elId],
@@ -270,7 +271,7 @@ function initializeColorPickers() {
     defaultRepresentation: "HEXA",
     default: state[stateProp] || defaultColor,
     position: "bottom-start",
-    // useAsButton: false, // Removed
+    // useAsButton: false, // Keep removed
     components: {
       preview: true,
       opacity: true,
@@ -364,13 +365,13 @@ function updateTextBackgroundControlsVisibility() {
   )
 }
 
-// --- Apply State to UI (Updated) ---
+// --- Apply State to UI ---
 function applyStateToUI() {
   settingsInputs.title.value = state.title
   settingsInputs.fontSize.value = state.fontSize
   settingsInputs.fontWeight.value = state.fontWeight
   settingsInputs.listStyle.value = state.listStyle
-  settingsInputs.overallOpacity.value = state.overallOpacity // Apply overall opacity
+  settingsInputs.overallOpacity.value = state.overallOpacity
   settingsInputs.textPosition.value = state.textPosition
   settingsInputs.textAlign.value = state.textAlign
   settingsInputs.offsetX.value = state.offsetX
@@ -379,24 +380,20 @@ function applyStateToUI() {
   settingsInputs.itemSpacing.value = state.itemSpacing
   settingsInputs.maxItems.value = state.maxItemsPerColumn
   settingsInputs.columnGap.value = state.columnGap
-  // Text Background
   settingsInputs.textBackgroundEnable.checked = state.textBackgroundEnabled
-  settingsInputs.textPanelOpacity.value = state.textPanelOpacity // Use correct key
-  settingsInputs.textBgPaddingInline.value = state.textBackgroundPaddingInline // Use correct key
-  settingsInputs.textBgPaddingBlock.value = state.textBackgroundPaddingBlock // Use correct key
+  settingsInputs.textPanelOpacity.value = state.textPanelOpacity
+  settingsInputs.textBgPaddingInline.value = state.textBackgroundPaddingInline
+  settingsInputs.textBgPaddingBlock.value = state.textBackgroundPaddingBlock
   settingsInputs.textBgBorderRadius.value = state.textBackgroundBorderRadius
   settingsInputs.textBgBorderWidth.value = state.textBackgroundBorderWidth
-  // Font
   settingsInputs.googleFontName.value = state.googleFontName || ""
   settingsInputs.fontSourceDefault.checked = state.fontSource === "default"
   settingsInputs.fontSourceSystem.checked = state.fontSource === "system"
   settingsInputs.fontSourceGoogle.checked = state.fontSource === "google"
-  // BG
   settingsInputs.bgTypeColor.checked = state.backgroundType === "color"
   settingsInputs.bgTypeImage.checked = state.backgroundType === "image"
   settingsInputs.imageFilenameSpan.textContent =
     state.backgroundImageName || "No file chosen"
-  // Pickrs
   if (textColorPickr)
     textColorPickr.setColor(state.textColor || DEFAULT_TEXT_COLOR, true)
   settingsInputs.textColorHex.value = state.textColor || DEFAULT_TEXT_COLOR
@@ -421,13 +418,11 @@ function applyStateToUI() {
   settingsInputs.textBorderColorHex.value =
     state.textBackgroundBorderColor || DEFAULT_TEXT_BORDER_COLOR
   settingsInputs.textBorderColorHex.classList.remove("invalid")
-  // System font select
   if (state.fontSource === "system" && state.systemFontFamily) {
     settingsInputs.systemFontSelect.value = state.systemFontFamily
   } else {
     settingsInputs.systemFontSelect.value = ""
   }
-  // Behavior
   if (settingsInputs.runInTrayCheckbox)
     settingsInputs.runInTrayCheckbox.checked = state.runInTray
   if (settingsInputs.quickAddTranslucentCheckbox)
@@ -437,7 +432,6 @@ function applyStateToUI() {
     settingsInputs.currentShortcutDisplay.textContent = formatAccelerator(
       state.quickAddShortcut || DEFAULT_SHORTCUT
     )
-  // Update visibility
   updateFontControlsVisibility()
   updateFontStatus(
     state.customFontStatus,
@@ -457,7 +451,12 @@ function applyStateToUI() {
 function saveState() {
   try {
     const stateToSave = {
-      todos: state.todos,
+      todos: state.todos.map((t) => ({
+        id: t.id,
+        text: t.text,
+        context: t.context || "",
+        done: t.done,
+      })),
       title: state.title,
       listStyle: state.listStyle,
       fontSource: state.fontSource,
@@ -538,7 +537,9 @@ function loadState() {
         ...defaults,
         ...parsedState,
         ...currentScreenDims,
-        todos: Array.isArray(parsedState.todos) ? parsedState.todos : [],
+        todos: Array.isArray(parsedState.todos)
+          ? parsedState.todos.map((t) => ({ ...t, context: t.context || "" }))
+          : [],
         settingsCollapsed:
           typeof parsedState.settingsCollapsed === "boolean"
             ? parsedState.settingsCollapsed
@@ -871,7 +872,7 @@ function handleSettingChange(event) {
             Math.min(1, parseFloat(value) || 1.0)
           )
           settingChanged = true
-          break // Handle overall opacity
+          break
         case "text-position":
           state.textPosition = value
           settingChanged = true
@@ -1092,10 +1093,11 @@ function setupEventListeners() {
   })
   console.log("Event listeners setup complete.")
 }
+// --- Rest of the code (Todo CRUD, UI Rendering, Image Gen, Font Loading, Modals, etc.) ---
 function addTodo(text) {
   const t = text.trim()
   if (t) {
-    state.todos.push({ id: Date.now(), text: t, done: false })
+    state.todos.push({ id: Date.now(), text: t, context: "", done: false })
     return true
   }
   return false
@@ -1124,6 +1126,7 @@ function renderTodoList() {
     completedTodos.forEach((t) =>
       completedTodoListUl.appendChild(createTodoElement(t))
     )
+  addContextInputListeners()
 }
 function createTodoElement(todo) {
   const li = document.createElement("li")
@@ -1135,18 +1138,52 @@ function createTodoElement(todo) {
   cb.checked = todo.done
   cb.classList.add("toggle-done")
   cb.setAttribute("aria-label", `Mark task ${todo.done ? "not done" : "done"}`)
+  const detailsDiv = document.createElement("div")
+  detailsDiv.className = "task-details"
   const span = document.createElement("span")
   span.textContent = todo.text
   span.classList.add("todo-text")
+  const contextInput = document.createElement("input")
+  contextInput.type = "text"
+  contextInput.classList.add("context-input")
+  contextInput.placeholder = "Add context..."
+  contextInput.value = todo.context || ""
+  contextInput.dataset.id = todo.id
+  contextInput.maxLength = CONTEXT_MAX_LENGTH
+  detailsDiv.appendChild(span)
+  detailsDiv.appendChild(contextInput)
   const btn = document.createElement("button")
   btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z" clip-rule="evenodd" /></svg>`
   btn.className = "button button-ghost button-icon delete-btn"
   btn.title = "Delete Task"
   btn.setAttribute("aria-label", "Delete task")
   li.appendChild(cb)
-  li.appendChild(span)
+  li.appendChild(detailsDiv)
   li.appendChild(btn)
   return li
+}
+function handleContextChange(event) {
+  const input = event.target
+  if (!input.classList.contains("context-input")) return
+  const id = parseInt(input.dataset.id, 10)
+  const todo = state.todos.find((t) => t.id === id)
+  if (todo) {
+    let newContext = input.value
+    if (newContext.length > CONTEXT_MAX_LENGTH) {
+      newContext = newContext.substring(0, CONTEXT_MAX_LENGTH)
+      input.value = newContext
+    }
+    if (todo.context !== newContext) {
+      todo.context = newContext
+      console.log(`Context updated for ID ${id}: "${newContext}"`)
+      saveState()
+      generateTodoImageAndUpdatePreview() /* Regenerate preview on context change */
+    }
+  }
+} // Added generate preview
+function addContextInputListeners() {
+  todoListUl.removeEventListener("input", handleContextChange)
+  todoListUl.addEventListener("input", handleContextChange)
 }
 async function generateTodoImageAndUpdatePreview() {
   const {
@@ -1190,13 +1227,15 @@ async function generateTodoImageAndUpdatePreview() {
   const itemFontSize = parseInt(fontSize, 10) || 48
   const linesToDraw = todos
     .filter((t) => !t.done)
-    .map((t) => ({ text: t.text, done: false }))
+    .map((t) => ({ text: t.text, context: t.context || "", done: false })) // Include context
   const padding = Math.max(60, itemFontSize * 1.5)
   const titleSpacing = parseInt(titleBottomMargin, 10) || 40
   const spacingBetweenItems = parseInt(itemSpacing, 10) || 20
   const maxItems = Math.max(1, parseInt(maxItemsPerColumn, 10) || 10)
   const colGap = Math.max(0, parseInt(columnGap, 10) || 50)
   const titleFontSize = Math.round(itemFontSize * 1.2)
+  const contextFontSize = Math.round(itemFontSize * 0.6) // Smaller size for context
+  const contextTopMargin = Math.round(itemSpacing * 0.3) // Space between item and context
   previewContainer.classList.remove("loaded")
   try {
     ctx.clearRect(0, 0, screenWidth, screenHeight)
@@ -1217,11 +1256,14 @@ async function generateTodoImageAndUpdatePreview() {
       fontWeight,
       titleFontSize,
       itemFontSize,
+      contextFontSize,
+      contextTopMargin,
       titleSpacing,
       itemSpacing,
       lines: linesToDraw,
       maxItemsPerColumn: maxItems,
       columnGap: colGap,
+      listStyle,
     })
     const { startX: textStartX, startY: textStartY } =
       calculateTextStartPositionMultiCol(
@@ -1265,6 +1307,8 @@ async function generateTodoImageAndUpdatePreview() {
       fontWeight,
       titleFontSize,
       itemFontSize,
+      contextFontSize,
+      contextTopMargin,
       titleSpacing,
       itemSpacing: spacingBetweenItems,
       lines: linesToDraw,
@@ -1318,6 +1362,8 @@ function calculateTextBlockDimensions(ctx, p) {
     fontWeight,
     titleFontSize,
     itemFontSize,
+    contextFontSize,
+    contextTopMargin,
     titleSpacing,
     itemSpacing,
     lines,
@@ -1343,10 +1389,12 @@ function calculateTextBlockDimensions(ctx, p) {
     : 0
   const itemWeight = parseInt(fontWeight, 10) || 400
   const ifs = `${itemWeight} ${itemFontSize}px "${fontName}", ${DEFAULT_FONT}`
-  ctx.font = ifs
+  const contextWeight = 300 // Light weight for context
+  const ctfs = `${contextWeight} ${contextFontSize}px "${fontName}", ${DEFAULT_FONT}`
   if (lines.length > 0) {
     lines.forEach((item, idx) => {
       currentColumnItemCount++
+      ctx.font = ifs
       const prefix =
         listStyle === "dash"
           ? "- "
@@ -1355,7 +1403,14 @@ function calculateTextBlockDimensions(ctx, p) {
           : "• "
       const itemText = `${prefix}${item.text}`
       const itemWidth = ctx.measureText(itemText).width
-      currentColumnWidth = Math.max(currentColumnWidth, itemWidth)
+      let contextWidth = 0
+      let itemTotalHeight = itemFontSize
+      if (item.context) {
+        ctx.font = ctfs
+        contextWidth = ctx.measureText(item.context).width
+        itemTotalHeight += contextTopMargin + contextFontSize
+      }
+      currentColumnWidth = Math.max(currentColumnWidth, itemWidth, contextWidth)
       if (
         currentColumnItemCount >= maxItemsPerColumn &&
         idx < lines.length - 1
@@ -1363,6 +1418,13 @@ function calculateTextBlockDimensions(ctx, p) {
         maxColumnWidth = Math.max(maxColumnWidth, currentColumnWidth)
         const currentColumnHeightOnlyItems =
           currentColumnItemCount * itemFontSize +
+          lines
+            .slice(idx - currentColumnItemCount + 1, idx + 1)
+            .reduce(
+              (sum, itm) =>
+                sum + (itm.context ? contextTopMargin + contextFontSize : 0),
+              0
+            ) +
           Math.max(0, currentColumnItemCount - 1) * itemSpacing
         maxColumnItemHeight = Math.max(
           maxColumnItemHeight,
@@ -1376,6 +1438,13 @@ function calculateTextBlockDimensions(ctx, p) {
     maxColumnWidth = Math.max(maxColumnWidth, currentColumnWidth)
     const lastColumnHeightOnlyItems =
       currentColumnItemCount * itemFontSize +
+      lines
+        .slice(lines.length - currentColumnItemCount)
+        .reduce(
+          (sum, itm) =>
+            sum + (itm.context ? contextTopMargin + contextFontSize : 0),
+          0
+        ) +
       Math.max(0, currentColumnItemCount - 1) * itemSpacing
     maxColumnItemHeight = Math.max(
       maxColumnItemHeight,
@@ -1505,7 +1574,7 @@ function drawTextBackgroundPanel(ctx, opts) {
     }
   }
   ctx.globalAlpha = originalAlpha
-} // Restore original alpha (which includes overallOpacity)
+}
 function drawTextElementsMultiCol(ctx, p) {
   const {
     title,
@@ -1515,6 +1584,8 @@ function drawTextElementsMultiCol(ctx, p) {
     fontWeight,
     titleFontSize,
     itemFontSize,
+    contextFontSize,
+    contextTopMargin,
     titleSpacing,
     itemSpacing,
     lines,
@@ -1560,6 +1631,9 @@ function drawTextElementsMultiCol(ctx, p) {
   const itemWeight = parseInt(fontWeight, 10) || 400
   const ifs = `${itemWeight} ${itemFontSize}px "${fontName}", ${DEFAULT_FONT}`
   const fifs = `${itemWeight} ${itemFontSize}px ${DEFAULT_FONT}`
+  const contextWeight = 300
+  const ctfs = `${contextWeight} ${contextFontSize}px "${fontName}", ${DEFAULT_FONT}`
+  const cffs = `${contextWeight} ${contextFontSize}px ${DEFAULT_FONT}`
   let currentColumnItemCount = 0
   let maxColWidthInThisLoop = 0
   lines.forEach((item, idx) => {
@@ -1598,8 +1672,34 @@ function drawTextElementsMultiCol(ctx, p) {
       itemWidth = ctx.measureText(itxt).width
       ctx.fillText(itxt, columnStartX, currentY)
     }
-    maxColWidthInThisLoop = Math.max(maxColWidthInThisLoop, itemWidth)
-    currentY += itemFontSize + itemSpacing
+    let currentItemHeight = itemFontSize
+    let contextWidth = 0
+    if (item.context) {
+      ctx.fillStyle = textColor // Context uses same color, but lower alpha via overallOpacity
+      ctx.globalAlpha *= 0.8 // Make context slightly more transparent than main text
+      let contextY = currentY + itemFontSize + contextTopMargin
+      try {
+        ctx.font = ctfs
+        contextWidth = ctx.measureText(item.context).width
+        ctx.fillText(item.context, columnStartX + itemFontSize * 0.75, contextY) // Indent context slightly
+      } catch (e) {
+        console.warn(
+          `Failed to draw context with font ${fontName}. Falling back.`,
+          e
+        )
+        ctx.font = cffs
+        contextWidth = ctx.measureText(item.context).width
+        ctx.fillText(item.context, columnStartX + itemFontSize * 0.75, contextY)
+      }
+      currentItemHeight += contextTopMargin + contextFontSize
+      ctx.globalAlpha /= 0.8 // Restore alpha for next item
+    }
+    maxColWidthInThisLoop = Math.max(
+      maxColWidthInThisLoop,
+      itemWidth,
+      contextWidth
+    )
+    currentY += currentItemHeight + itemSpacing
   })
   ctx.shadowColor = "transparent"
   ctx.shadowBlur = 0
