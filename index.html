@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
   </head>
@@ -262,6 +262,16 @@
                     />
                   </div>
                   <div class="input-group">
+                    <label for="font-weight-select">Font Weight</label
+                    ><select id="font-weight-select" class="select">
+                      <option value="300">Light</option>
+                      <option value="400">Regular</option>
+                      <option value="500">Medium</option>
+                      <option value="600">Semi-Bold</option>
+                      <option value="700">Bold</option>
+                    </select>
+                  </div>
+                  <div class="input-group">
                     <label for="list-style-select">List Style</label
                     ><select id="list-style-select" class="select">
                       <option value="bullet">Bullet (•)</option>
@@ -277,8 +287,10 @@
                     ><select id="text-position" class="select">
                       <option value="top-left">Top Left</option>
                       <option value="top-center">Top Center</option>
+                      <option value="top-right">Top Right</option>
                       <option value="center-left">Center Left</option>
                       <option value="center">Center</option>
+                      <!-- No center-right, use alignment -->
                       <option value="bottom-left">Bottom Left</option>
                       <option value="bottom-center">Bottom Center</option>
                       <option value="bottom-right">Bottom Right</option>

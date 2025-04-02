@@ -23,6 +23,7 @@ const settingsInputs = {
   title: document.getElementById("wallpaper-title-input"),
   textColor: document.getElementById("text-color"),
   fontSize: document.getElementById("font-size"),
+  fontWeight: document.getElementById("font-weight-select"), // Added
   listStyle: document.getElementById("list-style-select"),
   textPosition: document.getElementById("text-position"),
   textAlign: document.getElementById("text-align-select"),
@@ -71,6 +72,7 @@ const ctx = canvas.getContext("2d")
 
 // --- Application State ---
 const DEFAULT_FONT = "Inter"
+const DEFAULT_WEIGHT = "400" // Added
 const DEFAULT_SHORTCUT = "CommandOrControl+Shift+N"
 let state = {
   todos: [],
@@ -79,6 +81,7 @@ let state = {
   fontSource: "default",
   googleFontUrl: "",
   activeFontFamily: DEFAULT_FONT,
+  fontWeight: DEFAULT_WEIGHT, // Added
   customFontStatus: "idle",
   customFontError: null,
   backgroundType: "color",
@@ -166,6 +169,7 @@ function applyStateToUI() {
   settingsInputs.title.value = state.title
   settingsInputs.textColor.value = state.textColor
   settingsInputs.fontSize.value = state.fontSize
+  settingsInputs.fontWeight.value = state.fontWeight // Added
   settingsInputs.listStyle.value = state.listStyle
   settingsInputs.textPosition.value = state.textPosition
   settingsInputs.textAlign.value = state.textAlign
@@ -328,6 +332,7 @@ function saveState() {
       fontSource: state.fontSource,
       googleFontUrl: state.googleFontUrl,
       activeFontFamily: state.activeFontFamily,
+      fontWeight: state.fontWeight, // Added
       backgroundType: state.backgroundType,
       bgColor: state.bgColor,
       backgroundImageDataUrl: state.backgroundImageDataUrl,
@@ -341,7 +346,7 @@ function saveState() {
       titleBottomMargin: state.titleBottomMargin,
       itemSpacing: state.itemSpacing,
       maxItemsPerColumn: state.maxItemsPerColumn,
-      columnGap: state.columnGap, // Save new state
+      columnGap: state.columnGap,
       settingsCollapsed: state.settingsCollapsed,
       runInTray: state.runInTray,
       quickAddShortcut: state.quickAddShortcut,
@@ -367,6 +372,7 @@ function loadState() {
         maxItemsPerColumn: 10,
         columnGap: 50,
         activeFontFamily: DEFAULT_FONT,
+        fontWeight: DEFAULT_WEIGHT, // Added
         quickAddShortcut: DEFAULT_SHORTCUT,
         runInTray: false,
         settingsCollapsed: false,
@@ -388,6 +394,10 @@ function loadState() {
             : defaults.runInTray,
         fontSize:
           typeof parsedState.fontSize === "number" ? parsedState.fontSize : 48,
+        fontWeight:
+          typeof parsedState.fontWeight === "string" // Check if saved fontWeight is valid string
+            ? parsedState.fontWeight
+            : defaults.fontWeight, // Added
         offsetX:
           typeof parsedState.offsetX === "number" ? parsedState.offsetX : 0,
         offsetY:
@@ -417,19 +427,23 @@ function loadState() {
         customFontError: null,
       }
     } else {
+      // Defaults for a completely fresh start
       state.quickAddShortcut = DEFAULT_SHORTCUT
       state.titleBottomMargin = 40
       state.itemSpacing = 20
       state.maxItemsPerColumn = 10
       state.columnGap = 50
+      state.fontWeight = DEFAULT_WEIGHT // Added
     }
   } catch (e) {
     console.error("Load State Error:", e)
+    // Fallback defaults in case of error
     state.quickAddShortcut = DEFAULT_SHORTCUT
     state.titleBottomMargin = 40
     state.itemSpacing = 20
     state.maxItemsPerColumn = 10
     state.columnGap = 50
+    state.fontWeight = DEFAULT_WEIGHT // Added
   }
 }
 
@@ -499,6 +513,7 @@ async function generateTodoImageAndUpdatePreview() {
     title,
     listStyle,
     activeFontFamily,
+    fontWeight, // Get font weight
     backgroundType,
     bgColor,
     backgroundImageDataUrl,
@@ -568,6 +583,7 @@ async function generateTodoImageAndUpdatePreview() {
         textColor,
         textAlign,
         fontName: activeFontFamily,
+        fontWeight, // Pass font weight
         titleFontSize,
         itemFontSize,
         titleSpacing,
@@ -637,6 +653,7 @@ function calculateTextStartPositionMultiCol(
     requiredHeight +=
       itemsInFirstCol * ifz + (itemsInFirstCol - 1) * itemSpacing
   }
+  // --- Calculate Start Position ---
   switch (pos) {
     case "top-left":
       sx = p
@@ -644,6 +661,10 @@ function calculateTextStartPositionMultiCol(
       break
     case "top-center":
       sx = cw / 2
+      sy = p
+      break
+    case "top-right": // Added
+      sx = cw - p
       sy = p
       break
     case "center-left":
@@ -654,6 +675,7 @@ function calculateTextStartPositionMultiCol(
       sx = cw / 2
       sy = Math.max(p, ch / 2 - requiredHeight / 2)
       break
+    // Center-right is handled by alignment, same Y as center-left
     case "bottom-left":
       sx = p
       sy = ch - p - requiredHeight
@@ -662,25 +684,32 @@ function calculateTextStartPositionMultiCol(
       sx = cw / 2
       sy = ch - p - requiredHeight
       break
-    case "bottom-right":
+    case "bottom-right": // Added
       sx = cw - p
       sy = ch - p - requiredHeight
       break
-    default:
+    default: // Fallback to top-left
       sx = p
       sy = p
+      break
   }
+
+  // Ensure text doesn't overflow vertically
   sy = Math.max(p, sy)
   if (sy + requiredHeight > ch - p) sy = ch - p - requiredHeight
   sy = Math.max(p, sy)
+
+  // Return calculated position plus offsets
   return { startX: sx + ox, startY: sy + oy, requiredHeight }
 }
+
 function drawTextElementsMultiCol(ctx, p) {
   const {
     title,
     textColor,
     textAlign,
     fontName,
+    fontWeight, // Use font weight
     titleFontSize,
     itemFontSize,
     titleSpacing,
@@ -702,8 +731,10 @@ function drawTextElementsMultiCol(ctx, p) {
     currentY = startY,
     columnWidth = 0
   ctx.fillStyle = textColor
-  const tfs = `600 ${titleFontSize}px "${fontName}"`,
-    ftfs = `600 ${titleFontSize}px ${DEFAULT_FONT}`
+  // Use fontWeight in font string
+  const titleWeight = Math.max(fontWeight, 600) // Make title at least semi-bold
+  const tfs = `${titleWeight} ${titleFontSize}px "${fontName}"`,
+    ftfs = `${titleWeight} ${titleFontSize}px ${DEFAULT_FONT}`
   ctx.font = tfs
   let titleWidth = 0
   try {
@@ -717,10 +748,10 @@ function drawTextElementsMultiCol(ctx, p) {
   columnWidth = Math.max(columnWidth, titleWidth)
   currentY += titleFontSize + titleSpacing
   let initialItemY = currentY
-  const ifs = `400 ${itemFontSize}px "${fontName}"`,
-    fifs = `400 ${itemFontSize}px ${DEFAULT_FONT}`
+  // Use fontWeight in item font string
+  const ifs = `${fontWeight} ${itemFontSize}px "${fontName}"`,
+    fifs = `${fontWeight} ${itemFontSize}px ${DEFAULT_FONT}`
   ctx.font = ifs
-  const dc = "#a1a1aa"
   lines.forEach((item, idx) => {
     if (idx > 0 && idx % maxItemsPerColumn === 0) {
       currentX += columnWidth + columnGap
@@ -849,6 +880,10 @@ function handleSettingChange(event) {
           break
         case "font-size":
           state.fontSize = parseInt(value, 10) || 48
+          settingChanged = true
+          break
+        case "font-weight-select": // Added
+          state.fontWeight = value
           settingChanged = true
           break
         case "list-style-select":
@@ -998,9 +1033,15 @@ async function loadAndApplyCustomFont(fontUrl, shouldSaveState = true) {
     const r = await window.electronAPI.loadGoogleFont(fontUrl)
     if (r.success && r.fontFamily && r.fontDataUrl) {
       loadedFF = r.fontFamily
-      const ff = new FontFace(loadedFF, `url(${r.fontDataUrl})`)
+      // Note: We assume the loaded font CSS contains the desired weights.
+      // For simplicity, we don't parse/add individual weights here.
+      // We just use the family name.
+      // For a more robust solution, you'd parse weights from the CSS/URL
+      // and create multiple FontFace objects if needed.
+      const ff = new FontFace(loadedFF, `url(${r.fontDataUrl})`) // Load the base font
       await ff.load()
       if (!document.fonts.has(ff)) document.fonts.add(ff)
+
       state.activeFontFamily = loadedFF
       state.customFontStatus = "loaded"
       state.customFontError = null
@@ -1249,6 +1290,7 @@ function mapKeyForDisplay(k) {
     case "META":
       return "Cmd"
     case "OPTION":
+    case "ALT": // Added Alt
       return "Alt"
     case "ARROWUP":
       return "Up"
