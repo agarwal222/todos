@@ -230,7 +230,6 @@
                 class="setting-section-content"
                 id="section-content-text-layout"
               >
-                <!-- *** Sub-Group: Appearance *** -->
                 <div class="sub-setting-group">
                   <div class="input-group">
                     <label for="wallpaper-title-input">Title</label
@@ -283,8 +282,22 @@
                       <option value="number">Number (1.)</option>
                     </select>
                   </div>
+                  <div class="input-group">
+                    <label for="overall-opacity">Overall Opacity</label
+                    ><input
+                      type="number"
+                      id="overall-opacity"
+                      class="input input-number"
+                      value="1.0"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                    />
+                    <span class="checkbox-hint"
+                      >Affects text & panel if enabled.</span
+                    >
+                  </div>
                 </div>
-                <!-- *** Sub-Group: Positioning *** -->
                 <div class="sub-setting-group">
                   <div class="input-group">
                     <label for="text-position">Position</label
@@ -328,7 +341,6 @@
                     />
                   </div>
                 </div>
-                <!-- *** Sub-Group: List Layout *** -->
                 <div class="sub-setting-group">
                   <div class="input-group">
                     <label for="title-spacing-input" title="Space after title"
@@ -387,6 +399,137 @@
                 </div>
               </div>
             </div>
+            <!-- Text Background Section -->
+            <div
+              class="setting-section collapsible"
+              data-section-id="text-background"
+            >
+              <button
+                class="setting-section-toggle"
+                aria-expanded="true"
+                aria-controls="section-content-text-background"
+              >
+                <h3>Text Background</h3>
+                <svg
+                  class="toggle-icon"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                  width="16"
+                  height="16"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </button>
+              <div
+                class="setting-section-content"
+                id="section-content-text-background"
+              >
+                <div class="input-group">
+                  <label for="text-background-enable">Enable</label>
+                  <input
+                    type="checkbox"
+                    id="text-background-enable"
+                    class="checkbox-input"
+                  />
+                  <span class="checkbox-hint"
+                    >Draw a panel behind the text.</span
+                  >
+                </div>
+                <div id="text-background-controls" class="hidden">
+                  <div class="input-group color-picker-group">
+                    <label for="text-bg-color-hex">Panel Color</label>
+                    <div
+                      class="color-picker-widget"
+                      id="text-bg-color-picker"
+                    ></div>
+                    <input
+                      type="text"
+                      id="text-bg-color-hex"
+                      class="input input-hex"
+                      aria-label="Text background color hex code"
+                    />
+                  </div>
+                  <div class="input-group">
+                    <label for="text-panel-opacity">Panel Opacity</label>
+                    <input
+                      type="number"
+                      id="text-panel-opacity"
+                      class="input input-number"
+                      value="0.5"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                    />
+                  </div>
+                  <div class="input-group">
+                    <label for="text-bg-padding-inline">Padding X</label>
+                    <input
+                      type="number"
+                      id="text-bg-padding-inline"
+                      class="input input-number"
+                      value="15"
+                      min="0"
+                      max="100"
+                      step="5"
+                    />
+                  </div>
+                  <div class="input-group">
+                    <label for="text-bg-padding-block">Padding Y</label>
+                    <input
+                      type="number"
+                      id="text-bg-padding-block"
+                      class="input input-number"
+                      value="15"
+                      min="0"
+                      max="100"
+                      step="5"
+                    />
+                  </div>
+                  <div class="input-group">
+                    <label for="text-bg-border-radius">Radius</label>
+                    <input
+                      type="number"
+                      id="text-bg-border-radius"
+                      class="input input-number"
+                      value="5"
+                      min="0"
+                      max="50"
+                      step="1"
+                    />
+                  </div>
+                  <div class="input-group color-picker-group">
+                    <label for="text-border-color-hex">Border</label>
+                    <div
+                      class="color-picker-widget"
+                      id="text-border-color-picker"
+                    ></div>
+                    <input
+                      type="text"
+                      id="text-border-color-hex"
+                      class="input input-hex"
+                      aria-label="Text background border color hex code"
+                    />
+                  </div>
+                  <div class="input-group">
+                    <label for="text-bg-border-width">Border Width</label>
+                    <input
+                      type="number"
+                      id="text-bg-border-width"
+                      class="input input-number"
+                      value="0"
+                      min="0"
+                      max="20"
+                      step="1"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
             <!-- App Behavior Section -->
             <div
               class="setting-section collapsible"
@@ -427,7 +570,6 @@
                     >Hide window on close, enable Quick Add.</span
                   >
                 </div>
-                <!-- Quick Add Settings (only visible if Run in Tray is checked) -->
                 <div class="input-group shortcut-display-group hidden">
                   <label>Quick Add Key</label
                   ><span
@@ -651,6 +793,7 @@
           </div>
         </aside>
       </main>
+      <!-- Modals remain the same -->
       <div id="add-todo-modal" class="modal-overlay hidden">
         <div class="modal-content">
           <button

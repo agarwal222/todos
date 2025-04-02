@@ -1,12 +1,16 @@
 // renderer.js
 // Pickr is globally available via script tag in index.html
 
-// --- Constants (Moved to top) ---
+// --- Constants ---
 const DEFAULT_FONT = "Inter"
 const DEFAULT_WEIGHT = "400"
 const DEFAULT_TEXT_COLOR = "#f3f4f6"
 const DEFAULT_BG_COLOR = "#111827"
 const DEFAULT_SHORTCUT = "CommandOrControl+Shift+N"
+const DEFAULT_TEXT_BG_COLOR = "rgba(0, 0, 0, 0.5)"
+const DEFAULT_TEXT_BORDER_COLOR = "rgba(255, 255, 255, 0.1)"
+const DEFAULT_OVERALL_OPACITY = 1.0 // Default full opacity
+const DEFAULT_PANEL_OPACITY = 0.5 // Default for the panel itself
 
 // --- DOM Elements ---
 const applyWallpaperBtn = document.getElementById("apply-wallpaper-btn")
@@ -20,8 +24,8 @@ const completedListContainer = document.querySelector(
   ".completed-list-container"
 )
 const settingsColumn = document.getElementById("settings-column")
-const previewContainer = document.getElementById("preview-container") // Container for loader state
-const previewLoader = document.getElementById("preview-loader") // Loader element
+const previewContainer = document.getElementById("preview-container")
+const previewLoader = document.getElementById("preview-loader")
 const previewAreaImg = document.getElementById("preview-area")
 const minimizeBtn = document.getElementById("minimize-btn")
 const maximizeRestoreBtn = document.getElementById("maximize-restore-btn")
@@ -35,6 +39,7 @@ const settingsInputs = {
   fontSize: document.getElementById("font-size"),
   fontWeight: document.getElementById("font-weight-select"),
   listStyle: document.getElementById("list-style-select"),
+  overallOpacity: document.getElementById("overall-opacity"), // New
   textPosition: document.getElementById("text-position"),
   textAlign: document.getElementById("text-align-select"),
   offsetX: document.getElementById("offset-x"),
@@ -43,6 +48,19 @@ const settingsInputs = {
   itemSpacing: document.getElementById("item-spacing-input"),
   maxItems: document.getElementById("max-items-input"),
   columnGap: document.getElementById("column-gap-input"),
+  // Text Background Elements
+  textBackgroundEnable: document.getElementById("text-background-enable"),
+  textBackgroundControls: document.getElementById("text-background-controls"),
+  textBgColorPickerEl: document.getElementById("text-bg-color-picker"),
+  textBgColorHex: document.getElementById("text-bg-color-hex"),
+  textPanelOpacity: document.getElementById("text-panel-opacity"), // Corrected key
+  textBgPaddingInline: document.getElementById("text-bg-padding-inline"), // Corrected key
+  textBgPaddingBlock: document.getElementById("text-bg-padding-block"), // Corrected key
+  textBgBorderRadius: document.getElementById("text-bg-border-radius"),
+  textBorderColorPickerEl: document.getElementById("text-border-color-picker"),
+  textBorderColorHex: document.getElementById("text-border-color-hex"),
+  textBgBorderWidth: document.getElementById("text-bg-border-width"),
+  // Font Elements
   fontSourceDefault: document.getElementById("font-source-default"),
   fontSourceSystem: document.getElementById("font-source-system"),
   fontSourceGoogle: document.getElementById("font-source-google"),
@@ -52,6 +70,7 @@ const settingsInputs = {
   googleFontName: document.getElementById("google-font-name"),
   loadFontBtn: document.getElementById("load-font-btn"),
   fontStatus: document.getElementById("font-status"),
+  // General Background Elements
   bgTypeColor: document.getElementById("bg-type-color"),
   bgTypeImage: document.getElementById("bg-type-image"),
   bgColorControls: document.getElementById("bg-color-controls"),
@@ -62,6 +81,7 @@ const settingsInputs = {
   clearImageBtn: document.getElementById("clear-image-btn"),
   imageFileInput: document.getElementById("image-file-input"),
   imageFilenameSpan: document.getElementById("image-filename"),
+  // App Behavior Elements
   runInTrayCheckbox: document.getElementById("run-in-tray-checkbox"),
   quickAddTranslucentCheckbox: document.getElementById(
     "quick-add-translucent-checkbox"
@@ -95,15 +115,15 @@ let state = {
   fontSource: "default",
   systemFontFamily: "",
   googleFontName: "",
-  activeFontFamily: DEFAULT_FONT, // Use constant
-  fontWeight: DEFAULT_WEIGHT, // Use constant
+  activeFontFamily: DEFAULT_FONT,
+  fontWeight: DEFAULT_WEIGHT,
   customFontStatus: "idle",
   customFontError: null,
   backgroundType: "color",
-  bgColor: DEFAULT_BG_COLOR, // Use constant
+  bgColor: DEFAULT_BG_COLOR,
   backgroundImageDataUrl: null,
   backgroundImageName: null,
-  textColor: DEFAULT_TEXT_COLOR, // Use constant
+  textColor: DEFAULT_TEXT_COLOR,
   textPosition: "top-left",
   fontSize: 48,
   textAlign: "left",
@@ -113,11 +133,20 @@ let state = {
   itemSpacing: 20,
   maxItemsPerColumn: 10,
   columnGap: 50,
-  lastGeneratedImageDataUrl: null,
+  overallOpacity: DEFAULT_OVERALL_OPACITY, // Added
+  textBackgroundEnabled: false,
+  textBackgroundColor: DEFAULT_TEXT_BG_COLOR,
+  textBackgroundPaddingInline: 15,
+  textBackgroundPaddingBlock: 15,
+  textBackgroundBorderWidth: 0,
+  textBackgroundBorderColor: DEFAULT_TEXT_BORDER_COLOR,
+  textPanelOpacity: DEFAULT_PANEL_OPACITY,
+  textBackgroundBorderRadius: 5,
   settingsCollapsed: false,
   runInTray: false,
-  quickAddShortcut: DEFAULT_SHORTCUT, // Use constant
+  quickAddShortcut: DEFAULT_SHORTCUT,
   quickAddTranslucent: false,
+  lastGeneratedImageDataUrl: null,
   screenWidth: 1920,
   screenHeight: 1080,
 }
@@ -128,9 +157,10 @@ let lastMainKeyPressed = null
 let systemFontsCache = []
 let textColorPickr = null
 let bgColorPickr = null
+let textBgColorPickr = null
+let textBorderColorPickr = null
 
 // --- Initialization ---
-// ... (Keep initialize function as is) ...
 async function initialize() {
   console.log("Initializing Renderer...")
   const dimensions = window.electronAPI.getScreenDimensions()
@@ -185,13 +215,13 @@ async function initialize() {
       window.electronAPI.sendTodosResponse(state.todos)
   })
   window.electronAPI.onWindowStateChange(handleWindowStateChange)
+  window.electronAPI.onForceSettingUpdate(handleForcedSettingUpdate)
   const platform = window.electronAPI.getPlatform()
   document.body.dataset.platform = platform
   console.log("Renderer initialized on platform:", platform)
 }
 
 // --- Set Canvas & Preview Size ---
-// ... (Keep as is) ...
 function setCanvasAndPreviewSize(width, height) {
   canvas.width = width
   canvas.height = height
@@ -203,7 +233,6 @@ function setCanvasAndPreviewSize(width, height) {
 }
 
 // --- Populate System Fonts ---
-// ... (Keep as is) ...
 async function populateSystemFonts() {
   try {
     systemFontsCache = await window.electronAPI.getSystemFonts()
@@ -233,15 +262,15 @@ async function populateSystemFonts() {
   }
 }
 
-// --- Initialize Color Pickers ---
-// ... (Keep as is) ...
+// --- Initialize Color Pickers (Updated - Removed useAsButton) ---
 function initializeColorPickers() {
-  const pickrOptions = {
-    el: null,
+  const pickrOptions = (elId, defaultColor, stateProp) => ({
+    el: settingsInputs[elId],
     theme: "nano",
     defaultRepresentation: "HEXA",
-    default: "#ffffff",
+    default: state[stateProp] || defaultColor,
     position: "bottom-start",
+    // useAsButton: false, // Removed
     components: {
       preview: true,
       opacity: true,
@@ -258,61 +287,62 @@ function initializeColorPickers() {
         save: true,
       },
     },
+  })
+  const pickrSave = (prop, hexInputId) => (color, instance) => {
+    const newColor = color.toHEXA().toString()
+    if (state[prop] !== newColor) {
+      state[prop] = newColor
+      settingsInputs[hexInputId].value = newColor
+      settingsInputs[hexInputId].classList.remove("invalid")
+      generateTodoImageAndUpdatePreview()
+      saveState()
+    }
+    instance.hide()
   }
-  textColorPickr = Pickr.create({
-    ...pickrOptions,
-    el: settingsInputs.textColorPickerEl,
-    default: state.textColor || DEFAULT_TEXT_COLOR,
-  })
-    .on("save", (color, instance) => {
-      const newColor = color.toHEXA().toString()
-      if (state.textColor !== newColor) {
-        state.textColor = newColor
-        settingsInputs.textColorHex.value = newColor
-        settingsInputs.textColorHex.classList.remove("invalid")
-        generateTodoImageAndUpdatePreview()
-        saveState()
-      }
-      instance.hide()
-    })
-    .on("change", (color, source, instance) => {
-      settingsInputs.textColorHex.value = color.toHEXA().toString()
-      settingsInputs.textColorHex.classList.remove("invalid")
-    })
-    .on("show", (color, instance) => {
-      settingsInputs.textColorHex.value = instance
-        .getColor()
-        .toHEXA()
-        .toString()
-      settingsInputs.textColorHex.classList.remove("invalid")
-    })
-  bgColorPickr = Pickr.create({
-    ...pickrOptions,
-    el: settingsInputs.bgColorPickerEl,
-    default: state.bgColor || DEFAULT_BG_COLOR,
-  })
-    .on("save", (color, instance) => {
-      const newColor = color.toHEXA().toString()
-      if (state.bgColor !== newColor) {
-        state.bgColor = newColor
-        settingsInputs.bgColorHex.value = newColor
-        settingsInputs.bgColorHex.classList.remove("invalid")
-        generateTodoImageAndUpdatePreview()
-        saveState()
-      }
-      instance.hide()
-    })
-    .on("change", (color, source, instance) => {
-      settingsInputs.bgColorHex.value = color.toHEXA().toString()
-      settingsInputs.bgColorHex.classList.remove("invalid")
-    })
-    .on("show", (color, instance) => {
-      settingsInputs.bgColorHex.value = instance.getColor().toHEXA().toString()
-      settingsInputs.bgColorHex.classList.remove("invalid")
-    })
+  const pickrChange = (hexInputId) => (color, source, instance) => {
+    settingsInputs[hexInputId].value = color.toHEXA().toString()
+    settingsInputs[hexInputId].classList.remove("invalid")
+  }
+  const pickrShow = (hexInputId) => (color, instance) => {
+    settingsInputs[hexInputId].value = instance.getColor().toHEXA().toString()
+    settingsInputs[hexInputId].classList.remove("invalid")
+  }
+
+  textColorPickr = Pickr.create(
+    pickrOptions("textColorPickerEl", DEFAULT_TEXT_COLOR, "textColor")
+  )
+    .on("save", pickrSave("textColor", "textColorHex"))
+    .on("change", pickrChange("textColorHex"))
+    .on("show", pickrShow("textColorHex"))
+  bgColorPickr = Pickr.create(
+    pickrOptions("bgColorPickerEl", DEFAULT_BG_COLOR, "bgColor")
+  )
+    .on("save", pickrSave("bgColor", "bgColorHex"))
+    .on("change", pickrChange("bgColorHex"))
+    .on("show", pickrShow("bgColorHex"))
+  textBgColorPickr = Pickr.create(
+    pickrOptions(
+      "textBgColorPickerEl",
+      DEFAULT_TEXT_BG_COLOR,
+      "textBackgroundColor"
+    )
+  )
+    .on("save", pickrSave("textBackgroundColor", "textBgColorHex"))
+    .on("change", pickrChange("textBgColorHex"))
+    .on("show", pickrShow("textBgColorHex"))
+  textBorderColorPickr = Pickr.create(
+    pickrOptions(
+      "textBorderColorPickerEl",
+      DEFAULT_TEXT_BORDER_COLOR,
+      "textBackgroundBorderColor"
+    )
+  )
+    .on("save", pickrSave("textBackgroundBorderColor", "textBorderColorHex"))
+    .on("change", pickrChange("textBorderColorHex"))
+    .on("show", pickrShow("textBorderColorHex"))
 }
 
-// --- Helper function ---
+// --- Helper functions ---
 function updateShortcutInputVisibility() {
   const isTrayEnabled = state.runInTray
   if (settingsInputs.shortcutDisplayGroup) {
@@ -327,14 +357,20 @@ function updateShortcutInputVisibility() {
     translucencyGroup.classList.toggle("hidden", !isTrayEnabled)
   }
 }
+function updateTextBackgroundControlsVisibility() {
+  settingsInputs.textBackgroundControls?.classList.toggle(
+    "hidden",
+    !state.textBackgroundEnabled
+  )
+}
 
-// --- Apply State to UI ---
-// ... (Keep as is) ...
+// --- Apply State to UI (Updated) ---
 function applyStateToUI() {
   settingsInputs.title.value = state.title
   settingsInputs.fontSize.value = state.fontSize
   settingsInputs.fontWeight.value = state.fontWeight
   settingsInputs.listStyle.value = state.listStyle
+  settingsInputs.overallOpacity.value = state.overallOpacity // Apply overall opacity
   settingsInputs.textPosition.value = state.textPosition
   settingsInputs.textAlign.value = state.textAlign
   settingsInputs.offsetX.value = state.offsetX
@@ -343,14 +379,24 @@ function applyStateToUI() {
   settingsInputs.itemSpacing.value = state.itemSpacing
   settingsInputs.maxItems.value = state.maxItemsPerColumn
   settingsInputs.columnGap.value = state.columnGap
+  // Text Background
+  settingsInputs.textBackgroundEnable.checked = state.textBackgroundEnabled
+  settingsInputs.textPanelOpacity.value = state.textPanelOpacity // Use correct key
+  settingsInputs.textBgPaddingInline.value = state.textBackgroundPaddingInline // Use correct key
+  settingsInputs.textBgPaddingBlock.value = state.textBackgroundPaddingBlock // Use correct key
+  settingsInputs.textBgBorderRadius.value = state.textBackgroundBorderRadius
+  settingsInputs.textBgBorderWidth.value = state.textBackgroundBorderWidth
+  // Font
   settingsInputs.googleFontName.value = state.googleFontName || ""
   settingsInputs.fontSourceDefault.checked = state.fontSource === "default"
   settingsInputs.fontSourceSystem.checked = state.fontSource === "system"
   settingsInputs.fontSourceGoogle.checked = state.fontSource === "google"
+  // BG
   settingsInputs.bgTypeColor.checked = state.backgroundType === "color"
   settingsInputs.bgTypeImage.checked = state.backgroundType === "image"
   settingsInputs.imageFilenameSpan.textContent =
     state.backgroundImageName || "No file chosen"
+  // Pickrs
   if (textColorPickr)
     textColorPickr.setColor(state.textColor || DEFAULT_TEXT_COLOR, true)
   settingsInputs.textColorHex.value = state.textColor || DEFAULT_TEXT_COLOR
@@ -359,11 +405,29 @@ function applyStateToUI() {
     bgColorPickr.setColor(state.bgColor || DEFAULT_BG_COLOR, true)
   settingsInputs.bgColorHex.value = state.bgColor || DEFAULT_BG_COLOR
   settingsInputs.bgColorHex.classList.remove("invalid")
+  if (textBgColorPickr)
+    textBgColorPickr.setColor(
+      state.textBackgroundColor || DEFAULT_TEXT_BG_COLOR,
+      true
+    )
+  settingsInputs.textBgColorHex.value =
+    state.textBackgroundColor || DEFAULT_TEXT_BG_COLOR
+  settingsInputs.textBgColorHex.classList.remove("invalid")
+  if (textBorderColorPickr)
+    textBorderColorPickr.setColor(
+      state.textBackgroundBorderColor || DEFAULT_TEXT_BORDER_COLOR,
+      true
+    )
+  settingsInputs.textBorderColorHex.value =
+    state.textBackgroundBorderColor || DEFAULT_TEXT_BORDER_COLOR
+  settingsInputs.textBorderColorHex.classList.remove("invalid")
+  // System font select
   if (state.fontSource === "system" && state.systemFontFamily) {
     settingsInputs.systemFontSelect.value = state.systemFontFamily
   } else {
     settingsInputs.systemFontSelect.value = ""
   }
+  // Behavior
   if (settingsInputs.runInTrayCheckbox)
     settingsInputs.runInTrayCheckbox.checked = state.runInTray
   if (settingsInputs.quickAddTranslucentCheckbox)
@@ -373,6 +437,7 @@ function applyStateToUI() {
     settingsInputs.currentShortcutDisplay.textContent = formatAccelerator(
       state.quickAddShortcut || DEFAULT_SHORTCUT
     )
+  // Update visibility
   updateFontControlsVisibility()
   updateFontStatus(
     state.customFontStatus,
@@ -381,12 +446,259 @@ function applyStateToUI() {
   )
   updateBackgroundControlsVisibility()
   updateShortcutInputVisibility()
+  updateTextBackgroundControlsVisibility()
   settingsColumn.dataset.collapsed = state.settingsCollapsed
   updateToggleIcons(state.settingsCollapsed)
 }
 
-// --- Global Keyboard Shortcut Handler ---
-// ... (Keep as is) ...
+// ===========================================================
+//  STATE MANAGEMENT (LOAD/SAVE) - UPDATED
+// ===========================================================
+function saveState() {
+  try {
+    const stateToSave = {
+      todos: state.todos,
+      title: state.title,
+      listStyle: state.listStyle,
+      fontSource: state.fontSource,
+      systemFontFamily: state.systemFontFamily,
+      googleFontName: state.googleFontName,
+      fontWeight: state.fontWeight,
+      backgroundType: state.backgroundType,
+      bgColor: state.bgColor,
+      backgroundImageDataUrl: state.backgroundImageDataUrl,
+      backgroundImageName: state.backgroundImageName,
+      textColor: state.textColor,
+      overallOpacity: state.overallOpacity,
+      textPosition: state.textPosition,
+      fontSize: state.fontSize,
+      textAlign: state.textAlign,
+      offsetX: state.offsetX,
+      offsetY: state.offsetY,
+      titleBottomMargin: state.titleBottomMargin,
+      itemSpacing: state.itemSpacing,
+      maxItemsPerColumn: state.maxItemsPerColumn,
+      columnGap: state.columnGap,
+      textBackgroundEnabled: state.textBackgroundEnabled,
+      textBackgroundColor: state.textBackgroundColor,
+      textBackgroundPaddingInline: state.textBackgroundPaddingInline,
+      textBackgroundPaddingBlock: state.textBackgroundPaddingBlock,
+      textBackgroundBorderWidth: state.textBackgroundBorderWidth,
+      textBackgroundBorderColor: state.textBackgroundBorderColor,
+      textPanelOpacity: state.textPanelOpacity,
+      textBackgroundBorderRadius: state.textBackgroundBorderRadius,
+      settingsCollapsed: state.settingsCollapsed,
+      runInTray: state.runInTray,
+      quickAddShortcut: state.quickAddShortcut,
+      quickAddTranslucent: state.quickAddTranslucent,
+    }
+    localStorage.setItem("visidoState", JSON.stringify(stateToSave))
+  } catch (e) {
+    console.error("Save State Error:", e)
+  }
+}
+function loadState() {
+  try {
+    const savedState = localStorage.getItem("visidoState")
+    const platform = window.electronAPI?.getPlatform() || "win32"
+    const platformDefaultTranslucent = platform === "darwin"
+    if (savedState) {
+      const parsedState = JSON.parse(savedState)
+      const currentScreenDims = {
+        screenWidth: state.screenWidth,
+        screenHeight: state.screenHeight,
+      }
+      const defaults = {
+        titleBottomMargin: 40,
+        itemSpacing: 20,
+        maxItemsPerColumn: 10,
+        columnGap: 50,
+        fontWeight: DEFAULT_WEIGHT,
+        quickAddShortcut: DEFAULT_SHORTCUT,
+        runInTray: false,
+        settingsCollapsed: false,
+        fontSource: "default",
+        systemFontFamily: "",
+        googleFontName: "",
+        textColor: DEFAULT_TEXT_COLOR,
+        bgColor: DEFAULT_BG_COLOR,
+        quickAddTranslucent: platformDefaultTranslucent,
+        overallOpacity: DEFAULT_OVERALL_OPACITY,
+        textBackgroundEnabled: false,
+        textBackgroundColor: DEFAULT_TEXT_BG_COLOR,
+        textBackgroundPaddingInline: 15,
+        textBackgroundPaddingBlock: 15,
+        textBackgroundBorderWidth: 0,
+        textBackgroundBorderColor: DEFAULT_TEXT_BORDER_COLOR,
+        textPanelOpacity: DEFAULT_PANEL_OPACITY,
+        textBackgroundBorderRadius: 5,
+      }
+      state = {
+        ...state,
+        ...defaults,
+        ...parsedState,
+        ...currentScreenDims,
+        todos: Array.isArray(parsedState.todos) ? parsedState.todos : [],
+        settingsCollapsed:
+          typeof parsedState.settingsCollapsed === "boolean"
+            ? parsedState.settingsCollapsed
+            : defaults.settingsCollapsed,
+        runInTray:
+          typeof parsedState.runInTray === "boolean"
+            ? parsedState.runInTray
+            : defaults.runInTray,
+        quickAddTranslucent:
+          typeof parsedState.quickAddTranslucent === "boolean"
+            ? parsedState.quickAddTranslucent
+            : platformDefaultTranslucent,
+        fontSize:
+          typeof parsedState.fontSize === "number" ? parsedState.fontSize : 48,
+        fontWeight:
+          typeof parsedState.fontWeight === "string" &&
+          ["300", "400", "500", "600", "700"].includes(parsedState.fontWeight)
+            ? parsedState.fontWeight
+            : defaults.fontWeight,
+        offsetX:
+          typeof parsedState.offsetX === "number" ? parsedState.offsetX : 0,
+        offsetY:
+          typeof parsedState.offsetY === "number" ? parsedState.offsetY : 0,
+        titleBottomMargin:
+          typeof parsedState.titleBottomMargin === "number"
+            ? parsedState.titleBottomMargin
+            : defaults.titleBottomMargin,
+        itemSpacing:
+          typeof parsedState.itemSpacing === "number"
+            ? parsedState.itemSpacing
+            : defaults.itemSpacing,
+        maxItemsPerColumn:
+          typeof parsedState.maxItemsPerColumn === "number" &&
+          parsedState.maxItemsPerColumn >= 1
+            ? parsedState.maxItemsPerColumn
+            : defaults.maxItemsPerColumn,
+        columnGap:
+          typeof parsedState.columnGap === "number"
+            ? parsedState.columnGap
+            : defaults.columnGap,
+        quickAddShortcut:
+          parsedState.quickAddShortcut || defaults.quickAddShortcut,
+        overallOpacity:
+          typeof parsedState.overallOpacity === "number"
+            ? parsedState.overallOpacity
+            : defaults.overallOpacity,
+        textBackgroundEnabled:
+          typeof parsedState.textBackgroundEnabled === "boolean"
+            ? parsedState.textBackgroundEnabled
+            : defaults.textBackgroundEnabled,
+        textBackgroundColor:
+          parsedState.textBackgroundColor || defaults.textBackgroundColor,
+        textBackgroundPaddingInline:
+          typeof parsedState.textBackgroundPaddingInline === "number"
+            ? parsedState.textBackgroundPaddingInline
+            : defaults.textBackgroundPaddingInline,
+        textBackgroundPaddingBlock:
+          typeof parsedState.textBackgroundPaddingBlock === "number"
+            ? parsedState.textBackgroundPaddingBlock
+            : defaults.textBackgroundPaddingBlock,
+        textBackgroundBorderWidth:
+          typeof parsedState.textBackgroundBorderWidth === "number"
+            ? parsedState.textBackgroundBorderWidth
+            : defaults.textBackgroundBorderWidth,
+        textBackgroundBorderColor:
+          parsedState.textBackgroundBorderColor ||
+          defaults.textBackgroundBorderColor,
+        textPanelOpacity:
+          typeof parsedState.textPanelOpacity === "number"
+            ? parsedState.textPanelOpacity
+            : defaults.textPanelOpacity,
+        textBackgroundBorderRadius:
+          typeof parsedState.textBackgroundBorderRadius === "number"
+            ? parsedState.textBackgroundBorderRadius
+            : defaults.textBackgroundBorderRadius,
+        customFontStatus: "idle",
+        customFontError: null,
+      }
+      if (state.fontSource === "system" && state.systemFontFamily) {
+        state.activeFontFamily = state.systemFontFamily
+      } else if (state.fontSource === "google" && state.googleFontName) {
+        state.activeFontFamily = state.googleFontName
+      } else {
+        state.fontSource = "default"
+        state.activeFontFamily = DEFAULT_FONT
+      }
+    } else {
+      state = {
+        ...state,
+        todos: [],
+        title: "My Tasks",
+        listStyle: "bullet",
+        fontSource: "default",
+        systemFontFamily: "",
+        googleFontName: "",
+        activeFontFamily: DEFAULT_FONT,
+        fontWeight: DEFAULT_WEIGHT,
+        customFontStatus: "idle",
+        customFontError: null,
+        backgroundType: "color",
+        bgColor: DEFAULT_BG_COLOR,
+        backgroundImageDataUrl: null,
+        backgroundImageName: null,
+        textColor: DEFAULT_TEXT_COLOR,
+        textPosition: "top-left",
+        fontSize: 48,
+        textAlign: "left",
+        offsetX: 0,
+        offsetY: 0,
+        titleBottomMargin: 40,
+        itemSpacing: 20,
+        maxItemsPerColumn: 10,
+        columnGap: 50,
+        overallOpacity: DEFAULT_OVERALL_OPACITY,
+        textBackgroundEnabled: false,
+        textBackgroundColor: DEFAULT_TEXT_BG_COLOR,
+        textBackgroundPaddingInline: 15,
+        textBackgroundPaddingBlock: 15,
+        textBackgroundBorderWidth: 0,
+        textBackgroundBorderColor: DEFAULT_TEXT_BORDER_COLOR,
+        textPanelOpacity: DEFAULT_PANEL_OPACITY,
+        textBackgroundBorderRadius: 5,
+        lastGeneratedImageDataUrl: null,
+        settingsCollapsed: false,
+        runInTray: false,
+        quickAddShortcut: DEFAULT_SHORTCUT,
+        quickAddTranslucent: platformDefaultTranslucent,
+      }
+      console.log("No saved state found, using defaults.")
+    }
+  } catch (e) {
+    console.error("Load State Error:", e)
+    const platform = window.electronAPI?.getPlatform() || "win32"
+    state = {
+      ...state,
+      todos: [],
+      title: "My Tasks",
+      fontSource: "default",
+      activeFontFamily: DEFAULT_FONT,
+      fontWeight: DEFAULT_WEIGHT,
+      quickAddShortcut: DEFAULT_SHORTCUT,
+      textColor: DEFAULT_TEXT_COLOR,
+      bgColor: DEFAULT_BG_COLOR,
+      quickAddTranslucent: platform === "darwin",
+      overallOpacity: DEFAULT_OVERALL_OPACITY,
+      textBackgroundEnabled: false,
+      textBackgroundColor: DEFAULT_TEXT_BG_COLOR,
+      textBackgroundPaddingInline: 15,
+      textBackgroundPaddingBlock: 15,
+      textBackgroundBorderWidth: 0,
+      textBackgroundBorderColor: DEFAULT_TEXT_BORDER_COLOR,
+      textPanelOpacity: DEFAULT_PANEL_OPACITY,
+      textBackgroundBorderRadius: 5,
+    }
+  }
+}
+
+// ===========================================================
+//  EVENT HANDLERS AND HELPERS
+// ===========================================================
 function handleGlobalKeyDown(event) {
   if (!addTodoModal.classList.contains("hidden")) {
     if (event.key === "Escape") closeModal()
@@ -403,9 +715,6 @@ function handleGlobalKeyDown(event) {
     }
   }
 }
-
-// --- Event Handlers ---
-// ... (isValidHexColor, handleHexInputChange, handleSettingChange remain the same) ...
 function isValidHexColor(hex) {
   if (!hex) return false
   const hexRegex = /^#([0-9A-F]{3,4}|[0-9A-F]{6}|[0-9A-F]{8})$/i
@@ -422,6 +731,12 @@ function handleHexInputChange(event) {
   } else if (input.id === "bg-color-hex") {
     pickrInstance = bgColorPickr
     stateProp = "bgColor"
+  } else if (input.id === "text-bg-color-hex") {
+    pickrInstance = textBgColorPickr
+    stateProp = "textBackgroundColor"
+  } else if (input.id === "text-border-color-hex") {
+    pickrInstance = textBorderColorPickr
+    stateProp = "textBackgroundBorderColor"
   }
   if (isValidHexColor(value)) {
     input.classList.remove("invalid")
@@ -550,6 +865,13 @@ function handleSettingChange(event) {
           state.listStyle = value
           settingChanged = true
           break
+        case "overall-opacity":
+          state.overallOpacity = Math.max(
+            0,
+            Math.min(1, parseFloat(value) || 1.0)
+          )
+          settingChanged = true
+          break // Handle overall opacity
         case "text-position":
           state.textPosition = value
           settingChanged = true
@@ -580,6 +902,46 @@ function handleSettingChange(event) {
           break
         case "column-gap-input":
           state.columnGap = Math.max(0, parseInt(value, 10) || 50)
+          settingChanged = true
+          break
+        case "text-background-enable":
+          state.textBackgroundEnabled = value
+          settingChanged = true
+          updateTextBackgroundControlsVisibility()
+          break
+        case "text-panel-opacity":
+          state.textPanelOpacity = Math.max(
+            0,
+            Math.min(1, parseFloat(value) || 0.5)
+          )
+          settingChanged = true
+          break
+        case "text-bg-padding-inline":
+          state.textBackgroundPaddingInline = Math.max(
+            0,
+            parseInt(value, 10) || 0
+          )
+          settingChanged = true
+          break
+        case "text-bg-padding-block":
+          state.textBackgroundPaddingBlock = Math.max(
+            0,
+            parseInt(value, 10) || 0
+          )
+          settingChanged = true
+          break
+        case "text-bg-border-radius":
+          state.textBackgroundBorderRadius = Math.max(
+            0,
+            parseInt(value, 10) || 0
+          )
+          settingChanged = true
+          break
+        case "text-bg-border-width":
+          state.textBackgroundBorderWidth = Math.max(
+            0,
+            parseInt(value, 10) || 0
+          )
           settingChanged = true
           break
         case "system-font-select":
@@ -639,9 +1001,6 @@ function handleSettingChange(event) {
     }
   }
 }
-
-// --- Setup Event Listeners (Function Definition) ---
-// ... (Keep as is) ...
 function setupEventListeners() {
   console.log("Setting up event listeners...")
   applyWallpaperBtn.addEventListener("click", handleApplyWallpaper)
@@ -692,6 +1051,11 @@ function setupEventListeners() {
   })
   settingsInputs.textColorHex.addEventListener("input", handleHexInputChange)
   settingsInputs.bgColorHex.addEventListener("input", handleHexInputChange)
+  settingsInputs.textBgColorHex.addEventListener("input", handleHexInputChange)
+  settingsInputs.textBorderColorHex.addEventListener(
+    "input",
+    handleHexInputChange
+  )
   if (settingsInputs.changeShortcutBtn)
     settingsInputs.changeShortcutBtn.addEventListener(
       "click",
@@ -728,184 +1092,6 @@ function setupEventListeners() {
   })
   console.log("Event listeners setup complete.")
 }
-
-// --- State Management (load/save) ---
-// ... (Keep as is) ...
-function saveState() {
-  try {
-    const stateToSave = {
-      todos: state.todos,
-      title: state.title,
-      listStyle: state.listStyle,
-      fontSource: state.fontSource,
-      systemFontFamily: state.systemFontFamily,
-      googleFontName: state.googleFontName,
-      fontWeight: state.fontWeight,
-      backgroundType: state.backgroundType,
-      bgColor: state.bgColor,
-      backgroundImageDataUrl: state.backgroundImageDataUrl,
-      backgroundImageName: state.backgroundImageName,
-      textColor: state.textColor,
-      textPosition: state.textPosition,
-      fontSize: state.fontSize,
-      textAlign: state.textAlign,
-      offsetX: state.offsetX,
-      offsetY: state.offsetY,
-      titleBottomMargin: state.titleBottomMargin,
-      itemSpacing: state.itemSpacing,
-      maxItemsPerColumn: state.maxItemsPerColumn,
-      columnGap: state.columnGap,
-      settingsCollapsed: state.settingsCollapsed,
-      runInTray: state.runInTray,
-      quickAddShortcut: state.quickAddShortcut,
-      quickAddTranslucent: state.quickAddTranslucent,
-    }
-    localStorage.setItem("visidoState", JSON.stringify(stateToSave))
-  } catch (e) {
-    console.error("Save State Error:", e)
-  }
-}
-function loadState() {
-  try {
-    const savedState = localStorage.getItem("visidoState")
-    const platform = window.electronAPI?.getPlatform() || "win32"
-    const platformDefaultTranslucent = platform === "darwin"
-    if (savedState) {
-      const parsedState = JSON.parse(savedState)
-      const currentScreenDims = {
-        screenWidth: state.screenWidth,
-        screenHeight: state.screenHeight,
-      }
-      const defaults = {
-        titleBottomMargin: 40,
-        itemSpacing: 20,
-        maxItemsPerColumn: 10,
-        columnGap: 50,
-        fontWeight: DEFAULT_WEIGHT,
-        quickAddShortcut: DEFAULT_SHORTCUT,
-        runInTray: false,
-        settingsCollapsed: false,
-        fontSource: "default",
-        systemFontFamily: "",
-        googleFontName: "",
-        textColor: DEFAULT_TEXT_COLOR,
-        bgColor: DEFAULT_BG_COLOR,
-        quickAddTranslucent: platformDefaultTranslucent,
-      }
-      state = {
-        ...state,
-        ...defaults,
-        ...parsedState,
-        ...currentScreenDims,
-        todos: Array.isArray(parsedState.todos) ? parsedState.todos : [],
-        settingsCollapsed:
-          typeof parsedState.settingsCollapsed === "boolean"
-            ? parsedState.settingsCollapsed
-            : defaults.settingsCollapsed,
-        runInTray:
-          typeof parsedState.runInTray === "boolean"
-            ? parsedState.runInTray
-            : defaults.runInTray,
-        quickAddTranslucent:
-          typeof parsedState.quickAddTranslucent === "boolean"
-            ? parsedState.quickAddTranslucent
-            : platformDefaultTranslucent,
-        fontSize:
-          typeof parsedState.fontSize === "number" ? parsedState.fontSize : 48,
-        fontWeight:
-          typeof parsedState.fontWeight === "string" &&
-          ["300", "400", "500", "600", "700"].includes(parsedState.fontWeight)
-            ? parsedState.fontWeight
-            : defaults.fontWeight,
-        offsetX:
-          typeof parsedState.offsetX === "number" ? parsedState.offsetX : 0,
-        offsetY:
-          typeof parsedState.offsetY === "number" ? parsedState.offsetY : 0,
-        titleBottomMargin:
-          typeof parsedState.titleBottomMargin === "number"
-            ? parsedState.titleBottomMargin
-            : defaults.titleBottomMargin,
-        itemSpacing:
-          typeof parsedState.itemSpacing === "number"
-            ? parsedState.itemSpacing
-            : defaults.itemSpacing,
-        maxItemsPerColumn:
-          typeof parsedState.maxItemsPerColumn === "number" &&
-          parsedState.maxItemsPerColumn >= 1
-            ? parsedState.maxItemsPerColumn
-            : defaults.maxItemsPerColumn,
-        columnGap:
-          typeof parsedState.columnGap === "number"
-            ? parsedState.columnGap
-            : defaults.columnGap,
-        quickAddShortcut:
-          parsedState.quickAddShortcut || defaults.quickAddShortcut,
-        customFontStatus: "idle",
-        customFontError: null,
-      }
-      if (state.fontSource === "system" && state.systemFontFamily) {
-        state.activeFontFamily = state.systemFontFamily
-      } else if (state.fontSource === "google" && state.googleFontName) {
-        state.activeFontFamily = state.googleFontName
-      } else {
-        state.fontSource = "default"
-        state.activeFontFamily = DEFAULT_FONT
-      }
-    } else {
-      state = {
-        ...state,
-        todos: [],
-        title: "My Tasks",
-        listStyle: "bullet",
-        fontSource: "default",
-        systemFontFamily: "",
-        googleFontName: "",
-        activeFontFamily: DEFAULT_FONT,
-        fontWeight: DEFAULT_WEIGHT,
-        customFontStatus: "idle",
-        customFontError: null,
-        backgroundType: "color",
-        bgColor: DEFAULT_BG_COLOR,
-        backgroundImageDataUrl: null,
-        backgroundImageName: null,
-        textColor: DEFAULT_TEXT_COLOR,
-        textPosition: "top-left",
-        fontSize: 48,
-        textAlign: "left",
-        offsetX: 0,
-        offsetY: 0,
-        titleBottomMargin: 40,
-        itemSpacing: 20,
-        maxItemsPerColumn: 10,
-        columnGap: 50,
-        lastGeneratedImageDataUrl: null,
-        settingsCollapsed: false,
-        runInTray: false,
-        quickAddShortcut: DEFAULT_SHORTCUT,
-        quickAddTranslucent: platformDefaultTranslucent,
-      }
-      console.log("No saved state found, using defaults.")
-    }
-  } catch (e) {
-    console.error("Load State Error:", e)
-    const platform = window.electronAPI?.getPlatform() || "win32"
-    state = {
-      ...state,
-      todos: [],
-      title: "My Tasks",
-      fontSource: "default",
-      activeFontFamily: DEFAULT_FONT,
-      fontWeight: DEFAULT_WEIGHT,
-      quickAddShortcut: DEFAULT_SHORTCUT,
-      textColor: DEFAULT_TEXT_COLOR,
-      bgColor: DEFAULT_BG_COLOR,
-      quickAddTranslucent: platform === "darwin",
-    }
-  }
-}
-
-// --- Rest of the code (Todo CRUD, UI Rendering, Image Gen, Font Loading, etc.) remains the same ---
-// ... (Keep all functions from addTodo down to initialize()) ...
 function addTodo(text) {
   const t = text.trim()
   if (t) {
@@ -972,6 +1158,7 @@ async function generateTodoImageAndUpdatePreview() {
     bgColor,
     backgroundImageDataUrl,
     textColor,
+    overallOpacity,
     textAlign,
     textPosition,
     fontSize,
@@ -984,6 +1171,14 @@ async function generateTodoImageAndUpdatePreview() {
     todos,
     screenWidth,
     screenHeight,
+    textBackgroundEnabled,
+    textBackgroundColor,
+    textBackgroundPaddingInline,
+    textBackgroundPaddingBlock,
+    textBackgroundBorderWidth,
+    textBackgroundBorderColor,
+    textPanelOpacity,
+    textBackgroundBorderRadius,
   } = state
   if (!ctx || !canvas) {
     console.error("Canvas context not available.")
@@ -1003,61 +1198,89 @@ async function generateTodoImageAndUpdatePreview() {
   const colGap = Math.max(0, parseInt(columnGap, 10) || 50)
   const titleFontSize = Math.round(itemFontSize * 1.2)
   previewContainer.classList.remove("loaded")
-  return Promise.resolve()
-    .then(() => {
-      ctx.clearRect(0, 0, screenWidth, screenHeight)
-      if (backgroundType === "image" && backgroundImageDataUrl) {
-        return loadImage(backgroundImageDataUrl)
-          .then((img) =>
-            drawBackgroundImage(ctx, img, screenWidth, screenHeight)
-          )
-          .catch((e) => {
-            console.error("BG Image Error:", e)
-            drawBackgroundColor(ctx, bgColor, screenWidth, screenHeight)
-          })
-      } else {
+  try {
+    ctx.clearRect(0, 0, screenWidth, screenHeight)
+    if (backgroundType === "image" && backgroundImageDataUrl) {
+      try {
+        const img = await loadImage(backgroundImageDataUrl)
+        drawBackgroundImage(ctx, img, screenWidth, screenHeight)
+      } catch (e) {
+        console.error("BG Image Error:", e)
         drawBackgroundColor(ctx, bgColor, screenWidth, screenHeight)
       }
+    } else {
+      drawBackgroundColor(ctx, bgColor, screenWidth, screenHeight)
+    }
+    const textBlockMetrics = calculateTextBlockDimensions(ctx, {
+      title,
+      fontName: currentActiveFont,
+      fontWeight,
+      titleFontSize,
+      itemFontSize,
+      titleSpacing,
+      itemSpacing,
+      lines: linesToDraw,
+      maxItemsPerColumn: maxItems,
+      columnGap: colGap,
     })
-    .then(() => {
-      const { startX, startY } = calculateTextStartPositionMultiCol(
+    const { startX: textStartX, startY: textStartY } =
+      calculateTextStartPositionMultiCol(
         screenWidth,
         screenHeight,
         padding,
-        titleFontSize,
-        itemFontSize,
+        textBlockMetrics.titleHeight,
+        textBlockMetrics.maxColumnItemHeight,
         titleSpacing,
-        spacingBetweenItems,
+        itemSpacing,
         maxItems,
         linesToDraw.length,
         textPosition,
         offsetX,
-        offsetY
+        offsetY,
+        textBlockMetrics
       )
-      drawTextElementsMultiCol(ctx, {
-        title,
-        textColor,
-        textAlign,
-        fontName: currentActiveFont,
-        fontWeight,
-        titleFontSize,
-        itemFontSize,
-        titleSpacing,
-        itemSpacing: spacingBetweenItems,
-        lines: linesToDraw,
-        startX,
-        startY,
-        listStyle,
-        maxItemsPerColumn: maxItems,
-        columnGap: colGap,
+    const originalAlpha = ctx.globalAlpha
+    ctx.globalAlpha = Math.max(0, Math.min(1, overallOpacity))
+    if (textBackgroundEnabled) {
+      drawTextBackgroundPanel(ctx, {
+        x: textStartX,
+        y: textStartY,
+        width: textBlockMetrics.overallWidth,
+        height: textBlockMetrics.overallHeight,
+        paddingInline: state.textBackgroundPaddingInline,
+        paddingBlock: state.textBackgroundPaddingBlock,
+        bgColor: state.textBackgroundColor,
+        opacity: state.textPanelOpacity,
+        borderColor: state.textBackgroundBorderColor,
+        borderWidth: state.textBackgroundBorderWidth,
+        borderRadius: state.textBackgroundBorderRadius,
+        textAlign: state.textAlign,
       })
-      updatePreviewImage()
+    }
+    drawTextElementsMultiCol(ctx, {
+      title,
+      textColor,
+      textAlign,
+      fontName: currentActiveFont,
+      fontWeight,
+      titleFontSize,
+      itemFontSize,
+      titleSpacing,
+      itemSpacing: spacingBetweenItems,
+      lines: linesToDraw,
+      startX: textStartX,
+      startY: textStartY,
+      listStyle,
+      maxItemsPerColumn: maxItems,
+      columnGap: colGap,
     })
-    .catch((err) => {
-      console.error("Error during image generation process:", err)
-      updatePreviewImage()
-      throw err
-    })
+    ctx.globalAlpha = originalAlpha
+    updatePreviewImage()
+  } catch (err) {
+    console.error("Error during image generation process:", err)
+    updatePreviewImage()
+    throw err
+  }
 }
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -1088,27 +1311,109 @@ function drawBackgroundImage(ctx, img, cw, ch) {
   }
   ctx.drawImage(img, dx, dy, dw, dh)
 }
+function calculateTextBlockDimensions(ctx, p) {
+  const {
+    title,
+    fontName,
+    fontWeight,
+    titleFontSize,
+    itemFontSize,
+    titleSpacing,
+    itemSpacing,
+    lines,
+    maxItemsPerColumn,
+    columnGap,
+    listStyle,
+  } = p
+  let overallWidth = 0
+  let overallHeight = 0
+  let maxColumnWidth = 0
+  let maxColumnItemHeight = 0
+  let currentColumnItemCount = 0
+  let currentColumnWidth = 0
+  let numColumns = 1
+  const titleWeight = Math.max(parseInt(fontWeight, 10) || 400, 600)
+  const tfs = `${titleWeight} ${titleFontSize}px "${fontName}", ${DEFAULT_FONT}`
+  ctx.font = tfs
+  const titleWidth = title ? ctx.measureText(title).width : 0
+  const titleHeight = title ? titleFontSize : 0
+  maxColumnWidth = Math.max(maxColumnWidth, titleWidth)
+  overallHeight = title
+    ? titleHeight + (lines.length > 0 ? titleSpacing : 0)
+    : 0
+  const itemWeight = parseInt(fontWeight, 10) || 400
+  const ifs = `${itemWeight} ${itemFontSize}px "${fontName}", ${DEFAULT_FONT}`
+  ctx.font = ifs
+  if (lines.length > 0) {
+    lines.forEach((item, idx) => {
+      currentColumnItemCount++
+      const prefix =
+        listStyle === "dash"
+          ? "- "
+          : listStyle === "number"
+          ? `${idx + 1}. `
+          : "• "
+      const itemText = `${prefix}${item.text}`
+      const itemWidth = ctx.measureText(itemText).width
+      currentColumnWidth = Math.max(currentColumnWidth, itemWidth)
+      if (
+        currentColumnItemCount >= maxItemsPerColumn &&
+        idx < lines.length - 1
+      ) {
+        maxColumnWidth = Math.max(maxColumnWidth, currentColumnWidth)
+        const currentColumnHeightOnlyItems =
+          currentColumnItemCount * itemFontSize +
+          Math.max(0, currentColumnItemCount - 1) * itemSpacing
+        maxColumnItemHeight = Math.max(
+          maxColumnItemHeight,
+          currentColumnHeightOnlyItems
+        )
+        numColumns++
+        currentColumnWidth = 0
+        currentColumnItemCount = 0
+      }
+    })
+    maxColumnWidth = Math.max(maxColumnWidth, currentColumnWidth)
+    const lastColumnHeightOnlyItems =
+      currentColumnItemCount * itemFontSize +
+      Math.max(0, currentColumnItemCount - 1) * itemSpacing
+    maxColumnItemHeight = Math.max(
+      maxColumnItemHeight,
+      lastColumnHeightOnlyItems
+    )
+    overallHeight += maxColumnItemHeight
+    overallWidth =
+      numColumns * maxColumnWidth + Math.max(0, numColumns - 1) * columnGap
+  } else {
+    overallWidth = titleWidth
+  }
+  return {
+    overallWidth,
+    overallHeight,
+    titleHeight,
+    maxColumnItemHeight,
+    numColumns,
+    maxColumnWidth,
+  }
+}
 function calculateTextStartPositionMultiCol(
   cw,
   ch,
   p,
-  tfz,
-  ifz,
+  titleH,
+  colItemH,
   titleSpacing,
   itemSpacing,
   maxItems,
   lineCount,
   pos,
   ox,
-  oy
+  oy,
+  metrics
 ) {
   let sx, sy
-  let itemsInFirstCol = Math.min(lineCount, maxItems)
-  let requiredHeight = tfz + titleSpacing
-  if (itemsInFirstCol > 0) {
-    requiredHeight +=
-      itemsInFirstCol * ifz + (itemsInFirstCol - 1) * itemSpacing
-  }
+  const requiredHeight = metrics.overallHeight
+  const requiredWidth = metrics.overallWidth
   switch (pos) {
     case "top-left":
       sx = p
@@ -1150,8 +1455,57 @@ function calculateTextStartPositionMultiCol(
   sy = Math.max(p, sy)
   if (sy + requiredHeight > ch - p) sy = ch - p - requiredHeight
   sy = Math.max(p, sy)
-  return { startX: sx + ox, startY: sy + oy, requiredHeight }
+  return { startX: sx + ox, startY: sy + oy }
 }
+function drawTextBackgroundPanel(ctx, opts) {
+  const {
+    x,
+    y,
+    width,
+    height,
+    paddingInline,
+    paddingBlock,
+    bgColor,
+    opacity,
+    borderColor,
+    borderWidth,
+    borderRadius,
+    textAlign,
+  } = opts
+  const padX = Math.max(0, paddingInline)
+  const padY = Math.max(0, paddingBlock)
+  let panelX = x - padX
+  if (textAlign === "center") {
+    panelX = x - width / 2 - padX
+  } else if (textAlign === "right") {
+    panelX = x - width - padX
+  }
+  const panelY = y - padY
+  const panelWidth = width + 2 * padX
+  const panelHeight = height + 2 * padY
+  const originalAlpha = ctx.globalAlpha
+  ctx.globalAlpha = originalAlpha * Math.max(0, Math.min(1, opacity))
+  ctx.fillStyle = bgColor
+  if (borderRadius > 0 && ctx.roundRect) {
+    ctx.beginPath()
+    ctx.roundRect(panelX, panelY, panelWidth, panelHeight, borderRadius)
+    ctx.fill()
+  } else {
+    ctx.fillRect(panelX, panelY, panelWidth, panelHeight)
+  }
+  if (borderWidth > 0) {
+    ctx.strokeStyle = borderColor
+    ctx.lineWidth = borderWidth
+    if (borderRadius > 0 && ctx.roundRect) {
+      ctx.beginPath()
+      ctx.roundRect(panelX, panelY, panelWidth, panelHeight, borderRadius)
+      ctx.stroke()
+    } else {
+      ctx.strokeRect(panelX, panelY, panelWidth, panelHeight)
+    }
+  }
+  ctx.globalAlpha = originalAlpha
+} // Restore original alpha (which includes overallOpacity)
 function drawTextElementsMultiCol(ctx, p) {
   const {
     title,
@@ -1176,36 +1530,46 @@ function drawTextElementsMultiCol(ctx, p) {
   ctx.shadowBlur = 6
   ctx.shadowOffsetX = 1
   ctx.shadowOffsetY = 2
-  let currentX = startX,
-    currentY = startY,
-    columnWidth = 0
+  let currentX = startX
+  let currentY = startY
+  let columnWidth = 0
   ctx.fillStyle = textColor
   const titleWeight = Math.max(parseInt(fontWeight, 10) || 400, 600)
-  const tfs = `${titleWeight} ${titleFontSize}px "${fontName}"`,
-    ftfs = `${titleWeight} ${titleFontSize}px ${DEFAULT_FONT}`
+  const tfs = `${titleWeight} ${titleFontSize}px "${fontName}", ${DEFAULT_FONT}`
+  const ftfs = `${titleWeight} ${titleFontSize}px ${DEFAULT_FONT}`
   let titleWidth = 0
-  try {
-    ctx.font = tfs
-    titleWidth = ctx.measureText(title).width
-    ctx.fillText(title, startX, currentY)
-  } catch (e) {
-    console.warn(`Failed to draw title with font ${fontName}. Falling back.`, e)
-    ctx.font = ftfs
-    titleWidth = ctx.measureText(title).width
-    ctx.fillText(title, startX, currentY)
-  }
-  columnWidth = Math.max(columnWidth, titleWidth)
-  currentY += titleFontSize + titleSpacing
-  let initialItemY = currentY
-  const itemWeight = parseInt(fontWeight, 10) || 400
-  const ifs = `${itemWeight} ${itemFontSize}px "${fontName}"`,
-    fifs = `${itemWeight} ${itemFontSize}px ${DEFAULT_FONT}`
-  lines.forEach((item, idx) => {
-    if (idx > 0 && idx % maxItemsPerColumn === 0) {
-      currentX += columnWidth + columnGap
-      currentY = initialItemY
-      columnWidth = 0
+  if (title) {
+    try {
+      ctx.font = tfs
+      titleWidth = ctx.measureText(title).width
+      ctx.fillText(title, currentX, currentY)
+    } catch (e) {
+      console.warn(
+        `Failed to draw title with font ${fontName}. Falling back.`,
+        e
+      )
+      ctx.font = ftfs
+      titleWidth = ctx.measureText(title).width
+      ctx.fillText(title, currentX, currentY)
     }
+    columnWidth = Math.max(columnWidth, titleWidth)
+    currentY += titleFontSize + titleSpacing
+  }
+  let initialItemY = currentY
+  let columnStartX = currentX
+  const itemWeight = parseInt(fontWeight, 10) || 400
+  const ifs = `${itemWeight} ${itemFontSize}px "${fontName}", ${DEFAULT_FONT}`
+  const fifs = `${itemWeight} ${itemFontSize}px ${DEFAULT_FONT}`
+  let currentColumnItemCount = 0
+  let maxColWidthInThisLoop = 0
+  lines.forEach((item, idx) => {
+    if (idx > 0 && currentColumnItemCount >= maxItemsPerColumn) {
+      columnStartX += maxColWidthInThisLoop + columnGap
+      currentY = initialItemY
+      currentColumnItemCount = 0
+      maxColWidthInThisLoop = 0
+    }
+    currentColumnItemCount++
     let prefix
     switch (listStyle) {
       case "dash":
@@ -1220,12 +1584,11 @@ function drawTextElementsMultiCol(ctx, p) {
     }
     const itxt = `${prefix}${item.text}`
     ctx.fillStyle = textColor
-    ctx.globalAlpha = 1.0
     let itemWidth = 0
     try {
       ctx.font = ifs
       itemWidth = ctx.measureText(itxt).width
-      ctx.fillText(itxt, currentX, currentY)
+      ctx.fillText(itxt, columnStartX, currentY)
     } catch (e) {
       console.warn(
         `Failed to draw item with font ${fontName}. Falling back.`,
@@ -1233,10 +1596,9 @@ function drawTextElementsMultiCol(ctx, p) {
       )
       ctx.font = fifs
       itemWidth = ctx.measureText(itxt).width
-      ctx.fillText(itxt, currentX, currentY)
+      ctx.fillText(itxt, columnStartX, currentY)
     }
-    columnWidth = Math.max(columnWidth, itemWidth)
-    ctx.globalAlpha = 1.0
+    maxColWidthInThisLoop = Math.max(maxColWidthInThisLoop, itemWidth)
     currentY += itemFontSize + itemSpacing
   })
   ctx.shadowColor = "transparent"
@@ -1891,6 +2253,27 @@ function handleShortcutError(errorMessage) {
     quickAddShortcut: state.quickAddShortcut,
     quickAddTranslucent: state.quickAddTranslucent,
   })
+}
+function handleForcedSettingUpdate(settingsToUpdate) {
+  console.log("Renderer received forced setting update:", settingsToUpdate)
+  let stateChanged = false
+  for (const key in settingsToUpdate) {
+    if (state.hasOwnProperty(key) && state[key] !== settingsToUpdate[key]) {
+      state[key] = settingsToUpdate[key]
+      stateChanged = true
+      if (key === "quickAddTranslucent") {
+        if (settingsInputs.quickAddTranslucentCheckbox) {
+          settingsInputs.quickAddTranslucentCheckbox.checked =
+            state.quickAddTranslucent
+        }
+      }
+    }
+  }
+  if (stateChanged) {
+    console.log("Applying forced state changes to UI.")
+    applyStateToUI()
+    saveState()
+  }
 }
 function formatAccelerator(accelerator) {
   if (!accelerator) return ""
