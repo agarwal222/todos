@@ -6,12 +6,13 @@ const DEFAULT_FONT = "Inter"
 const DEFAULT_WEIGHT = "400"
 const DEFAULT_TEXT_COLOR = "#f3f4f6"
 const DEFAULT_BG_COLOR = "#111827"
-const DEFAULT_SHORTCUT = "CommandOrControl+Shift+N"
+const DEFAULT_SHORTCUT = "CommandOrControl+Shift+Slash" // Corresponds to Ctrl/Cmd+Shift+?
 const DEFAULT_TEXT_BG_COLOR = "rgba(0, 0, 0, 0.5)"
 const DEFAULT_TEXT_BORDER_COLOR = "rgba(255, 255, 255, 0.1)"
-const DEFAULT_OVERALL_OPACITY = 1.0 // Default full opacity
-const DEFAULT_PANEL_OPACITY = 0.5 // Default for the panel itself
-const CONTEXT_MAX_LENGTH = 100 // Max characters for context
+const DEFAULT_OVERALL_OPACITY = 1.0
+const DEFAULT_PANEL_OPACITY = 0.5
+const CONTEXT_MAX_LENGTH = 100
+const TOAST_DURATION = 3000 // Default duration in ms
 
 // --- DOM Elements ---
 const applyWallpaperBtn = document.getElementById("apply-wallpaper-btn")
@@ -49,7 +50,6 @@ const settingsInputs = {
   itemSpacing: document.getElementById("item-spacing-input"),
   maxItems: document.getElementById("max-items-input"),
   columnGap: document.getElementById("column-gap-input"),
-  // Text Background Elements
   textBackgroundEnable: document.getElementById("text-background-enable"),
   textBackgroundControls: document.getElementById("text-background-controls"),
   textBgColorPickerEl: document.getElementById("text-bg-color-picker"),
@@ -61,7 +61,6 @@ const settingsInputs = {
   textBorderColorPickerEl: document.getElementById("text-border-color-picker"),
   textBorderColorHex: document.getElementById("text-border-color-hex"),
   textBgBorderWidth: document.getElementById("text-bg-border-width"),
-  // Font Elements
   fontSourceDefault: document.getElementById("font-source-default"),
   fontSourceSystem: document.getElementById("font-source-system"),
   fontSourceGoogle: document.getElementById("font-source-google"),
@@ -71,7 +70,6 @@ const settingsInputs = {
   googleFontName: document.getElementById("google-font-name"),
   loadFontBtn: document.getElementById("load-font-btn"),
   fontStatus: document.getElementById("font-status"),
-  // General Background Elements
   bgTypeColor: document.getElementById("bg-type-color"),
   bgTypeImage: document.getElementById("bg-type-image"),
   bgColorControls: document.getElementById("bg-color-controls"),
@@ -82,7 +80,6 @@ const settingsInputs = {
   clearImageBtn: document.getElementById("clear-image-btn"),
   imageFileInput: document.getElementById("image-file-input"),
   imageFilenameSpan: document.getElementById("image-filename"),
-  // App Behavior Elements
   runInTrayCheckbox: document.getElementById("run-in-tray-checkbox"),
   quickAddTranslucentCheckbox: document.getElementById(
     "quick-add-translucent-checkbox"
@@ -102,19 +99,17 @@ const recordModalCloseBtn = document.getElementById("record-modal-close-btn")
 const shortcutDisplayArea = document.getElementById("shortcut-display-area")
 const recordCancelBtn = document.getElementById("record-cancel-btn")
 const recordSaveBtn = document.getElementById("record-save-btn")
-
-// ** Add elements for update notifications **
 const updateNotificationArea = document.getElementById(
   "update-notification-area"
-) // Assuming you add this div
+)
 const updateMessage = document.getElementById("update-message")
 const restartButton = document.getElementById("restart-button")
-
 const recordInstructions = recordShortcutModal.querySelector(
   ".record-instructions"
 )
 const canvas = document.getElementById("image-canvas")
 const ctx = canvas.getContext("2d")
+const toastContainer = document.getElementById("toast-container") // Added
 
 // --- Application State ---
 let state = {
@@ -153,7 +148,7 @@ let state = {
   textBackgroundBorderRadius: 5,
   settingsCollapsed: false,
   runInTray: false,
-  quickAddShortcut: DEFAULT_SHORTCUT,
+  quickAddShortcut: DEFAULT_SHORTCUT, // Use updated default
   quickAddTranslucent: false,
   lastGeneratedImageDataUrl: null,
   screenWidth: 1920,
@@ -168,6 +163,83 @@ let textColorPickr = null
 let bgColorPickr = null
 let textBgColorPickr = null
 let textBorderColorPickr = null
+
+// --- Toast Notification Function ---
+function showToast(message, type = "info", duration = TOAST_DURATION) {
+  if (!toastContainer) {
+    console.error("Toast container not found!")
+    return
+  }
+
+  // Create toast element
+  const toast = document.createElement("div")
+  toast.className = `toast toast--${type}` // Add base and type class
+  toast.setAttribute("role", "status") // Accessibility
+  toast.setAttribute("aria-live", "polite") // Accessibility
+
+  // Create message span
+  const messageSpan = document.createElement("span")
+  messageSpan.textContent = message
+  toast.appendChild(messageSpan)
+
+  // Add to container (prepends so new toasts are on top if flex-direction: column-reverse)
+  toastContainer.prepend(toast)
+
+  // Trigger enter animation
+  requestAnimationFrame(() => {
+    toast.classList.add("toast-visible")
+  })
+
+  // Set timeout to remove the toast
+  const timerId = setTimeout(() => {
+    // Start exit animation
+    toast.classList.remove("toast-visible")
+    toast.classList.add("toast-exiting")
+
+    // Remove from DOM after animation completes
+    toast.addEventListener(
+      "transitionend",
+      () => {
+        if (toast.parentNode === toastContainer) {
+          toastContainer.removeChild(toast)
+        }
+      },
+      { once: true }
+    )
+
+    // Fallback removal if transitionend doesn't fire (e.g., element removed early)
+    setTimeout(() => {
+      if (toast.parentNode === toastContainer) {
+        console.warn("Toast fallback removal triggered.")
+        toastContainer.removeChild(toast)
+      }
+    }, 500) // Slightly longer than transition
+  }, duration)
+
+  // Optional: Allow clicking toast to dismiss early
+  toast.addEventListener(
+    "click",
+    () => {
+      clearTimeout(timerId) // Cancel the scheduled removal
+      toast.classList.remove("toast-visible")
+      toast.classList.add("toast-exiting")
+      toast.addEventListener(
+        "transitionend",
+        () => {
+          if (toast.parentNode === toastContainer) {
+            toastContainer.removeChild(toast)
+          }
+        },
+        { once: true }
+      )
+      setTimeout(() => {
+        if (toast.parentNode === toastContainer)
+          toastContainer.removeChild(toast)
+      }, 500)
+    },
+    { once: true }
+  ) // Only allow one click dismissal
+}
 
 // --- Initialization ---
 async function initialize() {
@@ -186,7 +258,12 @@ async function initialize() {
   initializeColorPickers()
   applyStateToUI()
   previewContainer.classList.remove("loaded")
-  window.electronAPI.updateSettings({
+  console.log("Sending loaded settings to main process:", {
+    runInTray: state.runInTray,
+    quickAddShortcut: state.quickAddShortcut,
+    quickAddTranslucent: state.quickAddTranslucent,
+  })
+  window.electronAPI.sendRendererSettingsLoaded({
     runInTray: state.runInTray,
     quickAddShortcut: state.quickAddShortcut,
     quickAddTranslucent: state.quickAddTranslucent,
@@ -280,7 +357,6 @@ function initializeColorPickers() {
     defaultRepresentation: "HEXA",
     default: state[stateProp] || defaultColor,
     position: "bottom-start",
-    // useAsButton: false, // Keep removed
     components: {
       preview: true,
       opacity: true,
@@ -317,7 +393,6 @@ function initializeColorPickers() {
     settingsInputs[hexInputId].value = instance.getColor().toHEXA().toString()
     settingsInputs[hexInputId].classList.remove("invalid")
   }
-
   textColorPickr = Pickr.create(
     pickrOptions("textColorPickerEl", DEFAULT_TEXT_COLOR, "textColor")
   )
@@ -454,9 +529,7 @@ function applyStateToUI() {
   updateToggleIcons(state.settingsCollapsed)
 }
 
-// ===========================================================
-//  STATE MANAGEMENT (LOAD/SAVE) - UPDATED
-// ===========================================================
+// --- State Management ---
 function saveState() {
   try {
     const stateToSave = {
@@ -706,9 +779,7 @@ function loadState() {
   }
 }
 
-// ===========================================================
-//  EVENT HANDLERS AND HELPERS
-// ===========================================================
+// --- Event Handlers & Helpers ---
 function handleGlobalKeyDown(event) {
   if (!addTodoModal.classList.contains("hidden")) {
     if (event.key === "Escape") closeModal()
@@ -772,6 +843,14 @@ function handleSettingChange(event) {
   let value = target.type === "checkbox" ? target.checked : target.value
   const key = target.name || id
   if (id.endsWith("-hex") || id.endsWith("-picker")) return
+  if (
+    state.hasOwnProperty(key) &&
+    state[key] === value &&
+    key !== "font-source" &&
+    key !== "bg-type"
+  ) {
+    /* return; */
+  }
   switch (key) {
     case "font-source":
       if (target.checked) {
@@ -805,6 +884,7 @@ function handleSettingChange(event) {
               updateFontStatus("loaded", state.activeFontFamily)
             } else {
               updateFontStatus("idle", state.googleFontName || DEFAULT_FONT)
+              state.customFontStatus = "idle"
             }
           }
         } else {
@@ -812,6 +892,10 @@ function handleSettingChange(event) {
           requiresRegeneration = false
           requiresSave = false
         }
+      } else {
+        settingChanged = false
+        requiresRegeneration = false
+        requiresSave = false
       }
       break
     case "bg-type":
@@ -826,6 +910,10 @@ function handleSettingChange(event) {
           requiresRegeneration = false
           requiresSave = false
         }
+      } else {
+        settingChanged = false
+        requiresRegeneration = false
+        requiresSave = false
       }
       break
     case "run-in-tray-checkbox":
@@ -858,126 +946,77 @@ function handleSettingChange(event) {
       }
       break
     default:
-      switch (id) {
-        case "wallpaper-title-input":
-          state.title = value
-          settingChanged = true
-          break
-        case "font-size":
-          state.fontSize = parseInt(value, 10) || 48
-          settingChanged = true
-          break
-        case "font-weight-select":
-          state.fontWeight = value
-          settingChanged = true
-          break
-        case "list-style-select":
-          state.listStyle = value
-          settingChanged = true
-          break
-        case "overall-opacity":
-          state.overallOpacity = Math.max(
-            0,
-            Math.min(1, parseFloat(value) || 1.0)
-          )
-          settingChanged = true
-          break
-        case "text-position":
-          state.textPosition = value
-          settingChanged = true
-          break
-        case "text-align-select":
-          state.textAlign = value
-          settingChanged = true
-          break
-        case "offset-x":
-          state.offsetX = parseInt(value, 10) || 0
-          settingChanged = true
-          break
-        case "offset-y":
-          state.offsetY = parseInt(value, 10) || 0
-          settingChanged = true
-          break
-        case "title-spacing-input":
-          state.titleBottomMargin = parseInt(value, 10) || 0
-          settingChanged = true
-          break
-        case "item-spacing-input":
-          state.itemSpacing = parseInt(value, 10) || 0
-          settingChanged = true
-          break
-        case "max-items-input":
-          state.maxItemsPerColumn = Math.max(1, parseInt(value, 10) || 10)
-          settingChanged = true
-          break
-        case "column-gap-input":
-          state.columnGap = Math.max(0, parseInt(value, 10) || 50)
-          settingChanged = true
-          break
-        case "text-background-enable":
-          state.textBackgroundEnabled = value
-          settingChanged = true
-          updateTextBackgroundControlsVisibility()
-          break
-        case "text-panel-opacity":
-          state.textPanelOpacity = Math.max(
-            0,
-            Math.min(1, parseFloat(value) || 0.5)
-          )
-          settingChanged = true
-          break
-        case "text-bg-padding-inline":
-          state.textBackgroundPaddingInline = Math.max(
-            0,
-            parseInt(value, 10) || 0
-          )
-          settingChanged = true
-          break
-        case "text-bg-padding-block":
-          state.textBackgroundPaddingBlock = Math.max(
-            0,
-            parseInt(value, 10) || 0
-          )
-          settingChanged = true
-          break
-        case "text-bg-border-radius":
-          state.textBackgroundBorderRadius = Math.max(
-            0,
-            parseInt(value, 10) || 0
-          )
-          settingChanged = true
-          break
-        case "text-bg-border-width":
-          state.textBackgroundBorderWidth = Math.max(
-            0,
-            parseInt(value, 10) || 0
-          )
-          settingChanged = true
-          break
-        case "system-font-select":
-          if (state.fontSource === "system") {
+      let hasPropertyChanged = false
+      let propertyName = id
+      const idToStateMap = {
+        "wallpaper-title-input": "title",
+        "font-size": "fontSize",
+        "font-weight-select": "fontWeight",
+        "list-style-select": "listStyle",
+        "overall-opacity": "overallOpacity",
+        "text-position": "textPosition",
+        "text-align-select": "textAlign",
+        "offset-x": "offsetX",
+        "offset-y": "offsetY",
+        "title-spacing-input": "titleBottomMargin",
+        "item-spacing-input": "itemSpacing",
+        "max-items-input": "maxItemsPerColumn",
+        "column-gap-input": "columnGap",
+        "text-background-enable": "textBackgroundEnabled",
+        "text-panel-opacity": "textPanelOpacity",
+        "text-bg-padding-inline": "textBackgroundPaddingInline",
+        "text-bg-padding-block": "textBackgroundPaddingBlock",
+        "text-bg-border-radius": "textBackgroundBorderRadius",
+        "text-bg-border-width": "textBackgroundBorderWidth",
+        "system-font-select": "systemFontFamily",
+        "google-font-name": "googleFontName",
+      }
+      propertyName = idToStateMap[id] || id
+      if (state.hasOwnProperty(propertyName)) {
+        const oldValue = state[propertyName]
+        let newValue = value
+        if (target.type === "number") {
+          newValue = parseFloat(value) || 0
+          if (target.min !== "" && newValue < parseFloat(target.min))
+            newValue = parseFloat(target.min)
+          if (target.max !== "" && newValue > parseFloat(target.max))
+            newValue = parseFloat(target.max)
+          const step = target.getAttribute("step")
+          if (!step || step === "1") {
+            newValue = Math.round(newValue)
+          }
+        }
+        if (oldValue !== newValue) {
+          state[propertyName] = newValue
+          hasPropertyChanged = true
+        }
+      } else {
+        console.warn(
+          `Unhandled setting change for element with ID: ${id} (mapped to: ${propertyName})`
+        )
+        requiresRegeneration = false
+        settingChanged = false
+        requiresSave = false
+        break
+      }
+      if (hasPropertyChanged) {
+        settingChanged = true
+        const nonRegenProps = ["systemFontFamily", "googleFontName"]
+        if (nonRegenProps.includes(propertyName)) {
+          requiresRegeneration = false
+          if (
+            propertyName === "systemFontFamily" &&
+            state.fontSource === "system"
+          ) {
             if (value) {
               state.activeFontFamily = value
-              state.systemFontFamily = value
-              settingChanged = true
               updateFontStatus("loaded", value)
+              requiresRegeneration = true
             } else {
               state.activeFontFamily = DEFAULT_FONT
-              state.systemFontFamily = ""
-              settingChanged = true
               updateFontStatus("idle", DEFAULT_FONT)
             }
-          } else {
-            state.systemFontFamily = value
-            settingChanged = true
-            requiresRegeneration = false
-          }
-          break
-        case "google-font-name":
-          if (state.googleFontName !== value.trim()) {
-            state.googleFontName = value.trim()
-            settingChanged = true
-            requiresRegeneration = false
+          } else if (propertyName === "googleFontName") {
             if (
               state.customFontStatus === "loaded" ||
               state.customFontStatus === "error"
@@ -985,24 +1024,31 @@ function handleSettingChange(event) {
               updateFontStatus("idle", state.activeFontFamily)
               state.customFontStatus = "idle"
             }
-          } else {
-            settingChanged = false
-            requiresRegeneration = false
-            requiresSave = false
           }
-          break
-        default:
-          requiresRegeneration = false
-          settingChanged = false
-          requiresSave = false
-          break
+        }
+        if (propertyName === "textBackgroundEnabled") {
+          updateTextBackgroundControlsVisibility()
+        }
+      } else {
+        settingChanged = false
+        requiresRegeneration = false
+        requiresSave = false
       }
       break
   }
   if (settingChanged) {
-    if (requiresRegeneration) generateTodoImageAndUpdatePreview()
-    if (requiresSave) saveState()
+    if (requiresRegeneration) {
+      generateTodoImageAndUpdatePreview()
+    }
+    if (requiresSave) {
+      saveState()
+    }
     if (needsIpcUpdate) {
+      console.log("Renderer: Sending updated settings to main:", {
+        runInTray: state.runInTray,
+        quickAddShortcut: state.quickAddShortcut,
+        quickAddTranslucent: state.quickAddTranslucent,
+      })
       window.electronAPI.updateSettings({
         runInTray: state.runInTray,
         quickAddShortcut: state.quickAddShortcut,
@@ -1025,37 +1071,19 @@ function setupEventListeners() {
     )
   if (closeBtn)
     closeBtn.addEventListener("click", () => window.electronAPI.closeWindow())
-  Object.keys(settingsInputs).forEach((key) => {
-    const input = settingsInputs[key]
-    if (
-      input &&
-      (input.tagName === "INPUT" || input.tagName === "SELECT") &&
-      input.type !== "file" &&
-      input.type !== "button" &&
-      !input.classList.contains("button") &&
-      !input.id.endsWith("-picker") &&
-      !input.id.endsWith("-hex") &&
-      !input.id.endsWith("-controls") &&
-      input.id !== "font-status" &&
-      input.id !== "image-filename" &&
-      input.id !== "load-font-btn" &&
-      input.id !== "choose-image-btn" &&
-      input.id !== "clear-image-btn" &&
-      input.id !== "change-shortcut-btn" &&
-      input.id !== "current-shortcut-display"
-    ) {
+  const inputsToListen = [
+    ...settingsColumn.querySelectorAll(
+      'input[type="text"], input[type="number"], input[type="checkbox"], select'
+    ),
+  ]
+  inputsToListen.forEach((input) => {
+    if (!input.id.endsWith("-hex")) {
       const eventType =
         input.tagName === "SELECT" ||
         input.type === "radio" ||
         input.type === "checkbox"
           ? "change"
           : "input"
-      input.addEventListener(eventType, handleSettingChange)
-    } else if (
-      input &&
-      (input.id === "system-font-select" || input.id === "google-font-name")
-    ) {
-      const eventType = input.tagName === "SELECT" ? "change" : "input"
       input.addEventListener(eventType, handleSettingChange)
     }
   })
@@ -1102,40 +1130,29 @@ function setupEventListeners() {
   })
   console.log("Event listeners setup complete.")
 }
-
 function setupAutoUpdaterListeners() {
   window.electronAPI.onUpdateAvailable((info) => {
     console.log("Update available:", info)
     showUpdateMessage(`Update v${info.version} available. Downloading...`)
-    // Optionally disable restart button until download completes
     if (restartButton) restartButton.style.display = "none"
   })
-
   window.electronAPI.onUpdateDownloaded((info) => {
     console.log("Update downloaded:", info)
     showUpdateMessage(`Update v${info.version} downloaded. Restart to install.`)
-    // Show restart button
     if (restartButton) restartButton.style.display = "inline-flex"
   })
-
   window.electronAPI.onUpdateError((err) => {
     console.error("Update error:", err)
     showUpdateMessage(`Error checking for updates: ${err}`)
-    // Hide restart button on error
     if (restartButton) restartButton.style.display = "none"
-    // Hide the notification area after a delay on error
     setTimeout(hideUpdateMessage, 8000)
   })
-
   window.electronAPI.onDownloadProgress((progressInfo) => {
     console.log(`Download progress: ${progressInfo.percent}%`)
     showUpdateMessage(
       `Downloading update: ${Math.round(progressInfo.percent)}%`
     )
-    // Update progress bar UI here if you add one
   })
-
-  // Add click listener for the restart button
   if (restartButton) {
     restartButton.addEventListener("click", () => {
       console.log("Restart button clicked")
@@ -1143,36 +1160,29 @@ function setupAutoUpdaterListeners() {
     })
   }
 }
-
 function showUpdateMessage(message) {
   if (updateNotificationArea && updateMessage) {
     updateMessage.textContent = message
-    updateNotificationArea.classList.remove("hidden")
+    updateNotificationArea.classList.remove("hidden", "hiding")
     updateNotificationArea.classList.add("visible")
   }
 }
-
 function hideUpdateMessage() {
   if (updateNotificationArea) {
     updateNotificationArea.classList.remove("visible")
-    // Optional: Add a class to trigger fade out animation
     updateNotificationArea.classList.add("hiding")
-    // Use setTimeout to match animation duration before setting display: none
     setTimeout(() => {
       if (
         updateNotificationArea &&
         !updateNotificationArea.classList.contains("visible")
       ) {
-        // Check if still hidden
         updateNotificationArea.classList.add("hidden")
         updateNotificationArea.classList.remove("hiding")
-        if (restartButton) restartButton.style.display = "none" // Ensure button is hidden
+        if (restartButton) restartButton.style.display = "none"
       }
-    }, 500) // Match animation duration in CSS
+    }, 500)
   }
 }
-
-// --- Rest of the code (Todo CRUD, UI Rendering, Image Gen, Font Loading, Modals, etc.) ---
 function addTodo(text) {
   const t = text.trim()
   if (t) {
@@ -1256,10 +1266,10 @@ function handleContextChange(event) {
       todo.context = newContext
       console.log(`Context updated for ID ${id}: "${newContext}"`)
       saveState()
-      generateTodoImageAndUpdatePreview() /* Regenerate preview on context change */
+      generateTodoImageAndUpdatePreview()
     }
   }
-} // Added generate preview
+}
 function addContextInputListeners() {
   todoListUl.removeEventListener("input", handleContextChange)
   todoListUl.addEventListener("input", handleContextChange)
@@ -1306,15 +1316,15 @@ async function generateTodoImageAndUpdatePreview() {
   const itemFontSize = parseInt(fontSize, 10) || 48
   const linesToDraw = todos
     .filter((t) => !t.done)
-    .map((t) => ({ text: t.text, context: t.context || "", done: false })) // Include context
+    .map((t) => ({ text: t.text, context: t.context || "", done: false }))
   const padding = Math.max(60, itemFontSize * 1.5)
   const titleSpacing = parseInt(titleBottomMargin, 10) || 40
   const spacingBetweenItems = parseInt(itemSpacing, 10) || 20
   const maxItems = Math.max(1, parseInt(maxItemsPerColumn, 10) || 10)
   const colGap = Math.max(0, parseInt(columnGap, 10) || 50)
   const titleFontSize = Math.round(itemFontSize * 1.2)
-  const contextFontSize = Math.round(itemFontSize * 0.6) // Smaller size for context
-  const contextTopMargin = Math.round(itemSpacing * 0.3) // Space between item and context
+  const contextFontSize = Math.round(itemFontSize * 0.6)
+  const contextTopMargin = Math.round(itemSpacing * 0.3)
   previewContainer.classList.remove("loaded")
   try {
     ctx.clearRect(0, 0, screenWidth, screenHeight)
@@ -1468,7 +1478,7 @@ function calculateTextBlockDimensions(ctx, p) {
     : 0
   const itemWeight = parseInt(fontWeight, 10) || 400
   const ifs = `${itemWeight} ${itemFontSize}px "${fontName}", ${DEFAULT_FONT}`
-  const contextWeight = 300 // Light weight for context
+  const contextWeight = 300
   const ctfs = `${contextWeight} ${contextFontSize}px "${fontName}", ${DEFAULT_FONT}`
   if (lines.length > 0) {
     lines.forEach((item, idx) => {
@@ -1754,13 +1764,13 @@ function drawTextElementsMultiCol(ctx, p) {
     let currentItemHeight = itemFontSize
     let contextWidth = 0
     if (item.context) {
-      ctx.fillStyle = textColor // Context uses same color, but lower alpha via overallOpacity
-      ctx.globalAlpha *= 0.8 // Make context slightly more transparent than main text
+      ctx.fillStyle = textColor
+      ctx.globalAlpha *= 0.8
       let contextY = currentY + itemFontSize + contextTopMargin
       try {
         ctx.font = ctfs
         contextWidth = ctx.measureText(item.context).width
-        ctx.fillText(item.context, columnStartX + itemFontSize * 0.75, contextY) // Indent context slightly
+        ctx.fillText(item.context, columnStartX + itemFontSize * 0.75, contextY)
       } catch (e) {
         console.warn(
           `Failed to draw context with font ${fontName}. Falling back.`,
@@ -1771,7 +1781,7 @@ function drawTextElementsMultiCol(ctx, p) {
         ctx.fillText(item.context, columnStartX + itemFontSize * 0.75, contextY)
       }
       currentItemHeight += contextTopMargin + contextFontSize
-      ctx.globalAlpha /= 0.8 // Restore alpha for next item
+      ctx.globalAlpha /= 0.8
     }
     maxColWidthInThisLoop = Math.max(
       maxColWidthInThisLoop,
@@ -1789,7 +1799,6 @@ function updatePreviewImage() {
   try {
     state.lastGeneratedImageDataUrl = canvas.toDataURL("image/png")
     previewAreaImg.onload = () => {
-      console.log("Preview image loaded successfully.")
       previewContainer.classList.add("loaded")
     }
     previewAreaImg.onerror = () => {
@@ -1811,6 +1820,7 @@ async function handleLoadFontClick() {
   const fontName = settingsInputs.googleFontName.value.trim()
   if (!fontName) {
     updateFontStatus("error", state.activeFontFamily, "Enter Google Font name")
+    showToast("Please enter a Google Font name.", "error")
     return
   }
   await loadAndApplyGoogleFont(fontName, true)
@@ -1840,6 +1850,7 @@ async function loadAndApplyGoogleFont(fontName, shouldSaveState = true) {
       state.customFontStatus = "loaded"
       state.customFontError = null
       updateFontStatus("loaded", actualFontFamily)
+      showToast(`Font "${actualFontFamily}" loaded!`, "success")
       generateTodoImageAndUpdatePreview()
       if (shouldSaveState) saveState()
     } else {
@@ -1850,6 +1861,7 @@ async function loadAndApplyGoogleFont(fontName, shouldSaveState = true) {
     state.customFontStatus = "error"
     state.customFontError = e.message
     updateFontStatus("error", state.activeFontFamily, e.message)
+    showToast(`Error loading font: ${e.message}`, "error")
   }
 }
 function updateFontControlsVisibility() {
@@ -1968,7 +1980,7 @@ function handleModalSubmit(event) {
     renderTodoList()
     generateTodoImageAndUpdatePreview()
     saveState()
-    closeModal()
+    closeModal() /* showToast("Task added", "info", 1500); */
   } else {
     modalTodoInput.focus()
     modalTodoInput.classList.add("shake-animation")
@@ -2051,11 +2063,12 @@ function handleShortcutKeyUp(event) {
   if (isRecordingShortcut) {
     if (["Control", "Shift", "Alt", "Meta"].includes(key)) {
       pressedKeys.delete(key)
-      if (!lastMainKeyPressed)
+      if (!lastMainKeyPressed) {
         updateRecordShortcutDisplay(
           "Press main key...",
           buildAcceleratorStringParts()
         )
+      }
     }
   }
 }
@@ -2135,6 +2148,23 @@ function mapKeyForDisplay(k) {
     case "SLASH":
       return "/"
     default:
+      if (k.startsWith("F") && !isNaN(parseInt(k.substring(1))))
+        return k.toUpperCase()
+      if (
+        [
+          "ESC",
+          "TAB",
+          "ENTER",
+          "BACKSPACE",
+          "DELETE",
+          "HOME",
+          "END",
+          "PAGEUP",
+          "PAGEDOWN",
+          "INSERT",
+        ].includes(k.toUpperCase())
+      )
+        return k.charAt(0).toUpperCase() + k.slice(1).toLowerCase()
       return k.length === 1 ? k.toUpperCase() : k
   }
 }
@@ -2164,6 +2194,8 @@ function buildAcceleratorStringParts(useCurrentState = false) {
     if (!["Control", "Shift", "Alt", "Meta", "CmdOrCtrl"].includes(key))
       k.push(mapKeyToAccelerator(key))
   })
+  const modOrder = { Ctrl: 1, Alt: 2, Shift: 3, Cmd: 4 }
+  m.sort((a, b) => (modOrder[a] || 99) - (modOrder[b] || 99))
   return [...m, ...k]
 }
 function buildAcceleratorString() {
@@ -2177,7 +2209,8 @@ function buildAcceleratorString() {
     if (!["Control", "Shift", "Alt", "Meta"].includes(key))
       k.push(mapKeyToAccelerator(key))
   })
-  return [...m, ...k].join("+")
+  const finalParts = [...m, ...k]
+  return finalParts.join("+")
 }
 function mapKeyToAccelerator(k) {
   switch (k.toUpperCase()) {
@@ -2197,7 +2230,29 @@ function mapKeyToAccelerator(k) {
       return "Enter"
     case "TAB":
       return "Tab"
-    case "F1":
+    case "BACKQUOTE":
+      return "`"
+    case "MINUS":
+      return "-"
+    case "EQUAL":
+      return "="
+    case "BRACKETLEFT":
+      return "["
+    case "BRACKETRIGHT":
+      return "]"
+    case "BACKSLASH":
+      return "\\"
+    case "SEMICOLON":
+      return ";"
+    case "QUOTE":
+      return "'"
+    case "COMMA":
+      return ","
+    case "PERIOD":
+      return "."
+    case "SLASH":
+      return "Slash"
+    /* Use Slash for ? */ case "F1":
     case "F2":
     case "F3":
     case "F4":
@@ -2222,70 +2277,24 @@ function mapKeyToAccelerator(k) {
     case "F23":
     case "F24":
       return k.toUpperCase()
-    case "`":
-      return "`"
-    case "~":
-      return "~"
-    case "!":
-      return "!"
-    case "@":
-      return "@"
-    case "#":
-      return "#"
-    case "$":
-      return "$"
-    case "%":
-      return "%"
-    case "^":
-      return "^"
-    case "&":
-      return "&"
-    case "*":
-      return "*"
-    case "(":
-      return "("
-    case ")":
-      return ")"
-    case "-":
-      return "-"
-    case "_":
-      return "_"
-    case "=":
-      return "="
-    case "+":
-      return "+"
-    case "[":
-      return "["
-    case "{":
-      return "{"
-    case "]":
-      return "]"
-    case "}":
-      return "}"
-    case "\\":
-      return "\\"
-    case "|":
-      return "|"
-    case ";":
-      return ";"
-    case ":":
-      return ":"
-    case "'":
-      return "'"
-    case '"':
-      return '"'
-    case ",":
-      return ","
-    case "<":
-      return "<"
-    case ".":
-      return "."
-    case ">":
-      return ">"
-    case "/":
-      return "/"
-    case "?":
-      return "?"
+    case "NUMPAD0":
+      return "num0"
+    case "NUMPADMULTIPLY":
+      return "nummult"
+    case "BACKSPACE":
+      return "Backspace"
+    case "DELETE":
+      return "Delete"
+    case "HOME":
+      return "Home"
+    case "END":
+      return "End"
+    case "PAGEUP":
+      return "PageUp"
+    case "PAGEDOWN":
+      return "PageDown"
+    case "INSERT":
+      return "Insert"
     default:
       return k.length === 1 ? k.toUpperCase() : k
   }
@@ -2295,29 +2304,52 @@ function isValidAccelerator(accel) {
   const p = accel.split("+")
   if (p.length < 2) return false
   const hM = p.some((k) =>
-    ["CommandOrControl", "Alt", "Shift", "Super"].includes(k)
+    [
+      "CommandOrControl",
+      "Alt",
+      "Shift",
+      "Super",
+      "Cmd",
+      "Ctrl",
+      "Option",
+    ].includes(k)
   )
   const hK = p.some(
-    (k) => !["CommandOrControl", "Alt", "Shift", "Super"].includes(k)
+    (k) =>
+      ![
+        "CommandOrControl",
+        "Alt",
+        "Shift",
+        "Super",
+        "Cmd",
+        "Ctrl",
+        "Option",
+      ].includes(k)
   )
   return hM && hK
 }
 function handleSaveShortcut() {
   if (!currentRecordedString || !isValidAccelerator(currentRecordedString)) {
-    alert("Invalid shortcut.")
+    alert(
+      "Invalid shortcut recorded. Please ensure you press a modifier (Ctrl, Alt, Shift, Cmd) plus another key."
+    )
     recordSaveBtn.disabled = true
+    updateRecordShortcutDisplay("Press keys...")
     return
   }
   if (currentRecordedString !== state.quickAddShortcut) {
     state.quickAddShortcut = currentRecordedString
     applyStateToUI()
     saveState()
-    if (state.runInTray)
-      window.electronAPI.updateSettings({
-        runInTray: state.runInTray,
-        quickAddShortcut: state.quickAddShortcut,
-        quickAddTranslucent: state.quickAddTranslucent,
-      })
+    console.log(
+      "Renderer: Sending updated shortcut to main:",
+      state.quickAddShortcut
+    )
+    window.electronAPI.updateSettings({
+      runInTray: state.runInTray,
+      quickAddShortcut: state.quickAddShortcut,
+      quickAddTranslucent: state.quickAddTranslucent,
+    })
   }
   closeRecordShortcutModal()
 }
@@ -2330,11 +2362,11 @@ function handleImageFileSelect(e) {
   const f = e.target.files[0]
   if (!f) return
   if (!f.type.startsWith("image/")) {
-    alert("Invalid image.")
+    alert("Invalid image file type. Please select a PNG, JPG, or WEBP image.")
     return
   }
   if (f.size > 15 * 1024 * 1024) {
-    alert("Image too large.")
+    alert("Image file is too large (Max 15MB). Please choose a smaller image.")
     return
   }
   const r = new FileReader()
@@ -2361,19 +2393,24 @@ function handleClearImage() {
 }
 function handleImageReadError(err) {
   console.error("FileReader error:", err)
-  alert("Error reading image.")
+  alert("Error reading the selected image file.")
   handleClearImage()
 }
 async function handleApplyWallpaper() {
   if (!state.lastGeneratedImageDataUrl) {
-    console.warn("Apply Wallpaper: No image data.")
-    return
+    console.warn("Apply Wallpaper: No image data generated yet.")
+    try {
+      await generateTodoImageAndUpdatePreview()
+      if (!state.lastGeneratedImageDataUrl) {
+        showToast("Could not generate wallpaper image.", "error")
+        return
+      }
+    } catch (genErr) {
+      showToast(`Failed to generate image: ${genErr.message}`, "error")
+      return
+    }
   }
-  if (
-    applyWallpaperBtn.disabled &&
-    applyWallpaperBtn.querySelector("span")?.textContent === "Applying..."
-  )
-    return
+  if (applyWallpaperBtn.disabled) return
   applyWallpaperBtn.disabled = true
   const span = applyWallpaperBtn.querySelector("span")
   const ogTxt = span ? span.textContent : "Apply Wallpaper"
@@ -2385,6 +2422,7 @@ async function handleApplyWallpaper() {
     if (result?.success) {
       console.log("Wallpaper update successful.")
       if (span) span.textContent = "Applied!"
+      showToast("Wallpaper applied successfully!", "success")
       setTimeout(() => {
         if (applyWallpaperBtn.disabled && span?.textContent === "Applied!") {
           if (span) span.textContent = ogTxt
@@ -2392,11 +2430,11 @@ async function handleApplyWallpaper() {
         }
       }, 2000)
     } else {
-      throw new Error(result?.error || "Unknown error")
+      throw new Error(result?.error || "Unknown error setting wallpaper")
     }
   } catch (err) {
     console.error("Wallpaper update failed:", err)
-    alert(`Failed:\n${err.message}`)
+    showToast(`Failed to apply wallpaper: ${err.message}`, "error")
     if (span) span.textContent = ogTxt
     applyWallpaperBtn.disabled = false
   }
@@ -2408,25 +2446,38 @@ async function handleQuickAddTaskAndApply(taskText) {
     saveState()
     try {
       await generateTodoImageAndUpdatePreview()
-      if (state.lastGeneratedImageDataUrl) await handleApplyWallpaper()
-      else console.error("Failed image gen for auto-apply.")
+      if (state.lastGeneratedImageDataUrl) {
+        console.log("Applying wallpaper after quick add...")
+        await handleApplyWallpaper()
+      } else {
+        console.error(
+          "Failed to generate image after quick add, cannot apply wallpaper."
+        )
+        showToast("Failed to generate image for wallpaper.", "error")
+      }
     } catch (err) {
-      console.error("Error during auto-apply:", err)
+      console.error(
+        "Error during image generation or application after quick add:",
+        err
+      )
+      showToast("Error applying wallpaper after Quick Add.", "error")
     }
   }
 }
 function handleShortcutError(errorMessage) {
-  console.error("Shortcut Error:", errorMessage)
-  alert(`Shortcut Error:\n${errorMessage}\n\nPlease choose different keys.`)
-  if (settingsInputs.runInTrayCheckbox)
-    settingsInputs.runInTrayCheckbox.checked = false
-  if (settingsInputs.currentShortcutDisplay)
-    settingsInputs.currentShortcutDisplay.textContent = formatAccelerator(
-      state.quickAddShortcut
-    )
+  console.error("Renderer received Shortcut Error from main:", errorMessage)
+  alert(
+    `Shortcut Error:\n${errorMessage}\n\nPlease choose different keys or close the conflicting application.`
+  )
   state.runInTray = false
+  if (settingsInputs.runInTrayCheckbox) {
+    settingsInputs.runInTrayCheckbox.checked = false
+  }
   updateShortcutInputVisibility()
   saveState()
+  console.log(
+    "Renderer: Sending reverted tray setting back to main due to shortcut error."
+  )
   window.electronAPI.updateSettings({
     runInTray: false,
     quickAddShortcut: state.quickAddShortcut,
@@ -2434,24 +2485,41 @@ function handleShortcutError(errorMessage) {
   })
 }
 function handleForcedSettingUpdate(settingsToUpdate) {
-  console.log("Renderer received forced setting update:", settingsToUpdate)
+  console.log(
+    "Renderer received forced setting update from main:",
+    settingsToUpdate
+  )
   let stateChanged = false
   for (const key in settingsToUpdate) {
     if (state.hasOwnProperty(key) && state[key] !== settingsToUpdate[key]) {
+      console.log(
+        `Forcing setting ${key} from ${state[key]} to ${settingsToUpdate[key]}`
+      )
       state[key] = settingsToUpdate[key]
       stateChanged = true
-      if (key === "quickAddTranslucent") {
-        if (settingsInputs.quickAddTranslucentCheckbox) {
-          settingsInputs.quickAddTranslucentCheckbox.checked =
-            state.quickAddTranslucent
-        }
+      if (key === "runInTray" && settingsInputs.runInTrayCheckbox) {
+        settingsInputs.runInTrayCheckbox.checked = state.runInTray
+      }
+      if (key === "quickAddShortcut" && settingsInputs.currentShortcutDisplay) {
+        settingsInputs.currentShortcutDisplay.textContent = formatAccelerator(
+          state.quickAddShortcut || DEFAULT_SHORTCUT
+        )
+      }
+      if (
+        key === "quickAddTranslucent" &&
+        settingsInputs.quickAddTranslucentCheckbox
+      ) {
+        settingsInputs.quickAddTranslucentCheckbox.checked =
+          state.quickAddTranslucent
       }
     }
   }
   if (stateChanged) {
-    console.log("Applying forced state changes to UI.")
-    applyStateToUI()
+    console.log("Applying forced state changes to UI and saving.")
+    updateShortcutInputVisibility()
     saveState()
+  } else {
+    console.log("No actual state changes needed from forced update.")
   }
 }
 function formatAccelerator(accelerator) {
@@ -2485,29 +2553,6 @@ function handleWindowStateChange({ isMaximized }) {
     )
   }
 }
-
-function handleForcedSettingUpdate(settingsToUpdate) {
-  console.log("Renderer received forced setting update:", settingsToUpdate)
-  let stateChanged = false
-  for (const key in settingsToUpdate) {
-    if (state.hasOwnProperty(key) && state[key] !== settingsToUpdate[key]) {
-      state[key] = settingsToUpdate[key]
-      stateChanged = true
-      if (key === "quickAddTranslucent") {
-        if (settingsInputs.quickAddTranslucentCheckbox) {
-          settingsInputs.quickAddTranslucentCheckbox.checked =
-            state.quickAddTranslucent
-        }
-      }
-    }
-  }
-  if (stateChanged) {
-    console.log("Applying forced state changes to UI.")
-    applyStateToUI()
-    saveState()
-  }
-}
-
 function initializeCollapsibleSections() {
   const tBtns = settingsColumn.querySelectorAll(".setting-section-toggle")
   tBtns.forEach((b) => {
@@ -2520,14 +2565,14 @@ function initializeCollapsibleSections() {
       c.style.maxHeight = "0"
       c.style.opacity = "0"
       c.style.visibility = "hidden"
-      c.offsetHeight
+      void c.offsetHeight
       c.style.transition = ""
     } else if (c && !iC) {
       c.style.transition = "none"
       c.style.maxHeight = "none"
-      const sh = c.scrollHeight
-      c.style.maxHeight = sh + "px"
-      c.offsetHeight
+      c.style.opacity = "1"
+      c.style.visibility = "visible"
+      void c.offsetHeight
       c.style.transition = ""
     }
   })
@@ -2544,17 +2589,28 @@ function handleSettingToggleClick(button) {
     requestAnimationFrame(() => {
       c.style.maxHeight = "0"
       c.style.opacity = "0"
+      c.addEventListener(
+        "transitionend",
+        () => {
+          if (s.classList.contains("collapsed")) {
+            c.style.visibility = "hidden"
+          }
+        },
+        { once: true }
+      )
     })
   } else {
     c.style.visibility = "visible"
-    c.style.opacity = "1"
     requestAnimationFrame(() => {
       c.style.maxHeight = c.scrollHeight + "px"
+      c.style.opacity = "1"
     })
     c.addEventListener(
       "transitionend",
       () => {
-        if (!s.classList.contains("collapsed")) c.style.maxHeight = "none"
+        if (!s.classList.contains("collapsed")) {
+          c.style.maxHeight = "none"
+        }
       },
       { once: true }
     )

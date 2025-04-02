@@ -17,6 +17,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   loadGoogleFontByName: (fontName, fontWeight) =>
     ipcRenderer.invoke("load-google-font-by-name", { fontName, fontWeight }),
   updateSettings: (settings) => ipcRenderer.send("update-settings", settings),
+  // ** NEW API to send loaded settings from renderer **
+  sendRendererSettingsLoaded: (settings) => {
+    ipcRenderer.send("renderer-settings-loaded", settings)
+  },
   onAddTaskAndApply: (callback) => {
     const channel = "add-task-and-apply"
     const listener = (event, taskText) => callback(taskText)
