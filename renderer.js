@@ -6,7 +6,7 @@ const DEFAULT_FONT = "Inter"
 const DEFAULT_WEIGHT = "400"
 const DEFAULT_TEXT_COLOR = "#f3f4f6"
 const DEFAULT_BG_COLOR = "#111827"
-const DEFAULT_SHORTCUT = "CommandOrControl+Shift+Q" // Updated default
+const DEFAULT_SHORTCUT = "CommandOrControl+Shift+Q"
 const DEFAULT_TEXT_BG_COLOR = "rgba(0, 0, 0, 0.5)"
 const DEFAULT_TEXT_BORDER_COLOR = "rgba(255, 255, 255, 0.1)"
 const DEFAULT_OVERALL_OPACITY = 1.0
@@ -21,10 +21,11 @@ const settingsIconOpen = document.getElementById("settings-icon-open")
 const settingsIconClose = document.getElementById("settings-icon-close")
 const todoListUl = document.getElementById("todo-list")
 const completedTodoListUl = document.getElementById("completed-todo-list")
-const completedTitle = document.querySelector(".completed-title")
+const completedHeader = document.querySelector(".completed-header") // Get header div
 const completedListContainer = document.querySelector(
   ".completed-list-container"
 )
+const clearCompletedBtn = document.getElementById("clear-completed-btn") // Get clear button
 const settingsColumn = document.getElementById("settings-column")
 const previewContainer = document.getElementById("preview-container")
 const previewLoader = document.getElementById("preview-loader")
@@ -35,6 +36,7 @@ const maximizeIcon = maximizeRestoreBtn?.querySelector(".icon-maximize")
 const restoreIcon = maximizeRestoreBtn?.querySelector(".icon-restore")
 const closeBtn = document.getElementById("close-btn")
 const settingsInputs = {
+  /* ... (keep existing settings inputs) ... */
   title: document.getElementById("wallpaper-title-input"),
   textColorPickerEl: document.getElementById("text-color-picker"),
   textColorHex: document.getElementById("text-color-hex"),
@@ -89,11 +91,20 @@ const settingsInputs = {
   changeShortcutBtn: document.getElementById("change-shortcut-btn"),
 }
 const openAddTodoModalBtn = document.getElementById("open-add-todo-modal-btn")
+// Add Task Modal elements
 const addTodoModal = document.getElementById("add-todo-modal")
 const modalCloseBtn = document.getElementById("modal-close-btn")
 const modalCancelBtn = document.getElementById("modal-cancel-btn")
 const addTodoForm = document.getElementById("add-todo-form")
 const modalTodoInput = document.getElementById("modal-todo-input")
+// Edit Task Modal elements
+const editTodoModal = document.getElementById("edit-todo-modal")
+const editModalCloseBtn = document.getElementById("edit-modal-close-btn")
+const editModalCancelBtn = document.getElementById("edit-modal-cancel-btn")
+const editTodoForm = document.getElementById("edit-todo-form")
+const modalEditInput = document.getElementById("modal-edit-input")
+const editTodoIdInput = document.getElementById("edit-todo-id") // Hidden input for ID
+// Record Shortcut Modal elements
 const recordShortcutModal = document.getElementById("record-shortcut-modal")
 const recordModalCloseBtn = document.getElementById("record-modal-close-btn")
 const shortcutDisplayArea = document.getElementById("shortcut-display-area")
@@ -113,7 +124,7 @@ const toastContainer = document.getElementById("toast-container")
 
 // --- Application State ---
 let state = {
-  todos: [],
+  /* ... (keep existing state properties) ... */ todos: [],
   title: "My Tasks",
   listStyle: "bullet",
   fontSource: "default",
@@ -170,54 +181,53 @@ function showToast(message, type = "info", duration = TOAST_DURATION) {
     console.error("Toast container not found!")
     return
   }
-  const toast = document.createElement("div")
-  toast.className = `toast toast--${type}`
-  toast.setAttribute("role", "status")
-  toast.setAttribute("aria-live", "polite")
-  const messageSpan = document.createElement("span")
-  messageSpan.textContent = message
-  toast.appendChild(messageSpan)
-  toastContainer.prepend(toast)
+  const t = document.createElement("div")
+  t.className = `toast toast--${type}`
+  t.setAttribute("role", "status")
+  t.setAttribute("aria-live", "polite")
+  const s = document.createElement("span")
+  s.textContent = message
+  t.appendChild(s)
+  toastContainer.prepend(t)
   requestAnimationFrame(() => {
-    toast.classList.add("toast-visible")
+    t.classList.add("toast-visible")
   })
-  const timerId = setTimeout(() => {
-    toast.classList.remove("toast-visible")
-    toast.classList.add("toast-exiting")
-    toast.addEventListener(
+  const d = setTimeout(() => {
+    t.classList.remove("toast-visible")
+    t.classList.add("toast-exiting")
+    t.addEventListener(
       "transitionend",
       () => {
-        if (toast.parentNode === toastContainer) {
-          toastContainer.removeChild(toast)
+        if (t.parentNode === toastContainer) {
+          toastContainer.removeChild(t)
         }
       },
       { once: true }
     )
     setTimeout(() => {
-      if (toast.parentNode === toastContainer) {
+      if (t.parentNode === toastContainer) {
         console.warn("Toast fallback removal triggered.")
-        toastContainer.removeChild(toast)
+        toastContainer.removeChild(t)
       }
     }, 500)
   }, duration)
-  toast.addEventListener(
+  t.addEventListener(
     "click",
     () => {
-      clearTimeout(timerId)
-      toast.classList.remove("toast-visible")
-      toast.classList.add("toast-exiting")
-      toast.addEventListener(
+      clearTimeout(d)
+      t.classList.remove("toast-visible")
+      t.classList.add("toast-exiting")
+      t.addEventListener(
         "transitionend",
         () => {
-          if (toast.parentNode === toastContainer) {
-            toastContainer.removeChild(toast)
+          if (t.parentNode === toastContainer) {
+            toastContainer.removeChild(t)
           }
         },
         { once: true }
       )
       setTimeout(() => {
-        if (toast.parentNode === toastContainer)
-          toastContainer.removeChild(toast)
+        if (t.parentNode === toastContainer) toastContainer.removeChild(t)
       }, 500)
     },
     { once: true }
@@ -227,10 +237,10 @@ function showToast(message, type = "info", duration = TOAST_DURATION) {
 // --- Initialization ---
 async function initialize() {
   console.log("Initializing Renderer...")
-  const dimensions = window.electronAPI.getScreenDimensions()
-  if (dimensions?.width && dimensions?.height) {
-    state.screenWidth = dimensions.width
-    state.screenHeight = dimensions.height
+  const d = window.electronAPI.getScreenDimensions()
+  if (d?.width && d?.height) {
+    state.screenWidth = d.width
+    state.screenHeight = d.height
   } else {
     console.warn("Could not get screen dimensions sync, using defaults.")
   }
@@ -251,10 +261,10 @@ async function initialize() {
     quickAddShortcut: state.quickAddShortcut,
     quickAddTranslucent: state.quickAddTranslucent,
   })
-  let fontLoadPromise = Promise.resolve()
+  let f = Promise.resolve()
   try {
     if (state.fontSource === "google" && state.googleFontName) {
-      fontLoadPromise = loadAndApplyGoogleFont(state.googleFontName, false)
+      f = loadAndApplyGoogleFont(state.googleFontName, false)
     } else if (state.fontSource === "system" && state.systemFontFamily) {
       state.activeFontFamily = state.systemFontFamily
       updateFontStatus("loaded", state.activeFontFamily)
@@ -263,20 +273,18 @@ async function initialize() {
       state.fontSource = "default"
       updateFontStatus("idle", DEFAULT_FONT)
     }
-  } catch (err) {
-    console.warn("Initial font setup/load failed:", err)
+  } catch (e) {
+    console.warn("Initial font setup/load failed:", e)
     state.activeFontFamily = DEFAULT_FONT
     state.fontSource = "default"
     applyStateToUI()
     updateFontStatus("error", DEFAULT_FONT, "Initial load failed")
   }
   renderTodoList()
-  fontLoadPromise
-    .catch((err) => console.warn("Font loading rejected:", err))
-    .finally(() => {
-      generateTodoImageAndUpdatePreview()
-    })
-  setupEventListeners()
+  f.catch((e) => console.warn("Font loading rejected:", e)).finally(() => {
+    generateTodoImageAndUpdatePreview()
+  })
+  setupEventListeners() // Ensure this is called
   initializeCollapsibleSections()
   window.electronAPI.onAddTaskAndApply(handleQuickAddTaskAndApply)
   window.electronAPI.onShortcutError(handleShortcutError)
@@ -286,34 +294,33 @@ async function initialize() {
   })
   window.electronAPI.onWindowStateChange(handleWindowStateChange)
   window.electronAPI.onForceSettingUpdate(handleForcedSettingUpdate)
-  // *** Listen for actions relayed from main process ***
-  window.electronAPI.onPerformTaskToggle((taskId) => {
-    console.log(`Renderer received toggle request for task ID: ${taskId}`)
-    toggleDone(taskId)
+  window.electronAPI.onPerformTaskToggle((t) => {
+    console.log(`Renderer received toggle request for task ID: ${t}`)
+    toggleDone(t)
     renderTodoList()
     saveState()
     generateTodoImageAndUpdatePreview()
-      .then(() => handleApplyWallpaper()) // Apply wallpaper after toggle
-      .catch((err) => {
-        console.error("Error applying wallpaper after toggle:", err)
-        showToast("Error applying wallpaper.", "error") // Show toast on error
-      })
-  })
-  window.electronAPI.onPerformTaskDelete((taskId) => {
-    console.log(`Renderer received delete request for task ID: ${taskId}`)
-    deleteTodo(taskId)
-    renderTodoList() // Re-render list immediately
-    saveState()
-    generateTodoImageAndUpdatePreview()
-      .then(() => handleApplyWallpaper()) // Apply wallpaper after delete
-      .catch((err) => {
-        console.error("Error applying wallpaper after delete:", err)
+      .then(() => handleApplyWallpaper())
+      .catch((e) => {
+        console.error("Error applying wallpaper after toggle:", e)
         showToast("Error applying wallpaper.", "error")
       })
   })
-  const platform = window.electronAPI.getPlatform()
-  document.body.dataset.platform = platform
-  console.log("Renderer initialized on platform:", platform)
+  window.electronAPI.onPerformTaskDelete((t) => {
+    console.log(`Renderer received delete request for task ID: ${t}`)
+    deleteTodo(t)
+    renderTodoList()
+    saveState()
+    generateTodoImageAndUpdatePreview()
+      .then(() => handleApplyWallpaper())
+      .catch((e) => {
+        console.error("Error applying wallpaper after delete:", e)
+        showToast("Error applying wallpaper.", "error")
+      })
+  })
+  const p = window.electronAPI.getPlatform()
+  document.body.dataset.platform = p
+  console.log("Renderer initialized on platform:", p)
 }
 
 // --- Set Canvas & Preview Size ---
@@ -333,25 +340,25 @@ async function populateSystemFonts() {
     systemFontsCache = await window.electronAPI.getSystemFonts()
     settingsInputs.systemFontSelect.innerHTML = ""
     if (!systemFontsCache || systemFontsCache.length === 0) {
-      const option = document.createElement("option")
-      option.value = ""
-      option.textContent = "No fonts found"
-      option.disabled = true
-      settingsInputs.systemFontSelect.appendChild(option)
+      const o = document.createElement("option")
+      o.value = ""
+      o.textContent = "No fonts found"
+      o.disabled = true
+      settingsInputs.systemFontSelect.appendChild(o)
       return
     }
-    const defaultOption = document.createElement("option")
-    defaultOption.value = ""
-    defaultOption.textContent = "Select System Font..."
-    settingsInputs.systemFontSelect.appendChild(defaultOption)
-    systemFontsCache.forEach((font) => {
-      const option = document.createElement("option")
-      option.value = font
-      option.textContent = font
-      settingsInputs.systemFontSelect.appendChild(option)
+    const d = document.createElement("option")
+    d.value = ""
+    d.textContent = "Select System Font..."
+    settingsInputs.systemFontSelect.appendChild(d)
+    systemFontsCache.forEach((f) => {
+      const o = document.createElement("option")
+      o.value = f
+      o.textContent = f
+      settingsInputs.systemFontSelect.appendChild(o)
     })
-  } catch (error) {
-    console.error("Error fetching system fonts:", error)
+  } catch (e) {
+    console.error("Error fetching system fonts:", e)
     settingsInputs.systemFontSelect.innerHTML =
       '<option value="" disabled selected>Error loading fonts</option>'
   }
@@ -359,11 +366,11 @@ async function populateSystemFonts() {
 
 // --- Initialize Color Pickers ---
 function initializeColorPickers() {
-  const pickrOptions = (elId, defaultColor, stateProp) => ({
-    el: settingsInputs[elId],
+  const o = (e, d, s) => ({
+    el: settingsInputs[e],
     theme: "nano",
     defaultRepresentation: "HEXA",
-    default: state[stateProp] || defaultColor,
+    default: state[s] || d,
     position: "bottom-start",
     components: {
       preview: true,
@@ -382,72 +389,62 @@ function initializeColorPickers() {
       },
     },
   })
-  const pickrSave = (prop, hexInputId) => (color, instance) => {
-    const newColor = color.toHEXA().toString()
-    if (state[prop] !== newColor) {
-      state[prop] = newColor
-      settingsInputs[hexInputId].value = newColor
-      settingsInputs[hexInputId].classList.remove("invalid")
+  const s = (p, h) => (c, i) => {
+    const n = c.toHEXA().toString()
+    if (state[p] !== n) {
+      state[p] = n
+      settingsInputs[h].value = n
+      settingsInputs[h].classList.remove("invalid")
       generateTodoImageAndUpdatePreview()
       saveState()
     }
-    instance.hide()
+    i.hide()
   }
-  const pickrChange = (hexInputId) => (color, source, instance) => {
-    settingsInputs[hexInputId].value = color.toHEXA().toString()
-    settingsInputs[hexInputId].classList.remove("invalid")
+  const c = (h) => (c, s, i) => {
+    settingsInputs[h].value = c.toHEXA().toString()
+    settingsInputs[h].classList.remove("invalid")
   }
-  const pickrShow = (hexInputId) => (color, instance) => {
-    settingsInputs[hexInputId].value = instance.getColor().toHEXA().toString()
-    settingsInputs[hexInputId].classList.remove("invalid")
+  const sh = (h) => (c, i) => {
+    settingsInputs[h].value = i.getColor().toHEXA().toString()
+    settingsInputs[h].classList.remove("invalid")
   }
   textColorPickr = Pickr.create(
-    pickrOptions("textColorPickerEl", DEFAULT_TEXT_COLOR, "textColor")
+    o("textColorPickerEl", DEFAULT_TEXT_COLOR, "textColor")
   )
-    .on("save", pickrSave("textColor", "textColorHex"))
-    .on("change", pickrChange("textColorHex"))
-    .on("show", pickrShow("textColorHex"))
-  bgColorPickr = Pickr.create(
-    pickrOptions("bgColorPickerEl", DEFAULT_BG_COLOR, "bgColor")
-  )
-    .on("save", pickrSave("bgColor", "bgColorHex"))
-    .on("change", pickrChange("bgColorHex"))
-    .on("show", pickrShow("bgColorHex"))
+    .on("save", s("textColor", "textColorHex"))
+    .on("change", c("textColorHex"))
+    .on("show", sh("textColorHex"))
+  bgColorPickr = Pickr.create(o("bgColorPickerEl", DEFAULT_BG_COLOR, "bgColor"))
+    .on("save", s("bgColor", "bgColorHex"))
+    .on("change", c("bgColorHex"))
+    .on("show", sh("bgColorHex"))
   textBgColorPickr = Pickr.create(
-    pickrOptions(
-      "textBgColorPickerEl",
-      DEFAULT_TEXT_BG_COLOR,
-      "textBackgroundColor"
-    )
+    o("textBgColorPickerEl", DEFAULT_TEXT_BG_COLOR, "textBackgroundColor")
   )
-    .on("save", pickrSave("textBackgroundColor", "textBgColorHex"))
-    .on("change", pickrChange("textBgColorHex"))
-    .on("show", pickrShow("textBgColorHex"))
+    .on("save", s("textBackgroundColor", "textBgColorHex"))
+    .on("change", c("textBgColorHex"))
+    .on("show", sh("textBgColorHex"))
   textBorderColorPickr = Pickr.create(
-    pickrOptions(
+    o(
       "textBorderColorPickerEl",
       DEFAULT_TEXT_BORDER_COLOR,
       "textBackgroundBorderColor"
     )
   )
-    .on("save", pickrSave("textBackgroundBorderColor", "textBorderColorHex"))
-    .on("change", pickrChange("textBorderColorHex"))
-    .on("show", pickrShow("textBorderColorHex"))
+    .on("save", s("textBackgroundBorderColor", "textBorderColorHex"))
+    .on("change", c("textBorderColorHex"))
+    .on("show", sh("textBorderColorHex"))
 }
 
 // --- Helper functions ---
 function updateShortcutInputVisibility() {
-  const isTrayEnabled = state.runInTray
+  const i = state.runInTray
   if (settingsInputs.shortcutDisplayGroup) {
-    settingsInputs.shortcutDisplayGroup.classList.toggle(
-      "hidden",
-      !isTrayEnabled
-    )
+    settingsInputs.shortcutDisplayGroup.classList.toggle("hidden", !i)
   }
-  const translucencyGroup =
-    settingsInputs.quickAddTranslucentCheckbox?.closest(".input-group")
-  if (translucencyGroup) {
-    translucencyGroup.classList.toggle("hidden", !isTrayEnabled)
+  const t = settingsInputs.quickAddTranslucentCheckbox?.closest(".input-group")
+  if (t) {
+    t.classList.toggle("hidden", !i)
   }
 }
 function updateTextBackgroundControlsVisibility() {
@@ -540,7 +537,7 @@ function applyStateToUI() {
 // --- State Management ---
 function saveState() {
   try {
-    const stateToSave = {
+    const s = {
       todos: state.todos.map((t) => ({
         id: t.id,
         text: t.text,
@@ -581,23 +578,23 @@ function saveState() {
       quickAddShortcut: state.quickAddShortcut,
       quickAddTranslucent: state.quickAddTranslucent,
     }
-    localStorage.setItem("visidoState", JSON.stringify(stateToSave))
+    localStorage.setItem("visidoState", JSON.stringify(s))
   } catch (e) {
     console.error("Save State Error:", e)
   }
 }
 function loadState() {
   try {
-    const savedState = localStorage.getItem("visidoState")
-    const platform = window.electronAPI?.getPlatform() || "win32"
-    const platformDefaultTranslucent = platform === "darwin"
-    if (savedState) {
-      const parsedState = JSON.parse(savedState)
-      const currentScreenDims = {
+    const s = localStorage.getItem("visidoState")
+    const p = window.electronAPI?.getPlatform() || "win32"
+    const pd = p === "darwin"
+    if (s) {
+      const ps = JSON.parse(s)
+      const cs = {
         screenWidth: state.screenWidth,
         screenHeight: state.screenHeight,
       }
-      const defaults = {
+      const d = {
         titleBottomMargin: 40,
         itemSpacing: 20,
         maxItemsPerColumn: 10,
@@ -611,7 +608,7 @@ function loadState() {
         googleFontName: "",
         textColor: DEFAULT_TEXT_COLOR,
         bgColor: DEFAULT_BG_COLOR,
-        quickAddTranslucent: platformDefaultTranslucent,
+        quickAddTranslucent: pd,
         overallOpacity: DEFAULT_OVERALL_OPACITY,
         textBackgroundEnabled: false,
         textBackgroundColor: DEFAULT_TEXT_BG_COLOR,
@@ -624,87 +621,74 @@ function loadState() {
       }
       state = {
         ...state,
-        ...defaults,
-        ...parsedState,
-        ...currentScreenDims,
-        todos: Array.isArray(parsedState.todos)
-          ? parsedState.todos.map((t) => ({ ...t, context: t.context || "" }))
+        ...d,
+        ...ps,
+        ...cs,
+        todos: Array.isArray(ps.todos)
+          ? ps.todos.map((t) => ({ ...t, context: t.context || "" }))
           : [],
         settingsCollapsed:
-          typeof parsedState.settingsCollapsed === "boolean"
-            ? parsedState.settingsCollapsed
-            : defaults.settingsCollapsed,
+          typeof ps.settingsCollapsed === "boolean"
+            ? ps.settingsCollapsed
+            : d.settingsCollapsed,
         runInTray:
-          typeof parsedState.runInTray === "boolean"
-            ? parsedState.runInTray
-            : defaults.runInTray,
+          typeof ps.runInTray === "boolean" ? ps.runInTray : d.runInTray,
         quickAddTranslucent:
-          typeof parsedState.quickAddTranslucent === "boolean"
-            ? parsedState.quickAddTranslucent
-            : platformDefaultTranslucent,
-        fontSize:
-          typeof parsedState.fontSize === "number" ? parsedState.fontSize : 48,
+          typeof ps.quickAddTranslucent === "boolean"
+            ? ps.quickAddTranslucent
+            : pd,
+        fontSize: typeof ps.fontSize === "number" ? ps.fontSize : 48,
         fontWeight:
-          typeof parsedState.fontWeight === "string" &&
-          ["300", "400", "500", "600", "700"].includes(parsedState.fontWeight)
-            ? parsedState.fontWeight
-            : defaults.fontWeight,
-        offsetX:
-          typeof parsedState.offsetX === "number" ? parsedState.offsetX : 0,
-        offsetY:
-          typeof parsedState.offsetY === "number" ? parsedState.offsetY : 0,
+          typeof ps.fontWeight === "string" &&
+          ["300", "400", "500", "600", "700"].includes(ps.fontWeight)
+            ? ps.fontWeight
+            : d.fontWeight,
+        offsetX: typeof ps.offsetX === "number" ? ps.offsetX : 0,
+        offsetY: typeof ps.offsetY === "number" ? ps.offsetY : 0,
         titleBottomMargin:
-          typeof parsedState.titleBottomMargin === "number"
-            ? parsedState.titleBottomMargin
-            : defaults.titleBottomMargin,
+          typeof ps.titleBottomMargin === "number"
+            ? ps.titleBottomMargin
+            : d.titleBottomMargin,
         itemSpacing:
-          typeof parsedState.itemSpacing === "number"
-            ? parsedState.itemSpacing
-            : defaults.itemSpacing,
+          typeof ps.itemSpacing === "number" ? ps.itemSpacing : d.itemSpacing,
         maxItemsPerColumn:
-          typeof parsedState.maxItemsPerColumn === "number" &&
-          parsedState.maxItemsPerColumn >= 1
-            ? parsedState.maxItemsPerColumn
-            : defaults.maxItemsPerColumn,
+          typeof ps.maxItemsPerColumn === "number" && ps.maxItemsPerColumn >= 1
+            ? ps.maxItemsPerColumn
+            : d.maxItemsPerColumn,
         columnGap:
-          typeof parsedState.columnGap === "number"
-            ? parsedState.columnGap
-            : defaults.columnGap,
-        quickAddShortcut:
-          parsedState.quickAddShortcut || defaults.quickAddShortcut,
+          typeof ps.columnGap === "number" ? ps.columnGap : d.columnGap,
+        quickAddShortcut: ps.quickAddShortcut || d.quickAddShortcut,
         overallOpacity:
-          typeof parsedState.overallOpacity === "number"
-            ? parsedState.overallOpacity
-            : defaults.overallOpacity,
+          typeof ps.overallOpacity === "number"
+            ? ps.overallOpacity
+            : d.overallOpacity,
         textBackgroundEnabled:
-          typeof parsedState.textBackgroundEnabled === "boolean"
-            ? parsedState.textBackgroundEnabled
-            : defaults.textBackgroundEnabled,
-        textBackgroundColor:
-          parsedState.textBackgroundColor || defaults.textBackgroundColor,
+          typeof ps.textBackgroundEnabled === "boolean"
+            ? ps.textBackgroundEnabled
+            : d.textBackgroundEnabled,
+        textBackgroundColor: ps.textBackgroundColor || d.textBackgroundColor,
         textBackgroundPaddingInline:
-          typeof parsedState.textBackgroundPaddingInline === "number"
-            ? parsedState.textBackgroundPaddingInline
-            : defaults.textBackgroundPaddingInline,
+          typeof ps.textBackgroundPaddingInline === "number"
+            ? ps.textBackgroundPaddingInline
+            : d.textBackgroundPaddingInline,
         textBackgroundPaddingBlock:
-          typeof parsedState.textBackgroundPaddingBlock === "number"
-            ? parsedState.textBackgroundPaddingBlock
-            : defaults.textBackgroundPaddingBlock,
+          typeof ps.textBackgroundPaddingBlock === "number"
+            ? ps.textBackgroundPaddingBlock
+            : d.textBackgroundPaddingBlock,
         textBackgroundBorderWidth:
-          typeof parsedState.textBackgroundBorderWidth === "number"
-            ? parsedState.textBackgroundBorderWidth
-            : defaults.textBackgroundBorderWidth,
+          typeof ps.textBackgroundBorderWidth === "number"
+            ? ps.textBackgroundBorderWidth
+            : d.textBackgroundBorderWidth,
         textBackgroundBorderColor:
-          parsedState.textBackgroundBorderColor ||
-          defaults.textBackgroundBorderColor,
+          ps.textBackgroundBorderColor || d.textBackgroundBorderColor,
         textPanelOpacity:
-          typeof parsedState.textPanelOpacity === "number"
-            ? parsedState.textPanelOpacity
-            : defaults.textPanelOpacity,
+          typeof ps.textPanelOpacity === "number"
+            ? ps.textPanelOpacity
+            : d.textPanelOpacity,
         textBackgroundBorderRadius:
-          typeof parsedState.textBackgroundBorderRadius === "number"
-            ? parsedState.textBackgroundBorderRadius
-            : defaults.textBackgroundBorderRadius,
+          typeof ps.textBackgroundBorderRadius === "number"
+            ? ps.textBackgroundBorderRadius
+            : d.textBackgroundBorderRadius,
         customFontStatus: "idle",
         customFontError: null,
       }
@@ -756,13 +740,13 @@ function loadState() {
         settingsCollapsed: false,
         runInTray: false,
         quickAddShortcut: DEFAULT_SHORTCUT,
-        quickAddTranslucent: platformDefaultTranslucent,
+        quickAddTranslucent: pd,
       }
       console.log("No saved state found, using defaults.")
     }
   } catch (e) {
     console.error("Load State Error:", e)
-    const platform = window.electronAPI?.getPlatform() || "win32"
+    const p = window.electronAPI?.getPlatform() || "win32"
     state = {
       ...state,
       todos: [],
@@ -773,7 +757,7 @@ function loadState() {
       quickAddShortcut: DEFAULT_SHORTCUT,
       textColor: DEFAULT_TEXT_COLOR,
       bgColor: DEFAULT_BG_COLOR,
-      quickAddTranslucent: platform === "darwin",
+      quickAddTranslucent: p === "darwin",
       overallOpacity: DEFAULT_OVERALL_OPACITY,
       textBackgroundEnabled: false,
       textBackgroundColor: DEFAULT_TEXT_BG_COLOR,
@@ -791,7 +775,10 @@ function loadState() {
 function handleGlobalKeyDown(event) {
   if (!addTodoModal.classList.contains("hidden")) {
     if (event.key === "Escape") closeModal()
-  } else if (isRecordingShortcut) {
+  } else if (!editTodoModal.classList.contains("hidden")) {
+    if (event.key === "Escape") closeEditModal()
+  } // Close edit modal on Esc
+  else if (isRecordingShortcut) {
     if (event.key === "Escape") closeRecordShortcutModal()
   } else {
     if ((event.ctrlKey || event.metaKey) && event.key === "n") {
@@ -806,78 +793,78 @@ function handleGlobalKeyDown(event) {
 }
 function isValidHexColor(hex) {
   if (!hex) return false
-  const hexRegex = /^#([0-9A-F]{3,4}|[0-9A-F]{6}|[0-9A-F]{8})$/i
-  return hexRegex.test(hex)
+  const r = /^#([0-9A-F]{3,4}|[0-9A-F]{6}|[0-9A-F]{8})$/i
+  return r.test(hex)
 }
 function handleHexInputChange(event) {
-  const input = event.target
-  const value = input.value.trim()
-  let pickrInstance = null
-  let stateProp = null
-  if (input.id === "text-color-hex") {
-    pickrInstance = textColorPickr
-    stateProp = "textColor"
-  } else if (input.id === "bg-color-hex") {
-    pickrInstance = bgColorPickr
-    stateProp = "bgColor"
-  } else if (input.id === "text-bg-color-hex") {
-    pickrInstance = textBgColorPickr
-    stateProp = "textBackgroundColor"
-  } else if (input.id === "text-border-color-hex") {
-    pickrInstance = textBorderColorPickr
-    stateProp = "textBackgroundBorderColor"
+  const i = event.target
+  const v = i.value.trim()
+  let p = null
+  let sp = null
+  if (i.id === "text-color-hex") {
+    p = textColorPickr
+    sp = "textColor"
+  } else if (i.id === "bg-color-hex") {
+    p = bgColorPickr
+    sp = "bgColor"
+  } else if (i.id === "text-bg-color-hex") {
+    p = textBgColorPickr
+    sp = "textBackgroundColor"
+  } else if (i.id === "text-border-color-hex") {
+    p = textBorderColorPickr
+    sp = "textBackgroundBorderColor"
   }
-  if (isValidHexColor(value)) {
-    input.classList.remove("invalid")
-    if (pickrInstance) {
-      pickrInstance.setColor(value, true)
+  if (isValidHexColor(v)) {
+    i.classList.remove("invalid")
+    if (p) {
+      p.setColor(v, true)
     }
-    if (state[stateProp] !== value) {
-      state[stateProp] = value
+    if (state[sp] !== v) {
+      state[sp] = v
       generateTodoImageAndUpdatePreview()
       saveState()
     }
   } else {
-    input.classList.add("invalid")
+    i.classList.add("invalid")
   }
 }
 function handleSettingChange(event) {
-  const target = event.target
-  let settingChanged = false,
-    requiresRegeneration = true,
-    requiresSave = true,
-    needsIpcUpdate = false
-  const id = target.id
-  let value = target.type === "checkbox" ? target.checked : target.value
-  const key = target.name || id
-  if (id.endsWith("-hex") || id.endsWith("-picker") || !key) return
-  if (key === "font-source") {
-    value = target.value
-    if (target.checked && state.fontSource !== value) {
-      state.fontSource = value
-      settingChanged = true
-      requiresSave = true
-      if (value === "default") {
+  const t = event.target
+  let sc = false,
+    rg = true,
+    rs = true,
+    ni = false
+  const id = t.id
+  let v = t.type === "checkbox" ? t.checked : t.value
+  const k = t.name || id
+  if (id.endsWith("-hex") || id.endsWith("-picker") || !k) return
+  if (k === "font-source") {
+    v = t.value
+    if (t.checked && state.fontSource !== v) {
+      state.fontSource = v
+      sc = true
+      rs = true
+      if (v === "default") {
         state.activeFontFamily = DEFAULT_FONT
         updateFontStatus("idle", DEFAULT_FONT)
         state.systemFontFamily = ""
         state.googleFontName = ""
-      } else if (value === "system") {
-        const selectedSystemFont = settingsInputs.systemFontSelect.value
-        if (selectedSystemFont) {
-          state.activeFontFamily = selectedSystemFont
-          state.systemFontFamily = selectedSystemFont
-          updateFontStatus("loaded", selectedSystemFont)
+      } else if (v === "system") {
+        const sf = settingsInputs.systemFontSelect.value
+        if (sf) {
+          state.activeFontFamily = sf
+          state.systemFontFamily = sf
+          updateFontStatus("loaded", sf)
         } else {
           state.activeFontFamily = DEFAULT_FONT
           state.systemFontFamily = ""
           updateFontStatus("idle", DEFAULT_FONT)
-          requiresRegeneration = false
+          rg = false
         }
         state.googleFontName = ""
-      } else if (value === "google") {
+      } else if (v === "google") {
         state.systemFontFamily = ""
-        requiresRegeneration = false
+        rg = false
         if (state.googleFontName && state.customFontStatus === "loaded") {
           updateFontStatus("loaded", state.activeFontFamily)
         } else {
@@ -885,28 +872,28 @@ function handleSettingChange(event) {
           state.customFontStatus = "idle"
         }
       }
-    } else if (!target.checked) {
-      settingChanged = false
-      requiresRegeneration = false
-      requiresSave = false
+    } else if (!t.checked) {
+      sc = false
+      rg = false
+      rs = false
     }
     updateFontControlsVisibility()
-  } else if (key === "bg-type") {
-    value = target.value
-    if (target.checked && state.backgroundType !== value) {
-      state.backgroundType = value
-      settingChanged = true
-      requiresSave = true
-    } else if (!target.checked) {
-      settingChanged = false
-      requiresRegeneration = false
-      requiresSave = false
+  } else if (k === "bg-type") {
+    v = t.value
+    if (t.checked && state.backgroundType !== v) {
+      state.backgroundType = v
+      sc = true
+      rs = true
+    } else if (!t.checked) {
+      sc = false
+      rg = false
+      rs = false
     }
     updateBackgroundControlsVisibility()
   } else {
-    let hasPropertyChanged = false
-    let propertyName = id
-    const idToStateMap = {
+    let hp = false
+    let pn = id
+    const m = {
       "wallpaper-title-input": "title",
       "font-size": "fontSize",
       "font-weight-select": "fontWeight",
@@ -931,59 +918,54 @@ function handleSettingChange(event) {
       "run-in-tray-checkbox": "runInTray",
       "quick-add-translucent-checkbox": "quickAddTranslucent",
     }
-    propertyName = idToStateMap[id] || id
-    if (state.hasOwnProperty(propertyName)) {
-      const oldValue = state[propertyName]
-      let newValue = value
-      if (target.type === "number") {
-        newValue = parseFloat(value) || 0
-        if (target.min !== "" && newValue < parseFloat(target.min))
-          newValue = parseFloat(target.min)
-        if (target.max !== "" && newValue > parseFloat(target.max))
-          newValue = parseFloat(target.max)
-        const step = target.getAttribute("step")
-        if (!step || step === "1") {
-          newValue = Math.round(newValue)
+    pn = m[id] || id
+    if (state.hasOwnProperty(pn)) {
+      const ov = state[pn]
+      let nv = v
+      if (t.type === "number") {
+        nv = parseFloat(v) || 0
+        if (t.min !== "" && nv < parseFloat(t.min)) nv = parseFloat(t.min)
+        if (t.max !== "" && nv > parseFloat(t.max)) nv = parseFloat(t.max)
+        const s = t.getAttribute("step")
+        if (!s || s === "1") {
+          nv = Math.round(nv)
         }
-      } else if (target.type === "checkbox") {
-        newValue = target.checked
+      } else if (t.type === "checkbox") {
+        nv = t.checked
       }
-      if (oldValue !== newValue) {
-        state[propertyName] = newValue
-        hasPropertyChanged = true
-        settingChanged = true
-        requiresSave = true
-        if (propertyName === "runInTray") {
-          needsIpcUpdate = true
+      if (ov !== nv) {
+        state[pn] = nv
+        hp = true
+        sc = true
+        rs = true
+        if (pn === "runInTray") {
+          ni = true
           updateShortcutInputVisibility()
         }
-        if (propertyName === "quickAddTranslucent") {
-          needsIpcUpdate = true
+        if (pn === "quickAddTranslucent") {
+          ni = true
         }
-        if (propertyName === "textBackgroundEnabled") {
+        if (pn === "textBackgroundEnabled") {
           updateTextBackgroundControlsVisibility()
         }
-        const nonRegenProps = [
+        const np = [
           "systemFontFamily",
           "googleFontName",
           "runInTray",
           "quickAddTranslucent",
         ]
-        if (nonRegenProps.includes(propertyName)) {
-          requiresRegeneration = false
-          if (
-            propertyName === "systemFontFamily" &&
-            state.fontSource === "system"
-          ) {
-            if (value) {
-              state.activeFontFamily = value
-              updateFontStatus("loaded", value)
-              requiresRegeneration = true
+        if (np.includes(pn)) {
+          rg = false
+          if (pn === "systemFontFamily" && state.fontSource === "system") {
+            if (v) {
+              state.activeFontFamily = v
+              updateFontStatus("loaded", v)
+              rg = true
             } else {
               state.activeFontFamily = DEFAULT_FONT
               updateFontStatus("idle", DEFAULT_FONT)
             }
-          } else if (propertyName === "googleFontName") {
+          } else if (pn === "googleFontName") {
             if (
               state.customFontStatus === "loaded" ||
               state.customFontStatus === "error"
@@ -993,31 +975,31 @@ function handleSettingChange(event) {
             }
           }
         } else {
-          requiresRegeneration = true
+          rg = true
         }
       } else {
-        settingChanged = false
-        requiresRegeneration = false
-        requiresSave = false
-        needsIpcUpdate = false
+        sc = false
+        rg = false
+        rs = false
+        ni = false
       }
     } else {
       console.warn(
-        `State property not found for element ID: ${id} (mapped to: ${propertyName})`
+        `State property not found for element ID: ${id} (mapped to: ${pn})`
       )
-      settingChanged = false
-      requiresRegeneration = false
-      requiresSave = false
+      sc = false
+      rg = false
+      rs = false
     }
   }
-  if (settingChanged) {
-    if (requiresRegeneration) {
+  if (sc) {
+    if (rg) {
       generateTodoImageAndUpdatePreview()
     }
-    if (requiresSave) {
+    if (rs) {
       saveState()
     }
-    if (needsIpcUpdate) {
+    if (ni) {
       console.log("Renderer: Sending updated settings to main:", {
         runInTray: state.runInTray,
         quickAddShortcut: state.quickAddShortcut,
@@ -1045,20 +1027,18 @@ function setupEventListeners() {
     )
   if (closeBtn)
     closeBtn.addEventListener("click", () => window.electronAPI.closeWindow())
-  const inputsToListen = [
+  const i = [
     ...settingsColumn.querySelectorAll(
       'input[type="text"], input[type="number"], input[type="checkbox"], select, input[type="radio"]'
     ),
   ]
-  inputsToListen.forEach((input) => {
-    if (!input.id.endsWith("-hex")) {
-      const eventType =
-        input.tagName === "SELECT" ||
-        input.type === "radio" ||
-        input.type === "checkbox"
+  i.forEach((n) => {
+    if (!n.id.endsWith("-hex")) {
+      const e =
+        n.tagName === "SELECT" || n.type === "radio" || n.type === "checkbox"
           ? "change"
           : "input"
-      input.addEventListener(eventType, handleSettingChange)
+      n.addEventListener(e, handleSettingChange)
     }
   })
   settingsInputs.textColorHex.addEventListener("input", handleHexInputChange)
@@ -1082,21 +1062,33 @@ function setupEventListeners() {
     "change",
     handleImageFileSelect
   )
-  const todoColumn = document.querySelector(".column-todos")
-  if (todoColumn) todoColumn.addEventListener("click", handleListClick)
-  openAddTodoModalBtn.addEventListener("click", openModal)
+  const tc = document.querySelector(".column-todos")
+  if (tc) tc.addEventListener("click", handleListClick) // Handles delete, toggle, AND edit clicks now
+  openAddTodoModalBtn.addEventListener("click", openModal) // Add Task modal
   modalCloseBtn.addEventListener("click", closeModal)
   modalCancelBtn.addEventListener("click", closeModal)
   addTodoForm.addEventListener("submit", handleModalSubmit)
   addTodoModal.addEventListener("click", (e) => {
     if (e.target === addTodoModal) closeModal()
   })
+  // Edit Task Modal Listeners
+  editModalCloseBtn.addEventListener("click", closeEditModal)
+  editModalCancelBtn.addEventListener("click", closeEditModal)
+  editTodoForm.addEventListener("submit", handleEditModalSubmit)
+  editTodoModal.addEventListener("click", (e) => {
+    if (e.target === editTodoModal) closeEditModal()
+  })
+  // Record Shortcut Modal Listeners
   recordModalCloseBtn.addEventListener("click", closeRecordShortcutModal)
   recordCancelBtn.addEventListener("click", closeRecordShortcutModal)
   recordSaveBtn.addEventListener("click", handleSaveShortcut)
   recordShortcutModal.addEventListener("click", (e) => {
     if (e.target === recordShortcutModal) closeRecordShortcutModal()
   })
+  // Clear Completed Listener
+  if (clearCompletedBtn)
+    clearCompletedBtn.addEventListener("click", handleClearCompleted)
+  // Global Key Listener
   document.addEventListener("keydown", handleGlobalKeyDown)
   settingsColumn.addEventListener("click", (e) => {
     const t = e.target.closest(".setting-section-toggle")
@@ -1105,27 +1097,25 @@ function setupEventListeners() {
   console.log("Event listeners setup complete.")
 }
 function setupAutoUpdaterListeners() {
-  window.electronAPI.onUpdateAvailable((info) => {
-    console.log("Update available:", info)
-    showUpdateMessage(`Update v${info.version} available. Downloading...`)
+  window.electronAPI.onUpdateAvailable((i) => {
+    console.log("Update available:", i)
+    showUpdateMessage(`Update v${i.version} available. Downloading...`)
     if (restartButton) restartButton.style.display = "none"
   })
-  window.electronAPI.onUpdateDownloaded((info) => {
-    console.log("Update downloaded:", info)
-    showUpdateMessage(`Update v${info.version} downloaded. Restart to install.`)
+  window.electronAPI.onUpdateDownloaded((i) => {
+    console.log("Update downloaded:", i)
+    showUpdateMessage(`Update v${i.version} downloaded. Restart to install.`)
     if (restartButton) restartButton.style.display = "inline-flex"
   })
-  window.electronAPI.onUpdateError((err) => {
-    console.error("Update error:", err)
-    showUpdateMessage(`Error checking for updates: ${err}`)
+  window.electronAPI.onUpdateError((e) => {
+    console.error("Update error:", e)
+    showUpdateMessage(`Error checking for updates: ${e}`)
     if (restartButton) restartButton.style.display = "none"
     setTimeout(hideUpdateMessage, 8000)
   })
-  window.electronAPI.onDownloadProgress((progressInfo) => {
-    console.log(`Download progress: ${progressInfo.percent}%`)
-    showUpdateMessage(
-      `Downloading update: ${Math.round(progressInfo.percent)}%`
-    )
+  window.electronAPI.onDownloadProgress((p) => {
+    console.log(`Download progress: ${p.percent}%`)
+    showUpdateMessage(`Downloading update: ${Math.round(p.percent)}%`)
   })
   if (restartButton) {
     restartButton.addEventListener("click", () => {
@@ -1166,32 +1156,45 @@ function addTodo(text) {
   return false
 }
 function deleteTodo(id) {
-  state.todos = state.todos.filter((todo) => todo.id !== id)
+  state.todos = state.todos.filter((t) => t.id !== id)
 }
 function toggleDone(id) {
   const t = state.todos.find((t) => t.id === id)
   if (t) t.done = !t.done
 }
 function renderTodoList() {
+  // UPDATED to manage "Clear Completed" button state
   todoListUl.innerHTML = ""
   completedTodoListUl.innerHTML = ""
   if (!Array.isArray(state.todos)) state.todos = []
+
   const activeTodos = state.todos.filter((t) => !t.done)
   const completedTodos = state.todos.filter((t) => t.done)
-  if (activeTodos.length === 0)
+
+  // Active Tasks
+  if (activeTodos.length === 0) {
     todoListUl.innerHTML = `<li class="empty-list-message">No active tasks!</li>`
-  else activeTodos.forEach((t) => todoListUl.appendChild(createTodoElement(t)))
-  completedTitle.classList.toggle("hidden", completedTodos.length === 0)
-  completedListContainer.classList.toggle("hidden", completedTodos.length === 0)
-  if (completedTodos.length === 0)
-    completedTodoListUl.innerHTML = `<li class="empty-list-message">No completed tasks.</li>`
-  else
+  } else {
+    activeTodos.forEach((t) => todoListUl.appendChild(createTodoElement(t)))
+  }
+
+  // Completed Tasks Section Visibility
+  const hasCompleted = completedTodos.length > 0
+  completedHeader.classList.toggle("hidden", !hasCompleted)
+  completedListContainer.classList.toggle("hidden", !hasCompleted)
+  if (clearCompletedBtn)
+    clearCompletedBtn.style.display = hasCompleted ? "inline-flex" : "none" // Show/hide clear button
+
+  if (hasCompleted) {
     completedTodos.forEach((t) =>
       completedTodoListUl.appendChild(createTodoElement(t))
     )
-  addContextInputListeners()
+  }
+
+  addContextInputListeners() // Re-attach listeners after rendering
 }
 function createTodoElement(todo) {
+  // UPDATED to include Edit button
   const li = document.createElement("li")
   li.className = "todo-item"
   li.dataset.id = todo.id
@@ -1201,44 +1204,58 @@ function createTodoElement(todo) {
   cb.checked = todo.done
   cb.classList.add("toggle-done")
   cb.setAttribute("aria-label", `Mark task ${todo.done ? "not done" : "done"}`)
-  const detailsDiv = document.createElement("div")
-  detailsDiv.className = "task-details"
-  const span = document.createElement("span")
-  span.textContent = todo.text
-  span.classList.add("todo-text")
-  const contextInput = document.createElement("input")
-  contextInput.type = "text"
-  contextInput.classList.add("context-input")
-  contextInput.placeholder = "Add context..."
-  contextInput.value = todo.context || ""
-  contextInput.dataset.id = todo.id
-  contextInput.maxLength = CONTEXT_MAX_LENGTH
-  detailsDiv.appendChild(span)
-  detailsDiv.appendChild(contextInput)
-  const btn = document.createElement("button")
-  btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z" clip-rule="evenodd" /></svg>`
-  btn.className = "button button-ghost button-icon delete-btn"
-  btn.title = "Delete Task"
-  btn.setAttribute("aria-label", "Delete task")
+  const d = document.createElement("div")
+  d.className = "task-details"
+  const s = document.createElement("span")
+  s.textContent = todo.text
+  s.classList.add("todo-text")
+  const ci = document.createElement("input")
+  ci.type = "text"
+  ci.classList.add("context-input")
+  ci.placeholder = "Add context..."
+  ci.value = todo.context || ""
+  ci.dataset.id = todo.id
+  ci.maxLength = CONTEXT_MAX_LENGTH
+  d.appendChild(s)
+  d.appendChild(ci)
+  // Action Buttons Container
+  const ab = document.createElement("div")
+  ab.className = "task-actions"
+  // Edit Button
+  const eb = document.createElement("button")
+  eb.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.763 9.763a1.75 1.75 0 0 0-.44 1.06l-.663 3.18a.75.75 0 0 0 .914.914l3.18-.662a1.75 1.75 0 0 0 1.06-.44l7.25-7.25a1.75 1.75 0 0 0 0-2.475ZM4.753 10.61l6.875-6.875 1.118 1.118-6.875 6.875-1.528.318.41-1.964.001-.002Z"></path></svg>` // Adjusted size
+  eb.className = "button button-ghost button-icon edit-btn"
+  eb.title = "Edit Task"
+  eb.setAttribute("aria-label", "Edit task")
+  // Delete Button
+  const db = document.createElement("button")
+  db.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z" clip-rule="evenodd" /></svg>` // Adjusted size
+  db.className = "button button-ghost button-icon delete-btn"
+  db.title = "Delete Task"
+  db.setAttribute("aria-label", "Delete task")
+  // Add buttons to container
+  ab.appendChild(eb)
+  ab.appendChild(db)
+  // Add elements to li
   li.appendChild(cb)
-  li.appendChild(detailsDiv)
-  li.appendChild(btn)
+  li.appendChild(d)
+  li.appendChild(ab) // Add the action button container
   return li
 }
 function handleContextChange(event) {
-  const input = event.target
-  if (!input.classList.contains("context-input")) return
-  const id = parseInt(input.dataset.id, 10)
-  const todo = state.todos.find((t) => t.id === id)
-  if (todo) {
-    let newContext = input.value
-    if (newContext.length > CONTEXT_MAX_LENGTH) {
-      newContext = newContext.substring(0, CONTEXT_MAX_LENGTH)
-      input.value = newContext
+  const i = event.target
+  if (!i.classList.contains("context-input")) return
+  const id = parseInt(i.dataset.id, 10)
+  const t = state.todos.find((t) => t.id === id)
+  if (t) {
+    let nc = i.value
+    if (nc.length > CONTEXT_MAX_LENGTH) {
+      nc = nc.substring(0, CONTEXT_MAX_LENGTH)
+      i.value = nc
     }
-    if (todo.context !== newContext) {
-      todo.context = newContext
-      console.log(`Context updated for ID ${id}: "${newContext}"`)
+    if (t.context !== nc) {
+      t.context = nc
+      console.log(`Context updated for ID ${id}: "${nc}"`)
       saveState()
       generateTodoImageAndUpdatePreview()
     }
@@ -1247,6 +1264,8 @@ function handleContextChange(event) {
 function addContextInputListeners() {
   todoListUl.removeEventListener("input", handleContextChange)
   todoListUl.addEventListener("input", handleContextChange)
+  completedTodoListUl.removeEventListener("input", handleContextChange) // Add for completed list too
+  completedTodoListUl.addEventListener("input", handleContextChange)
 }
 async function generateTodoImageAndUpdatePreview() {
   const {
@@ -1286,26 +1305,26 @@ async function generateTodoImageAndUpdatePreview() {
   }
   if (canvas.width !== screenWidth || canvas.height !== screenHeight)
     setCanvasAndPreviewSize(screenWidth, screenHeight)
-  const currentActiveFont = activeFontFamily || DEFAULT_FONT
-  const itemFontSize = parseInt(fontSize, 10) || 48
-  const linesToDraw = todos
+  const cf = activeFontFamily || DEFAULT_FONT
+  const ifs = parseInt(fontSize, 10) || 48
+  const ld = todos
     .filter((t) => !t.done)
     .map((t) => ({ text: t.text, context: t.context || "", done: false }))
-  const padding = Math.max(60, itemFontSize * 1.5)
-  const titleSpacing = parseInt(titleBottomMargin, 10) || 40
-  const spacingBetweenItems = parseInt(itemSpacing, 10) || 20
-  const maxItems = Math.max(1, parseInt(maxItemsPerColumn, 10) || 10)
-  const colGap = Math.max(0, parseInt(columnGap, 10) || 50)
-  const titleFontSize = Math.round(itemFontSize * 1.2)
-  const contextFontSize = Math.round(itemFontSize * 0.6)
-  const contextTopMargin = Math.round(itemSpacing * 0.3)
+  const p = Math.max(60, ifs * 1.5)
+  const ts = parseInt(titleBottomMargin, 10) || 40
+  const si = parseInt(itemSpacing, 10) || 20
+  const mi = Math.max(1, parseInt(maxItemsPerColumn, 10) || 10)
+  const cg = Math.max(0, parseInt(columnGap, 10) || 50)
+  const tfs = Math.round(ifs * 1.2)
+  const cfs = Math.round(ifs * 0.6)
+  const ctm = Math.round(si * 0.3)
   previewContainer.classList.remove("loaded")
   try {
     ctx.clearRect(0, 0, screenWidth, screenHeight)
     if (backgroundType === "image" && backgroundImageDataUrl) {
       try {
-        const img = await loadImage(backgroundImageDataUrl)
-        drawBackgroundImage(ctx, img, screenWidth, screenHeight)
+        const i = await loadImage(backgroundImageDataUrl)
+        drawBackgroundImage(ctx, i, screenWidth, screenHeight)
       } catch (e) {
         console.error("BG Image Error:", e)
         drawBackgroundColor(ctx, bgColor, screenWidth, screenHeight)
@@ -1313,45 +1332,44 @@ async function generateTodoImageAndUpdatePreview() {
     } else {
       drawBackgroundColor(ctx, bgColor, screenWidth, screenHeight)
     }
-    const textBlockMetrics = calculateTextBlockDimensions(ctx, {
+    const m = calculateTextBlockDimensions(ctx, {
       title,
-      fontName: currentActiveFont,
+      fontName: cf,
       fontWeight,
-      titleFontSize,
-      itemFontSize,
-      contextFontSize,
-      contextTopMargin,
-      titleSpacing,
-      itemSpacing,
-      lines: linesToDraw,
-      maxItemsPerColumn: maxItems,
-      columnGap: colGap,
+      titleFontSize: tfs,
+      itemFontSize: ifs,
+      contextFontSize: cfs,
+      contextTopMargin: ctm,
+      titleSpacing: ts,
+      itemSpacing: si,
+      lines: ld,
+      maxItemsPerColumn: mi,
+      columnGap: cg,
       listStyle,
     })
-    const { startX: textStartX, startY: textStartY } =
-      calculateTextStartPositionMultiCol(
-        screenWidth,
-        screenHeight,
-        padding,
-        textBlockMetrics.titleHeight,
-        textBlockMetrics.maxColumnItemHeight,
-        titleSpacing,
-        itemSpacing,
-        maxItems,
-        linesToDraw.length,
-        textPosition,
-        offsetX,
-        offsetY,
-        textBlockMetrics
-      )
-    const originalAlpha = ctx.globalAlpha
+    const { startX: tx, startY: ty } = calculateTextStartPositionMultiCol(
+      screenWidth,
+      screenHeight,
+      p,
+      m.titleHeight,
+      m.maxColumnItemHeight,
+      ts,
+      si,
+      mi,
+      ld.length,
+      textPosition,
+      offsetX,
+      offsetY,
+      m
+    )
+    const oa = ctx.globalAlpha
     ctx.globalAlpha = Math.max(0, Math.min(1, overallOpacity))
     if (textBackgroundEnabled) {
       drawTextBackgroundPanel(ctx, {
-        x: textStartX,
-        y: textStartY,
-        width: textBlockMetrics.overallWidth,
-        height: textBlockMetrics.overallHeight,
+        x: tx,
+        y: ty,
+        width: m.overallWidth,
+        height: m.overallHeight,
         paddingInline: state.textBackgroundPaddingInline,
         paddingBlock: state.textBackgroundPaddingBlock,
         bgColor: state.textBackgroundColor,
@@ -1366,34 +1384,34 @@ async function generateTodoImageAndUpdatePreview() {
       title,
       textColor,
       textAlign,
-      fontName: currentActiveFont,
+      fontName: cf,
       fontWeight,
-      titleFontSize,
-      itemFontSize,
-      contextFontSize,
-      contextTopMargin,
-      titleSpacing,
-      itemSpacing: spacingBetweenItems,
-      lines: linesToDraw,
-      startX: textStartX,
-      startY: textStartY,
+      titleFontSize: tfs,
+      itemFontSize: ifs,
+      contextFontSize: cfs,
+      contextTopMargin: ctm,
+      titleSpacing: ts,
+      itemSpacing: si,
+      lines: ld,
+      startX: tx,
+      startY: ty,
       listStyle,
-      maxItemsPerColumn: maxItems,
-      columnGap: colGap,
+      maxItemsPerColumn: mi,
+      columnGap: cg,
     })
-    ctx.globalAlpha = originalAlpha
+    ctx.globalAlpha = oa
     updatePreviewImage()
-  } catch (err) {
-    console.error("Error during image generation process:", err)
+  } catch (e) {
+    console.error("Error during image generation process:", e)
     updatePreviewImage()
-    throw err
+    throw e
   }
 }
 function loadImage(src) {
-  return new Promise((resolve, reject) => {
+  return new Promise((r, j) => {
     const i = new Image()
-    i.onload = () => resolve(i)
-    i.onerror = (e) => reject(new Error(`Image load error: ${e?.message || e}`))
+    i.onload = () => r(i)
+    i.onerror = (e) => j(new Error(`Image load error: ${e?.message || e}`))
     i.src = src
   })
 }
@@ -1402,17 +1420,17 @@ function drawBackgroundColor(ctx, color, w, h) {
   ctx.fillRect(0, 0, w, h)
 }
 function drawBackgroundImage(ctx, img, cw, ch) {
-  const iAR = img.width / img.height
-  const cAR = cw / ch
+  const ia = img.width / img.height
+  const ca = cw / ch
   let dw, dh, dx, dy
-  if (iAR >= cAR) {
+  if (ia >= ca) {
     dh = ch
-    dw = dh * iAR
+    dw = dh * ia
     dx = (cw - dw) / 2
     dy = 0
   } else {
     dw = cw
-    dh = dw / iAR
+    dh = dw / ia
     dx = 0
     dy = (ch - dh) / 2
   }
@@ -1420,112 +1438,87 @@ function drawBackgroundImage(ctx, img, cw, ch) {
 }
 function calculateTextBlockDimensions(ctx, p) {
   const {
-    title,
-    fontName,
-    fontWeight,
-    titleFontSize,
-    itemFontSize,
-    contextFontSize,
-    contextTopMargin,
-    titleSpacing,
-    itemSpacing,
-    lines,
-    maxItemsPerColumn,
-    columnGap,
-    listStyle,
+    title: t,
+    fontName: fn,
+    fontWeight: fw,
+    titleFontSize: tfs,
+    itemFontSize: ifs,
+    contextFontSize: cfs,
+    contextTopMargin: ctm,
+    titleSpacing: ts,
+    itemSpacing: is,
+    lines: l,
+    maxItemsPerColumn: mic,
+    columnGap: cg,
+    listStyle: ls,
   } = p
-  let overallWidth = 0
-  let overallHeight = 0
-  let maxColumnWidth = 0
-  let maxColumnItemHeight = 0
-  let currentColumnItemCount = 0
-  let currentColumnWidth = 0
-  let numColumns = 1
-  const titleWeight = Math.max(parseInt(fontWeight, 10) || 400, 600)
-  const tfs = `${titleWeight} ${titleFontSize}px "${fontName}", ${DEFAULT_FONT}`
-  ctx.font = tfs
-  const titleWidth = title ? ctx.measureText(title).width : 0
-  const titleHeight = title ? titleFontSize : 0
-  maxColumnWidth = Math.max(maxColumnWidth, titleWidth)
-  overallHeight = title
-    ? titleHeight + (lines.length > 0 ? titleSpacing : 0)
-    : 0
-  const itemWeight = parseInt(fontWeight, 10) || 400
-  const ifs = `${itemWeight} ${itemFontSize}px "${fontName}", ${DEFAULT_FONT}`
-  const contextWeight = 300
-  const ctfs = `${contextWeight} ${contextFontSize}px "${fontName}", ${DEFAULT_FONT}`
-  if (lines.length > 0) {
-    lines.forEach((item, idx) => {
-      currentColumnItemCount++
-      ctx.font = ifs
-      const prefix =
-        listStyle === "dash"
-          ? "- "
-          : listStyle === "number"
-          ? `${idx + 1}. `
-          : "• "
-      const itemText = `${prefix}${item.text}`
-      const itemWidth = ctx.measureText(itemText).width
-      let contextWidth = 0
-      let itemTotalHeight = itemFontSize
-      if (item.context) {
-        ctx.font = ctfs
-        contextWidth = ctx.measureText(item.context).width
-        itemTotalHeight += contextTopMargin + contextFontSize
+  let ow = 0
+  let oh = 0
+  let mcw = 0
+  let mch = 0
+  let cic = 0
+  let ccw = 0
+  let nc = 1
+  const tw = Math.max(parseInt(fw, 10) || 400, 600)
+  const tfont = `${tw} ${tfs}px "${fn}", ${DEFAULT_FONT}`
+  ctx.font = tfont
+  const tiw = t ? ctx.measureText(t).width : 0
+  const th = t ? tfs : 0
+  mcw = Math.max(mcw, tiw)
+  oh = t ? th + (l.length > 0 ? ts : 0) : 0
+  const iw = parseInt(fw, 10) || 400
+  const ifont = `${iw} ${ifs}px "${fn}", ${DEFAULT_FONT}`
+  const ctwt = 300
+  const ctfont = `${ctwt} ${cfs}px "${fn}", ${DEFAULT_FONT}`
+  if (l.length > 0) {
+    l.forEach((i, idx) => {
+      cic++
+      ctx.font = ifont
+      const p = ls === "dash" ? "- " : ls === "number" ? `${idx + 1}. ` : "• "
+      const it = `${p}${i.text}`
+      const itw = ctx.measureText(it).width
+      let ctxw = 0
+      let ith = ifs
+      if (i.context) {
+        ctx.font = ctfont
+        ctxw = ctx.measureText(i.context).width
+        ith += ctm + cfs
       }
-      currentColumnWidth = Math.max(currentColumnWidth, itemWidth, contextWidth)
-      if (
-        currentColumnItemCount >= maxItemsPerColumn &&
-        idx < lines.length - 1
-      ) {
-        maxColumnWidth = Math.max(maxColumnWidth, currentColumnWidth)
-        const currentColumnHeightOnlyItems =
-          currentColumnItemCount * itemFontSize +
-          lines
-            .slice(idx - currentColumnItemCount + 1, idx + 1)
-            .reduce(
-              (sum, itm) =>
-                sum + (itm.context ? contextTopMargin + contextFontSize : 0),
-              0
-            ) +
-          Math.max(0, currentColumnItemCount - 1) * itemSpacing
-        maxColumnItemHeight = Math.max(
-          maxColumnItemHeight,
-          currentColumnHeightOnlyItems
-        )
-        numColumns++
-        currentColumnWidth = 0
-        currentColumnItemCount = 0
+      ccw = Math.max(ccw, itw, ctxw)
+      if (cic >= mic && idx < l.length - 1) {
+        mcw = Math.max(mcw, ccw)
+        const cch =
+          cic * ifs +
+          l
+            .slice(idx - cic + 1, idx + 1)
+            .reduce((s, it) => s + (it.context ? ctm + cfs : 0), 0) +
+          Math.max(0, cic - 1) * is
+        mch = Math.max(mch, cch)
+        nc++
+        ccw = 0
+        cic = 0
       }
     })
-    maxColumnWidth = Math.max(maxColumnWidth, currentColumnWidth)
-    const lastColumnHeightOnlyItems =
-      currentColumnItemCount * itemFontSize +
-      lines
-        .slice(lines.length - currentColumnItemCount)
-        .reduce(
-          (sum, itm) =>
-            sum + (itm.context ? contextTopMargin + contextFontSize : 0),
-          0
-        ) +
-      Math.max(0, currentColumnItemCount - 1) * itemSpacing
-    maxColumnItemHeight = Math.max(
-      maxColumnItemHeight,
-      lastColumnHeightOnlyItems
-    )
-    overallHeight += maxColumnItemHeight
-    overallWidth =
-      numColumns * maxColumnWidth + Math.max(0, numColumns - 1) * columnGap
+    mcw = Math.max(mcw, ccw)
+    const lch =
+      cic * ifs +
+      l
+        .slice(l.length - cic)
+        .reduce((s, it) => s + (it.context ? ctm + cfs : 0), 0) +
+      Math.max(0, cic - 1) * is
+    mch = Math.max(mch, lch)
+    oh += mch
+    ow = nc * mcw + Math.max(0, nc - 1) * cg
   } else {
-    overallWidth = titleWidth
+    ow = tiw
   }
   return {
-    overallWidth,
-    overallHeight,
-    titleHeight,
-    maxColumnItemHeight,
-    numColumns,
-    maxColumnWidth,
+    overallWidth: ow,
+    overallHeight: oh,
+    titleHeight: th,
+    maxColumnItemHeight: mch,
+    numColumns: nc,
+    maxColumnWidth: mcw,
   }
 }
 function calculateTextStartPositionMultiCol(
@@ -1544,8 +1537,8 @@ function calculateTextStartPositionMultiCol(
   metrics
 ) {
   let sx, sy
-  const requiredHeight = metrics.overallHeight
-  const requiredWidth = metrics.overallWidth
+  const rh = metrics.overallHeight
+  const rw = metrics.overallWidth
   switch (pos) {
     case "top-left":
       sx = p
@@ -1561,23 +1554,23 @@ function calculateTextStartPositionMultiCol(
       break
     case "center-left":
       sx = p
-      sy = Math.max(p, ch / 2 - requiredHeight / 2)
+      sy = Math.max(p, ch / 2 - rh / 2)
       break
     case "center":
       sx = cw / 2
-      sy = Math.max(p, ch / 2 - requiredHeight / 2)
+      sy = Math.max(p, ch / 2 - rh / 2)
       break
     case "bottom-left":
       sx = p
-      sy = ch - p - requiredHeight
+      sy = ch - p - rh
       break
     case "bottom-center":
       sx = cw / 2
-      sy = ch - p - requiredHeight
+      sy = ch - p - rh
       break
     case "bottom-right":
       sx = cw - p
-      sy = ch - p - requiredHeight
+      sy = ch - p - rh
       break
     default:
       sx = p
@@ -1585,7 +1578,7 @@ function calculateTextStartPositionMultiCol(
       break
   }
   sy = Math.max(p, sy)
-  if (sy + requiredHeight > ch - p) sy = ch - p - requiredHeight
+  if (sy + rh > ch - p) sy = ch - p - rh
   sy = Math.max(p, sy)
   return { startX: sx + ox, startY: sy + oy }
 }
@@ -1593,176 +1586,163 @@ function drawTextBackgroundPanel(ctx, opts) {
   const {
     x,
     y,
-    width,
-    height,
-    paddingInline,
-    paddingBlock,
-    bgColor,
-    opacity,
-    borderColor,
-    borderWidth,
-    borderRadius,
-    textAlign,
+    width: w,
+    height: h,
+    paddingInline: pi,
+    paddingBlock: pb,
+    bgColor: bg,
+    opacity: op,
+    borderColor: bc,
+    borderWidth: bw,
+    borderRadius: br,
+    textAlign: ta,
   } = opts
-  const padX = Math.max(0, paddingInline)
-  const padY = Math.max(0, paddingBlock)
-  let panelX = x - padX
-  if (textAlign === "center") {
-    panelX = x - width / 2 - padX
-  } else if (textAlign === "right") {
-    panelX = x - width - padX
+  const px = Math.max(0, pi)
+  const py = Math.max(0, pb)
+  let pX = x - px
+  if (ta === "center") {
+    pX = x - w / 2 - px
+  } else if (ta === "right") {
+    pX = x - w - px
   }
-  const panelY = y - padY
-  const panelWidth = width + 2 * padX
-  const panelHeight = height + 2 * padY
-  const originalAlpha = ctx.globalAlpha
-  ctx.globalAlpha = originalAlpha * Math.max(0, Math.min(1, opacity))
-  ctx.fillStyle = bgColor
-  if (borderRadius > 0 && ctx.roundRect) {
+  const pY = y - py
+  const pW = w + 2 * px
+  const pH = h + 2 * py
+  const oa = ctx.globalAlpha
+  ctx.globalAlpha = oa * Math.max(0, Math.min(1, op))
+  ctx.fillStyle = bg
+  if (br > 0 && ctx.roundRect) {
     ctx.beginPath()
-    ctx.roundRect(panelX, panelY, panelWidth, panelHeight, borderRadius)
+    ctx.roundRect(pX, pY, pW, pH, br)
     ctx.fill()
   } else {
-    ctx.fillRect(panelX, panelY, panelWidth, panelHeight)
+    ctx.fillRect(pX, pY, pW, pH)
   }
-  if (borderWidth > 0) {
-    ctx.strokeStyle = borderColor
-    ctx.lineWidth = borderWidth
-    if (borderRadius > 0 && ctx.roundRect) {
+  if (bw > 0) {
+    ctx.strokeStyle = bc
+    ctx.lineWidth = bw
+    if (br > 0 && ctx.roundRect) {
       ctx.beginPath()
-      ctx.roundRect(panelX, panelY, panelWidth, panelHeight, borderRadius)
+      ctx.roundRect(pX, pY, pW, pH, br)
       ctx.stroke()
     } else {
-      ctx.strokeRect(panelX, panelY, panelWidth, panelHeight)
+      ctx.strokeRect(pX, pY, pW, pH)
     }
   }
-  ctx.globalAlpha = originalAlpha
+  ctx.globalAlpha = oa
 }
 function drawTextElementsMultiCol(ctx, p) {
   const {
-    title,
-    textColor,
-    textAlign,
-    fontName,
-    fontWeight,
-    titleFontSize,
-    itemFontSize,
-    contextFontSize,
-    contextTopMargin,
-    titleSpacing,
-    itemSpacing,
-    lines,
-    startX,
-    startY,
-    listStyle,
-    maxItemsPerColumn,
-    columnGap,
+    title: t,
+    textColor: tc,
+    textAlign: ta,
+    fontName: fn,
+    fontWeight: fw,
+    titleFontSize: tfs,
+    itemFontSize: ifs,
+    contextFontSize: cfs,
+    contextTopMargin: ctm,
+    titleSpacing: ts,
+    itemSpacing: is,
+    lines: l,
+    startX: sx,
+    startY: sy,
+    listStyle: ls,
+    maxItemsPerColumn: mic,
+    columnGap: cg,
   } = p
-  ctx.textAlign = textAlign
+  ctx.textAlign = ta
   ctx.textBaseline = "top"
   ctx.shadowColor = "rgba(0,0,0,0.4)"
   ctx.shadowBlur = 6
   ctx.shadowOffsetX = 1
   ctx.shadowOffsetY = 2
-  let currentX = startX
-  let currentY = startY
-  let columnWidth = 0
-  ctx.fillStyle = textColor
-  const titleWeight = Math.max(parseInt(fontWeight, 10) || 400, 600)
-  const tfs = `${titleWeight} ${titleFontSize}px "${fontName}", ${DEFAULT_FONT}`
-  const ftfs = `${titleWeight} ${titleFontSize}px ${DEFAULT_FONT}`
-  let titleWidth = 0
-  if (title) {
+  let cX = sx
+  let cY = sy
+  let cw = 0
+  ctx.fillStyle = tc
+  const tw = Math.max(parseInt(fw, 10) || 400, 600)
+  const tf = `${tw} ${tfs}px "${fn}", ${DEFAULT_FONT}`
+  const dtf = `${tw} ${tfs}px ${DEFAULT_FONT}`
+  let tiw = 0
+  if (t) {
     try {
-      ctx.font = tfs
-      titleWidth = ctx.measureText(title).width
-      ctx.fillText(title, currentX, currentY)
+      ctx.font = tf
+      tiw = ctx.measureText(t).width
+      ctx.fillText(t, cX, cY)
     } catch (e) {
-      console.warn(
-        `Failed to draw title with font ${fontName}. Falling back.`,
-        e
-      )
-      ctx.font = ftfs
-      titleWidth = ctx.measureText(title).width
-      ctx.fillText(title, currentX, currentY)
+      console.warn(`Failed to draw title with font ${fn}. Falling back.`, e)
+      ctx.font = dtf
+      tiw = ctx.measureText(t).width
+      ctx.fillText(t, cX, cY)
     }
-    columnWidth = Math.max(columnWidth, titleWidth)
-    currentY += titleFontSize + titleSpacing
+    cw = Math.max(cw, tiw)
+    cY += tfs + ts
   }
-  let initialItemY = currentY
-  let columnStartX = currentX
-  const itemWeight = parseInt(fontWeight, 10) || 400
-  const ifs = `${itemWeight} ${itemFontSize}px "${fontName}", ${DEFAULT_FONT}`
-  const fifs = `${itemWeight} ${itemFontSize}px ${DEFAULT_FONT}`
-  const contextWeight = 300
-  const ctfs = `${contextWeight} ${contextFontSize}px "${fontName}", ${DEFAULT_FONT}`
-  const cffs = `${contextWeight} ${contextFontSize}px ${DEFAULT_FONT}`
-  let currentColumnItemCount = 0
-  let maxColWidthInThisLoop = 0
-  lines.forEach((item, idx) => {
-    if (idx > 0 && currentColumnItemCount >= maxItemsPerColumn) {
-      columnStartX += maxColWidthInThisLoop + columnGap
-      currentY = initialItemY
-      currentColumnItemCount = 0
-      maxColWidthInThisLoop = 0
+  let iy = cY
+  let csx = cX
+  const iw = parseInt(fw, 10) || 400
+  const itf = `${iw} ${ifs}px "${fn}", ${DEFAULT_FONT}`
+  const ditf = `${iw} ${ifs}px ${DEFAULT_FONT}`
+  const cwt = 300
+  const ctf = `${cwt} ${cfs}px "${fn}", ${DEFAULT_FONT}`
+  const dctf = `${cwt} ${cfs}px ${DEFAULT_FONT}`
+  let cic = 0
+  let mcw = 0
+  l.forEach((i, idx) => {
+    if (idx > 0 && cic >= mic) {
+      csx += mcw + cg
+      cY = iy
+      cic = 0
+      mcw = 0
     }
-    currentColumnItemCount++
-    let prefix
-    switch (listStyle) {
+    cic++
+    let p
+    switch (ls) {
       case "dash":
-        prefix = "- "
+        p = "- "
         break
       case "number":
-        prefix = `${idx + 1}. `
+        p = `${idx + 1}. `
         break
       default:
-        prefix = "• "
+        p = "• "
         break
     }
-    const itxt = `${prefix}${item.text}`
-    ctx.fillStyle = textColor
-    let itemWidth = 0
+    const itxt = `${p}${i.text}`
+    ctx.fillStyle = tc
+    let iw = 0
     try {
-      ctx.font = ifs
-      itemWidth = ctx.measureText(itxt).width
-      ctx.fillText(itxt, columnStartX, currentY)
+      ctx.font = itf
+      iw = ctx.measureText(itxt).width
+      ctx.fillText(itxt, csx, cY)
     } catch (e) {
-      console.warn(
-        `Failed to draw item with font ${fontName}. Falling back.`,
-        e
-      )
-      ctx.font = fifs
-      itemWidth = ctx.measureText(itxt).width
-      ctx.fillText(itxt, columnStartX, currentY)
+      console.warn(`Failed to draw item with font ${fn}. Falling back.`, e)
+      ctx.font = ditf
+      iw = ctx.measureText(itxt).width
+      ctx.fillText(itxt, csx, cY)
     }
-    let currentItemHeight = itemFontSize
-    let contextWidth = 0
-    if (item.context) {
-      ctx.fillStyle = textColor
+    let cih = ifs
+    let ctw = 0
+    if (i.context) {
+      ctx.fillStyle = tc
       ctx.globalAlpha *= 0.8
-      let contextY = currentY + itemFontSize + contextTopMargin
+      let cty = cY + ifs + ctm
       try {
-        ctx.font = ctfs
-        contextWidth = ctx.measureText(item.context).width
-        ctx.fillText(item.context, columnStartX + itemFontSize * 0.75, contextY)
+        ctx.font = ctf
+        ctw = ctx.measureText(i.context).width
+        ctx.fillText(i.context, csx + ifs * 0.75, cty)
       } catch (e) {
-        console.warn(
-          `Failed to draw context with font ${fontName}. Falling back.`,
-          e
-        )
-        ctx.font = cffs
-        contextWidth = ctx.measureText(item.context).width
-        ctx.fillText(item.context, columnStartX + itemFontSize * 0.75, contextY)
+        console.warn(`Failed to draw context with font ${fn}. Falling back.`, e)
+        ctx.font = dctf
+        ctw = ctx.measureText(i.context).width
+        ctx.fillText(i.context, csx + ifs * 0.75, cty)
       }
-      currentItemHeight += contextTopMargin + contextFontSize
+      cih += ctm + cfs
       ctx.globalAlpha /= 0.8
     }
-    maxColWidthInThisLoop = Math.max(
-      maxColWidthInThisLoop,
-      itemWidth,
-      contextWidth
-    )
-    currentY += currentItemHeight + itemSpacing
+    mcw = Math.max(mcw, iw, ctw)
+    cY += cih + is
   })
   ctx.shadowColor = "transparent"
   ctx.shadowBlur = 0
@@ -1791,44 +1771,37 @@ function updatePreviewImage() {
   }
 }
 async function handleLoadFontClick() {
-  const fontName = settingsInputs.googleFontName.value.trim()
-  if (!fontName) {
+  const n = settingsInputs.googleFontName.value.trim()
+  if (!n) {
     updateFontStatus("error", state.activeFontFamily, "Enter Google Font name")
     showToast("Please enter a Google Font name.", "error")
     return
   }
-  await loadAndApplyGoogleFont(fontName, true)
+  await loadAndApplyGoogleFont(n, true)
 }
 async function loadAndApplyGoogleFont(fontName, shouldSaveState = true) {
   updateFontStatus("loading", state.activeFontFamily)
   try {
-    const fontWeight = state.fontWeight || DEFAULT_WEIGHT
-    const result = await window.electronAPI.loadGoogleFontByName(
-      fontName,
-      fontWeight
-    )
-    if (result.success && result.fontFamily && result.fontDataUrl) {
-      const actualFontFamily = result.fontFamily
-      const actualWeight = result.fontWeight
-      const fontFace = new FontFace(
-        actualFontFamily,
-        `url(${result.fontDataUrl})`,
-        { weight: actualWeight }
-      )
-      await fontFace.load()
-      document.fonts.add(fontFace)
+    const w = state.fontWeight || DEFAULT_WEIGHT
+    const r = await window.electronAPI.loadGoogleFontByName(fontName, w)
+    if (r.success && r.fontFamily && r.fontDataUrl) {
+      const af = r.fontFamily
+      const aw = r.fontWeight
+      const ff = new FontFace(af, `url(${r.fontDataUrl})`, { weight: aw })
+      await ff.load()
+      document.fonts.add(ff)
       await document.fonts.ready
-      console.log(`Font loaded and added: ${actualFontFamily} ${actualWeight}`)
-      state.activeFontFamily = actualFontFamily
+      console.log(`Font loaded and added: ${af} ${aw}`)
+      state.activeFontFamily = af
       state.googleFontName = fontName
       state.customFontStatus = "loaded"
       state.customFontError = null
-      updateFontStatus("loaded", actualFontFamily)
-      showToast(`Font "${actualFontFamily}" loaded!`, "success")
+      updateFontStatus("loaded", af)
+      showToast(`Font "${af}" loaded!`, "success")
       generateTodoImageAndUpdatePreview()
       if (shouldSaveState) saveState()
     } else {
-      throw new Error(result.error || "Failed details")
+      throw new Error(r.error || "Failed details")
     }
   } catch (e) {
     console.error("Google Font Load Error:", e)
@@ -1839,15 +1812,9 @@ async function loadAndApplyGoogleFont(fontName, shouldSaveState = true) {
   }
 }
 function updateFontControlsVisibility() {
-  const source = state.fontSource
-  settingsInputs.systemFontControls.classList.toggle(
-    "hidden",
-    source !== "system"
-  )
-  settingsInputs.googleFontControls.classList.toggle(
-    "hidden",
-    source !== "google"
-  )
+  const s = state.fontSource
+  settingsInputs.systemFontControls.classList.toggle("hidden", s !== "system")
+  settingsInputs.googleFontControls.classList.toggle("hidden", s !== "google")
 }
 function updateFontStatus(status, displayFontFamily, error = null) {
   state.customFontStatus = status
@@ -1908,19 +1875,26 @@ function updateToggleIcons(isCollapsed) {
   toggleSettingsBtn.setAttribute("aria-expanded", !isCollapsed)
 }
 function handleListClick(event) {
-  const t = event.target,
-    li = t.closest(".todo-item")
+  // UPDATED to handle Edit button
+  const target = event.target
+  const li = target.closest(".todo-item")
   if (!li || !li.dataset.id) return
+
   const id = parseInt(li.dataset.id, 10)
+
   if (
-    t.classList.contains("toggle-done") ||
-    t.classList.contains("todo-text")
+    target.classList.contains("toggle-done") ||
+    target.classList.contains("todo-text")
   ) {
     toggleDone(id)
     renderTodoList()
     generateTodoImageAndUpdatePreview()
     saveState()
-  } else if (t.closest(".delete-btn")) {
+  } else if (target.closest(".edit-btn")) {
+    // Check for closest edit button
+    openEditModal(id)
+  } else if (target.closest(".delete-btn")) {
+    // Check for closest delete button
     deleteTodo(id)
     li.style.opacity = "0"
     li.style.transform = "translateX(-20px)"
@@ -1930,8 +1904,9 @@ function handleListClick(event) {
         if (
           li.parentNode === todoListUl ||
           li.parentNode === completedTodoListUl
-        )
+        ) {
           renderTodoList()
+        }
       },
       { once: true }
     )
@@ -1939,6 +1914,7 @@ function handleListClick(event) {
     saveState()
   }
 }
+// --- Add Task Modal ---
 function openModal() {
   addTodoModal.classList.remove("hidden")
   setTimeout(() => modalTodoInput.focus(), 50)
@@ -1961,6 +1937,75 @@ function handleModalSubmit(event) {
     setTimeout(() => modalTodoInput.classList.remove("shake-animation"), 500)
   }
 }
+// --- Edit Task Modal ---
+function openEditModal(id) {
+  const todo = state.todos.find((t) => t.id === id)
+  if (!todo) {
+    console.error("Could not find todo to edit with ID:", id)
+    return
+  }
+  modalEditInput.value = todo.text
+  editTodoIdInput.value = todo.id // Store ID in hidden input
+  editTodoModal.classList.remove("hidden")
+  setTimeout(() => modalEditInput.focus(), 50) // Focus after modal is visible
+}
+function closeEditModal() {
+  editTodoModal.classList.add("hidden")
+  modalEditInput.value = "" // Clear input
+  editTodoIdInput.value = "" // Clear stored ID
+}
+function handleEditModalSubmit(event) {
+  event.preventDefault()
+  const newText = modalEditInput.value.trim()
+  const id = parseInt(editTodoIdInput.value, 10)
+
+  if (!newText) {
+    modalEditInput.focus()
+    modalEditInput.classList.add("shake-animation")
+    setTimeout(() => modalEditInput.classList.remove("shake-animation"), 500)
+    return
+  }
+  if (isNaN(id)) {
+    console.error("Invalid ID stored in edit modal.")
+    closeEditModal()
+    return
+  }
+
+  const todo = state.todos.find((t) => t.id === id)
+  if (todo) {
+    if (todo.text !== newText) {
+      // Only update if text changed
+      todo.text = newText
+      renderTodoList()
+      saveState()
+      generateTodoImageAndUpdatePreview()
+      showToast("Task updated!", "success")
+    } else {
+      showToast("No changes detected.", "info")
+    }
+  } else {
+    console.error("Could not find todo to save edit for ID:", id)
+    showToast("Error updating task.", "error")
+  }
+  closeEditModal()
+}
+
+// --- Clear Completed Tasks ---
+function handleClearCompleted() {
+  const completedCount = state.todos.filter((t) => t.done).length
+  if (completedCount === 0) return
+
+  state.todos = state.todos.filter((t) => !t.done) // Keep only non-done tasks
+  renderTodoList() // Will update UI and hide completed section/button
+  saveState()
+  generateTodoImageAndUpdatePreview()
+  showToast(
+    `${completedCount} completed task${completedCount > 1 ? "s" : ""} cleared.`,
+    "success"
+  )
+}
+
+// --- Record Shortcut Modal ---
 function openRecordShortcutModal() {
   isRecordingShortcut = true
   pressedKeys.clear()
@@ -1982,28 +2027,28 @@ function handleShortcutKeyDown(event) {
   if (!isRecordingShortcut) return
   event.preventDefault()
   event.stopPropagation()
-  const key = event.key,
-    code = event.code
-  const isMod =
-    ["Control", "Shift", "Alt", "Meta", "ContextMenu"].includes(key) ||
-    code.startsWith("Control") ||
-    code.startsWith("Shift") ||
-    code.startsWith("Alt") ||
-    code.startsWith("Meta")
-  if (!isMod) {
+  const k = event.key,
+    c = event.code
+  const m =
+    ["Control", "Shift", "Alt", "Meta", "ContextMenu"].includes(k) ||
+    c.startsWith("Control") ||
+    c.startsWith("Shift") ||
+    c.startsWith("Alt") ||
+    c.startsWith("Meta")
+  if (!m) {
     if (!lastMainKeyPressed) {
       pressedKeys.clear()
       if (event.ctrlKey) pressedKeys.add("Control")
       if (event.shiftKey) pressedKeys.add("Shift")
       if (event.altKey) pressedKeys.add("Alt")
       if (event.metaKey) pressedKeys.add("Meta")
-      pressedKeys.add(key)
-      lastMainKeyPressed = key
+      pressedKeys.add(k)
+      lastMainKeyPressed = k
       currentRecordedString = buildAcceleratorString()
-      const isValid = isValidAccelerator(currentRecordedString)
+      const i = isValidAccelerator(currentRecordedString)
       updateRecordShortcutDisplay(null, buildAcceleratorStringParts())
-      recordSaveBtn.disabled = !isValid
-      if (isValid) {
+      recordSaveBtn.disabled = !i
+      if (i) {
         isRecordingShortcut = false
         document.removeEventListener("keydown", handleShortcutKeyDown, true)
         document.removeEventListener("keyup", handleShortcutKeyUp, true)
@@ -2023,7 +2068,7 @@ function handleShortcutKeyDown(event) {
     }
   } else {
     if (!lastMainKeyPressed) {
-      pressedKeys.add(key)
+      pressedKeys.add(k)
       updateRecordShortcutDisplay(
         "Press main key...",
         buildAcceleratorStringParts()
@@ -2033,10 +2078,10 @@ function handleShortcutKeyDown(event) {
 }
 function handleShortcutKeyUp(event) {
   if (!isRecordingShortcut) return
-  const key = event.key
+  const k = event.key
   if (isRecordingShortcut) {
-    if (["Control", "Shift", "Alt", "Meta"].includes(key)) {
-      pressedKeys.delete(key)
+    if (["Control", "Shift", "Alt", "Meta"].includes(k)) {
+      pressedKeys.delete(k)
       if (!lastMainKeyPressed) {
         updateRecordShortcutDisplay(
           "Press main key...",
@@ -2143,7 +2188,7 @@ function mapKeyForDisplay(k) {
   }
 }
 function buildAcceleratorStringParts(useCurrentState = false) {
-  const keySet = useCurrentState
+  const s = useCurrentState
     ? new Set(
         currentRecordedString
           .split("+")
@@ -2158,18 +2203,17 @@ function buildAcceleratorStringParts(useCurrentState = false) {
     : pressedKeys
   const m = [],
     k = []
-  const isMac = navigator.platform.toUpperCase().includes("MAC")
-  if (keySet.has("Control") || (keySet.has("CmdOrCtrl") && !isMac))
-    m.push("Ctrl")
-  if (keySet.has("Alt")) m.push("Alt")
-  if (keySet.has("Shift")) m.push("Shift")
-  if (keySet.has("Meta") || (keySet.has("CmdOrCtrl") && isMac)) m.push("Cmd")
-  keySet.forEach((key) => {
+  const i = navigator.platform.toUpperCase().includes("MAC")
+  if (s.has("Control") || (s.has("CmdOrCtrl") && !i)) m.push("Ctrl")
+  if (s.has("Alt")) m.push("Alt")
+  if (s.has("Shift")) m.push("Shift")
+  if (s.has("Meta") || (s.has("CmdOrCtrl") && i)) m.push("Cmd")
+  s.forEach((key) => {
     if (!["Control", "Shift", "Alt", "Meta", "CmdOrCtrl"].includes(key))
       k.push(mapKeyToAccelerator(key))
   })
-  const modOrder = { Ctrl: 1, Alt: 2, Shift: 3, Cmd: 4 }
-  m.sort((a, b) => (modOrder[a] || 99) - (modOrder[b] || 99))
+  const o = { Ctrl: 1, Alt: 2, Shift: 3, Cmd: 4 }
+  m.sort((a, b) => (o[a] || 99) - (o[b] || 99))
   return [...m, ...k]
 }
 function buildAcceleratorString() {
@@ -2183,8 +2227,8 @@ function buildAcceleratorString() {
     if (!["Control", "Shift", "Alt", "Meta"].includes(key))
       k.push(mapKeyToAccelerator(key))
   })
-  const finalParts = [...m, ...k]
-  return finalParts.join("+")
+  const f = [...m, ...k]
+  return f.join("+")
 }
 function mapKeyToAccelerator(k) {
   switch (k.toUpperCase()) {
@@ -2379,37 +2423,37 @@ async function handleApplyWallpaper() {
         showToast("Could not generate wallpaper image.", "error")
         return
       }
-    } catch (genErr) {
-      showToast(`Failed to generate image: ${genErr.message}`, "error")
+    } catch (e) {
+      showToast(`Failed to generate image: ${e.message}`, "error")
       return
     }
   }
   if (applyWallpaperBtn.disabled) return
   applyWallpaperBtn.disabled = true
-  const span = applyWallpaperBtn.querySelector("span")
-  const ogTxt = span ? span.textContent : "Apply Wallpaper"
-  if (span) span.textContent = "Applying..."
+  const s = applyWallpaperBtn.querySelector("span")
+  const o = s ? s.textContent : "Apply Wallpaper"
+  if (s) s.textContent = "Applying..."
   console.log("Applying wallpaper...")
   try {
-    const data = state.lastGeneratedImageDataUrl
-    const result = await window.electronAPI.updateWallpaper(data)
-    if (result?.success) {
+    const d = state.lastGeneratedImageDataUrl
+    const r = await window.electronAPI.updateWallpaper(d)
+    if (r?.success) {
       console.log("Wallpaper update successful.")
-      if (span) span.textContent = "Applied!"
+      if (s) s.textContent = "Applied!"
       showToast("Wallpaper applied successfully!", "success")
       setTimeout(() => {
-        if (applyWallpaperBtn.disabled && span?.textContent === "Applied!") {
-          if (span) span.textContent = ogTxt
+        if (applyWallpaperBtn.disabled && s?.textContent === "Applied!") {
+          if (s) s.textContent = o
           applyWallpaperBtn.disabled = false
         }
       }, 2000)
     } else {
-      throw new Error(result?.error || "Unknown error setting wallpaper")
+      throw new Error(r?.error || "Unknown error setting wallpaper")
     }
-  } catch (err) {
-    console.error("Wallpaper update failed:", err)
-    showToast(`Failed to apply wallpaper: ${err.message}`, "error")
-    if (span) span.textContent = ogTxt
+  } catch (e) {
+    console.error("Wallpaper update failed:", e)
+    showToast(`Failed to apply wallpaper: ${e.message}`, "error")
+    if (s) s.textContent = o
     applyWallpaperBtn.disabled = false
   }
 }
@@ -2429,10 +2473,10 @@ async function handleQuickAddTaskAndApply(taskText) {
         )
         showToast("Failed to generate image for wallpaper.", "error")
       }
-    } catch (err) {
+    } catch (e) {
       console.error(
         "Error during image generation or application after quick add:",
-        err
+        e
       )
       showToast("Error applying wallpaper after Quick Add.", "error")
     }
@@ -2463,24 +2507,24 @@ function handleForcedSettingUpdate(settingsToUpdate) {
     "Renderer received forced setting update from main:",
     settingsToUpdate
   )
-  let stateChanged = false
-  for (const key in settingsToUpdate) {
-    if (state.hasOwnProperty(key) && state[key] !== settingsToUpdate[key]) {
+  let sc = false
+  for (const k in settingsToUpdate) {
+    if (state.hasOwnProperty(k) && state[k] !== settingsToUpdate[k]) {
       console.log(
-        `Forcing setting ${key} from ${state[key]} to ${settingsToUpdate[key]}`
+        `Forcing setting ${k} from ${state[k]} to ${settingsToUpdate[k]}`
       )
-      state[key] = settingsToUpdate[key]
-      stateChanged = true
-      if (key === "runInTray" && settingsInputs.runInTrayCheckbox) {
+      state[k] = settingsToUpdate[k]
+      sc = true
+      if (k === "runInTray" && settingsInputs.runInTrayCheckbox) {
         settingsInputs.runInTrayCheckbox.checked = state.runInTray
       }
-      if (key === "quickAddShortcut" && settingsInputs.currentShortcutDisplay) {
+      if (k === "quickAddShortcut" && settingsInputs.currentShortcutDisplay) {
         settingsInputs.currentShortcutDisplay.textContent = formatAccelerator(
           state.quickAddShortcut || DEFAULT_SHORTCUT
         )
       }
       if (
-        key === "quickAddTranslucent" &&
+        k === "quickAddTranslucent" &&
         settingsInputs.quickAddTranslucentCheckbox
       ) {
         settingsInputs.quickAddTranslucentCheckbox.checked =
@@ -2488,7 +2532,7 @@ function handleForcedSettingUpdate(settingsToUpdate) {
       }
     }
   }
-  if (stateChanged) {
+  if (sc) {
     console.log("Applying forced state changes to UI and saving.")
     updateShortcutInputVisibility()
     saveState()
@@ -2498,9 +2542,9 @@ function handleForcedSettingUpdate(settingsToUpdate) {
 }
 function formatAccelerator(accelerator) {
   if (!accelerator) return ""
-  const platform = window.electronAPI.getPlatform()
+  const p = window.electronAPI.getPlatform()
   let d = accelerator
-  if (platform === "darwin") {
+  if (p === "darwin") {
     d = d
       .replace(/CommandOrControl|CmdOrCtrl/g, "Cmd")
       .replace(/Control/g, "Ctrl")
@@ -2528,20 +2572,20 @@ function handleWindowStateChange({ isMaximized }) {
   }
 }
 function initializeCollapsibleSections() {
-  const tBtns = settingsColumn.querySelectorAll(".setting-section-toggle")
-  tBtns.forEach((b) => {
+  const b = settingsColumn.querySelectorAll(".setting-section-toggle")
+  b.forEach((b) => {
     const s = b.closest(".setting-section"),
       c = s.querySelector(".setting-section-content"),
-      iC = s.classList.contains("collapsed")
-    b.setAttribute("aria-expanded", !iC)
-    if (c && iC) {
+      i = s.classList.contains("collapsed")
+    b.setAttribute("aria-expanded", !i)
+    if (c && i) {
       c.style.transition = "none"
       c.style.maxHeight = "0"
       c.style.opacity = "0"
       c.style.visibility = "hidden"
       void c.offsetHeight
       c.style.transition = ""
-    } else if (c && !iC) {
+    } else if (c && !i) {
       c.style.transition = "none"
       c.style.maxHeight = "none"
       c.style.opacity = "1"
@@ -2556,9 +2600,9 @@ function handleSettingToggleClick(button) {
     c = s.querySelector(".setting-section-content")
   if (!s || !c) return
   s.classList.toggle("collapsed")
-  const iC = s.classList.contains("collapsed")
-  button.setAttribute("aria-expanded", !iC)
-  if (iC) {
+  const i = s.classList.contains("collapsed")
+  button.setAttribute("aria-expanded", !i)
+  if (i) {
     c.style.maxHeight = c.scrollHeight + "px"
     requestAnimationFrame(() => {
       c.style.maxHeight = "0"

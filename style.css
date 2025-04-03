@@ -23,6 +23,8 @@
     --success-foreground: 0 0% 98%;
     --warning: 47.9 95.8% 53.1%;
     --warning-foreground: 38 92% 50%;
+    --info: 200 90% 50%; /* Example info color */
+    --info-foreground: 0 0% 98%;
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 262.1 83.3% 57.8%;
@@ -157,6 +159,13 @@ select {
     color: hsl(var(--destructive-foreground));
     border-color: hsl(var(--destructive) / 0.5);
 }
+
+.toast--info { /* Optional info style */
+    background-color: hsl(var(--info) / 0.9);
+    color: hsl(var(--info-foreground));
+    border-color: hsl(var(--info) / 0.5);
+}
+
 
 /* --- Update Notification Area --- */
 .update-notification {
@@ -414,9 +423,10 @@ body:not(.maximized) .maximize-restore-btn .icon-restore {
 }
 
 /* --- Todos Column Specific --- */
-.column-todos .column-header {
+.column-todos .column-header:not(.completed-header) { /* Target only the top header */
     margin-bottom: var(--spacing-sm);
 }
+
 
 .todo-list-container {
     flex-shrink: 1;
@@ -428,13 +438,30 @@ body:not(.maximized) .maximize-restore-btn .icon-restore {
     background-color: hsl(var(--secondary-bg) / 0.2);
 }
 
-.completed-title {
+/* Adjust completed header */
+.completed-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-top: var(--spacing-lg);
     margin-bottom: var(--spacing-sm);
+    padding-bottom: var(--spacing-xs);
+    border-bottom: 1px solid hsl(var(--border));
+    flex-shrink: 0;
+}
+.completed-header.hidden {
+    display: none;
+}
+.completed-title { /* Remove bottom border from title */
+    margin-bottom: 0;
     font-size: 0.9rem;
     color: hsl(var(--muted-foreground));
-    padding-bottom: var(--spacing-xs);
-    border-bottom: 1px dashed hsl(var(--border));
+    padding-bottom: 0;
+    border-bottom: none;
+}
+#clear-completed-btn {
+    /* Styles already defined by .button .button-danger .button-small */
+    flex-shrink: 0; /* Prevent shrinking */
 }
 
 .completed-list-container {
@@ -447,6 +474,7 @@ body:not(.maximized) .maximize-restore-btn .icon-restore {
 .completed-list-container.hidden {
     display: none;
 }
+
 
 /* --- Settings Section Styling --- */
 .setting-section {
@@ -1066,13 +1094,18 @@ input.invalid {
     flex-shrink: 0;
     accent-color: hsl(var(--primary));
     cursor: pointer;
-    margin-top: 3px;
+    margin-top: 3px; /* Align better with text */
 }
 
 .task-details {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
+    /* Allow text selection in task details */
+     user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
 }
 
 .todo-item .todo-text {
@@ -1083,8 +1116,6 @@ input.invalid {
     line-height: 1.4;
     display: block;
 }
-
-.completed-list-container .todo-item {}
 
 .todo-item.done .todo-text {
     text-decoration: line-through;
@@ -1119,20 +1150,46 @@ input.invalid {
     display: none;
 }
 
-.todo-item .delete-btn {
-    height: 28px;
-    width: 28px;
-    padding: 0;
-    opacity: 0;
+/* Task Action Buttons (Container) */
+.task-actions {
+    display: flex;
+    gap: var(--spacing-xs); /* Small gap between buttons */
     flex-shrink: 0;
-    margin-left: auto;
+    margin-left: auto; /* Push to the right */
     align-self: flex-start;
     margin-top: 1px;
+    opacity: 0; /* Hide by default, show on hover */
+    transition: opacity var(--transition-speed);
 }
 
-.todo-item:hover .delete-btn {
+.todo-item:hover .task-actions {
     opacity: 1;
 }
+
+.task-actions .button-icon {
+    height: 24px; /* Smaller buttons */
+    width: 24px;
+    padding: 0;
+    color: hsl(var(--muted-foreground));
+}
+.task-actions .button-icon svg {
+    width: 14px; height: 14px;
+}
+
+.task-actions .button-icon:hover {
+    color: hsl(var(--foreground));
+    background-color: hsl(var(--muted));
+}
+
+.task-actions .delete-btn:hover {
+    color: hsl(var(--destructive-foreground));
+    background-color: hsl(var(--destructive) / 0.8);
+}
+/* --- Make delete button always visible for touch or consistency ---
+.task-actions .delete-btn { opacity: 0.7; }
+.todo-item:hover .task-actions .delete-btn { opacity: 1; }
+*/
+
 
 .empty-list-message {
     text-align: center;
@@ -1142,7 +1199,7 @@ input.invalid {
     font-size: 0.85rem;
 }
 
-/* Preview Area */
+/* --- Preview Area --- */
 .preview-area-container {
     position: relative;
     border: 1px solid hsl(var(--border));
@@ -1203,7 +1260,7 @@ input.invalid {
 }
 
 
-/* Modal Styling (Add Todo) */
+/* --- Modal Styling (Add & Edit) --- */
 .modal-overlay {
     position: fixed;
     inset: 0;
@@ -1235,6 +1292,7 @@ input.invalid {
     transform: translateY(-10px) scale(0.98);
     opacity: 0;
     transition: transform var(--transition-speed) var(--transition-curve), opacity var(--transition-speed) var(--transition-curve);
+     border: 1px solid hsl(var(--border)); /* Add slight border to modals */
 }
 
 .modal-overlay:not(.hidden) .modal-content {
@@ -1261,7 +1319,8 @@ input.invalid {
     background-color: hsl(var(--muted));
 }
 
-#add-todo-form {
+#add-todo-form,
+#edit-todo-form {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-md);
@@ -1284,7 +1343,7 @@ input.invalid {
     margin-top: var(--spacing-lg);
 }
 
-/* Record Shortcut Modal Specific Styles */
+/* --- Record Shortcut Modal Specific Styles --- */
 .record-shortcut-content {
     max-width: 500px;
 }
@@ -1336,7 +1395,7 @@ span.key-display.modifier {
     border-color: hsl(var(--primary));
 }
 
-/* Utility Classes */
+/* --- Utility Classes --- */
 .hidden {
     display: none !important;
 }

@@ -170,7 +170,17 @@
           <div class="todo-list-container scrollable-content">
             <ul id="todo-list"></ul>
           </div>
-          <h2 class="column-title completed-title hidden">Completed</h2>
+
+          <div class="column-header completed-header hidden">
+            <h2 class="column-title completed-title">Completed</h2>
+            <button
+              id="clear-completed-btn"
+              class="button button-danger button-small"
+              title="Remove all completed tasks"
+            >
+              Clear Completed
+            </button>
+          </div>
           <div
             class="todo-list-container completed-list-container scrollable-content hidden"
           >
@@ -227,7 +237,6 @@
                 class="setting-section-content"
                 id="section-content-text-layout"
               >
-                <!-- Sub-Group: Appearance -->
                 <h4 class="sub-setting-header">Appearance</h4>
                 <div class="sub-setting-group">
                   <div class="input-group">
@@ -293,13 +302,11 @@
                       max="1"
                       step="0.05"
                       title="Overall opacity for text and background panel"
-                    />
-                    <span class="checkbox-hint"
+                    /><span class="checkbox-hint"
                       >Affects text & panel if enabled.</span
                     >
                   </div>
                 </div>
-                <!-- Sub-Group: Positioning -->
                 <h4 class="sub-setting-header">Positioning</h4>
                 <div class="sub-setting-group">
                   <div class="input-group">
@@ -346,7 +353,6 @@
                     />
                   </div>
                 </div>
-                <!-- Sub-Group: Spacing & Columns -->
                 <h4 class="sub-setting-header">Spacing & Columns</h4>
                 <div class="sub-setting-group">
                   <div class="input-group">
@@ -412,7 +418,6 @@
                 </div>
               </div>
             </div>
-
             <!-- Text Background Section -->
             <div class="setting-section" data-section-id="text-background">
               <button
@@ -441,13 +446,12 @@
                 id="section-content-text-background"
               >
                 <div class="input-group">
-                  <label for="text-background-enable">Enable</label>
-                  <input
+                  <label for="text-background-enable">Enable</label
+                  ><input
                     type="checkbox"
                     id="text-background-enable"
                     class="checkbox-input"
-                  />
-                  <span class="checkbox-hint"
+                  /><span class="checkbox-hint"
                     >Draw a panel behind the text.</span
                   >
                 </div>
@@ -466,8 +470,8 @@
                     />
                   </div>
                   <div class="input-group">
-                    <label for="text-panel-opacity">Panel Opacity</label>
-                    <input
+                    <label for="text-panel-opacity">Panel Opacity</label
+                    ><input
                       type="number"
                       id="text-panel-opacity"
                       class="input input-number"
@@ -479,8 +483,8 @@
                     />
                   </div>
                   <div class="input-group padding-group">
-                    <label>Padding</label>
-                    <input
+                    <label>Padding</label
+                    ><input
                       type="number"
                       id="text-bg-padding-inline"
                       class="input input-number"
@@ -501,8 +505,8 @@
                     />
                   </div>
                   <div class="input-group">
-                    <label for="text-bg-border-radius">Radius</label>
-                    <input
+                    <label for="text-bg-border-radius">Radius</label
+                    ><input
                       type="number"
                       id="text-bg-border-radius"
                       class="input input-number"
@@ -527,8 +531,8 @@
                     />
                   </div>
                   <div class="input-group">
-                    <label for="text-bg-border-width">Border Width</label>
-                    <input
+                    <label for="text-bg-border-width">Border Width</label
+                    ><input
                       type="number"
                       id="text-bg-border-width"
                       class="input input-number"
@@ -541,7 +545,6 @@
                 </div>
               </div>
             </div>
-
             <!-- Font Section -->
             <div class="setting-section" data-section-id="font">
               <button
@@ -628,7 +631,6 @@
                 </div>
               </div>
             </div>
-
             <!-- Wallpaper Background Section -->
             <div class="setting-section" data-section-id="background">
               <button
@@ -702,8 +704,9 @@
                       id="choose-image-btn"
                       class="button button-secondary"
                     >
-                      Choose...</button
-                    ><button
+                      Choose...
+                    </button>
+                    <button
                       id="clear-image-btn"
                       class="button button-danger button-icon"
                       title="Clear selected image"
@@ -730,7 +733,6 @@
                 </div>
               </div>
             </div>
-
             <!-- App Behavior Section -->
             <div class="setting-section" data-section-id="app-behavior">
               <button
@@ -813,7 +815,7 @@
         </button>
       </div>
 
-      <!-- Modals remain the same -->
+      <!-- Add Task Modal -->
       <div id="add-todo-modal" class="modal-overlay hidden">
         <div class="modal-content">
           <button
@@ -859,6 +861,57 @@
           </form>
         </div>
       </div>
+
+      <!-- *** NEW: Edit Task Modal *** -->
+      <div id="edit-todo-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+          <button
+            id="edit-modal-close-btn"
+            class="modal-close-button button button-ghost button-icon"
+            title="Close (Esc)"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              width="16"
+              height="16"
+            >
+              <path
+                d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
+              />
+            </svg>
+          </button>
+          <h2>Edit Task</h2>
+          <form id="edit-todo-form">
+            <div class="input-group modal-input-group">
+              <label for="modal-edit-input" class="sr-only">Task</label
+              ><input
+                type="text"
+                id="modal-edit-input"
+                class="input"
+                placeholder="Enter task..."
+                required
+              />
+            </div>
+            <input type="hidden" id="edit-todo-id" />
+            <!-- Hidden field to store the ID -->
+            <div class="modal-actions">
+              <button
+                type="button"
+                id="edit-modal-cancel-btn"
+                class="button button-secondary"
+              >
+                Cancel</button
+              ><button type="submit" class="button button-primary">
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Record Shortcut Modal -->
       <div id="record-shortcut-modal" class="modal-overlay hidden">
         <div class="modal-content record-shortcut-content">
           <button
