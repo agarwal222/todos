@@ -46,7 +46,6 @@
             </svg>
             <span>Apply Wallpaper</span>
           </button>
-          <!-- NEW App Settings Button -->
           <button
             id="open-app-settings-modal-btn"
             class="button button-secondary button-icon"
@@ -67,7 +66,6 @@
               />
             </svg>
           </button>
-          <!-- Toggle VISUAL Settings Button -->
           <button
             id="toggle-settings-btn"
             class="button button-secondary button-icon"
@@ -171,23 +169,34 @@
         <aside class="column column-todos">
           <div class="column-header">
             <h2 class="column-title">Active Tasks</h2>
-            <button
-              id="open-add-todo-modal-btn"
-              class="button button-secondary button-icon"
-              title="Add New Task (Ctrl+N)"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-                width="16"
-                height="16"
+            <div class="column-header-actions">
+              <!-- *** ADDED THIS BUTTON *** -->
+              <button
+                id="clear-active-btn"
+                class="button button-danger button-small"
+                title="Remove all active tasks"
+                style="display: none"
               >
-                <path
-                  d="M8.75 3.75a.75.75 0 0 0-1.5 0v3.5h-3.5a.75.75 0 0 0 0 1.5h3.5v3.5a.75.75 0 0 0 1.5 0v-3.5h3.5a.75.75 0 0 0 0-1.5h-3.5v-3.5Z"
-                />
-              </svg>
-            </button>
+                Clear Active
+              </button>
+              <button
+                id="open-add-todo-modal-btn"
+                class="button button-secondary button-icon"
+                title="Add New Task (Ctrl+N)"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                  width="16"
+                  height="16"
+                >
+                  <path
+                    d="M8.75 3.75a.75.75 0 0 0-1.5 0v3.5h-3.5a.75.75 0 0 0 0 1.5h3.5v3.5a.75.75 0 0 0 1.5 0v-3.5h3.5a.75.75 0 0 0 0-1.5h-3.5v-3.5Z"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
           <div class="todo-list-container scrollable-content">
             <ul id="todo-list"></ul>
@@ -232,7 +241,6 @@
             <h2 class="column-title">Visual Settings</h2>
           </div>
           <div class="scrollable-content">
-            <!-- Text & Layout Section -->
             <div class="setting-section" data-section-id="text-layout">
               <button
                 class="setting-section-toggle"
@@ -440,7 +448,6 @@
                 </div>
               </div>
             </div>
-            <!-- Text Background Section -->
             <div class="setting-section" data-section-id="text-background">
               <button
                 class="setting-section-toggle"
@@ -567,7 +574,6 @@
                 </div>
               </div>
             </div>
-            <!-- Font Section -->
             <div class="setting-section" data-section-id="font">
               <button
                 class="setting-section-toggle"
@@ -653,7 +659,6 @@
                 </div>
               </div>
             </div>
-            <!-- Wallpaper Background Section -->
             <div class="setting-section" data-section-id="background">
               <button
                 class="setting-section-toggle"
@@ -770,7 +775,7 @@
         </button>
       </div>
 
-      <!-- Add Task Modal -->
+      <!-- Modals -->
       <div id="add-todo-modal" class="modal-overlay hidden">
         <div class="modal-content">
           <button
@@ -816,8 +821,6 @@
           </form>
         </div>
       </div>
-
-      <!-- Edit Task Modal -->
       <div id="edit-todo-modal" class="modal-overlay hidden">
         <div class="modal-content">
           <button
@@ -864,8 +867,6 @@
           </form>
         </div>
       </div>
-
-      <!-- Record Shortcut Modal -->
       <div id="record-shortcut-modal" class="modal-overlay hidden">
         <div class="modal-content record-shortcut-content">
           <button
@@ -912,8 +913,6 @@
           </div>
         </div>
       </div>
-
-      <!-- *** NEW: App Settings Modal *** -->
       <div id="app-settings-modal" class="modal-overlay hidden">
         <div class="modal-content app-settings-content">
           <button
@@ -946,7 +945,6 @@
                 >Keep app running in tray on close, enable Quick Add.</span
               >
             </div>
-
             <div
               class="input-group modal-input-group shortcut-display-group hidden"
               id="modal-shortcut-group"
@@ -964,7 +962,6 @@
                 Change
               </button>
             </div>
-
             <div
               class="input-group modal-input-group hidden"
               id="modal-quick-add-translucent-group"
@@ -981,7 +978,6 @@
                 >Use background blur/transparency for Quick Add UI.</span
               >
             </div>
-
             <div class="input-group modal-input-group">
               <label for="modal-auto-apply-checkbox"
                 >Auto-Apply Wallpaper</label
@@ -996,7 +992,6 @@
                 settings).</span
               >
             </div>
-
             <div class="modal-actions">
               <button
                 type="button"

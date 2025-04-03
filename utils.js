@@ -1,7 +1,6 @@
 // utils.js
 
-// Use import for ES Modules (relative path)
-import { DEFAULT_FONT } from "./state.js"
+import { DEFAULT_FONT } from "./state.js" // Import constants if needed
 
 const CONTEXT_MAX_LENGTH = 100
 const TOAST_DURATION = 3000
@@ -13,7 +12,7 @@ export function showToast(
   type = "info",
   duration = TOAST_DURATION
 ) {
-  if (!toastContainer) {
+  /* ... keep body ... */ if (!toastContainer) {
     console.error("Toast container not provided!")
     return
   }
@@ -70,15 +69,13 @@ export function showToast(
     { once: true }
   )
 }
-
 export function isValidHexColor(hex) {
-  if (!hex) return false
+  /* ... keep body ... */ if (!hex) return false
   const hexRegex = /^#([0-9A-F]{3,4}|[0-9A-F]{6}|[0-9A-F]{8})$/i
   return hexRegex.test(hex)
 }
-
 export function loadImage(src) {
-  return new Promise((resolve, reject) => {
+  /* ... keep body ... */ return new Promise((resolve, reject) => {
     const img = new Image()
     img.onload = () => resolve(img)
     img.onerror = (e) =>
@@ -86,14 +83,12 @@ export function loadImage(src) {
     img.src = src
   })
 }
-
 export function drawBackgroundColor(ctx, color, width, height) {
-  ctx.fillStyle = color
+  /* ... keep body ... */ ctx.fillStyle = color
   ctx.fillRect(0, 0, width, height)
 }
-
 export function drawBackgroundImage(ctx, img, canvasWidth, canvasHeight) {
-  const imgAspectRatio = img.width / img.height
+  /* ... keep body ... */ const imgAspectRatio = img.width / img.height
   const canvasAspectRatio = canvasWidth / canvasHeight
   let drawWidth, drawHeight, drawX, drawY
   if (imgAspectRatio >= canvasAspectRatio) {
@@ -126,6 +121,20 @@ export function calculateTextBlockDimensions(ctx, params) {
     columnGap,
     listStyle,
   } = params
+
+  // *** ADDED CHECK: If no lines, return zero dimensions ***
+  if (!lines || lines.length === 0) {
+    return {
+      overallWidth: 0,
+      overallHeight: 0,
+      titleHeight: 0,
+      maxColumnItemHeight: 0,
+      numColumns: 0,
+      maxColumnWidth: 0,
+    }
+  }
+  // **********************************************************
+
   let overallWidth = 0
   let overallHeight = 0
   let maxColumnWidth = 0
@@ -133,77 +142,77 @@ export function calculateTextBlockDimensions(ctx, params) {
   let currentColumnItemCount = 0
   let currentColumnWidth = 0
   let numColumns = 1
+
+  // Title Calculation (Only if lines exist)
   const titleWeight = Math.max(parseInt(fontWeight, 10) || 400, 600)
   const titleFont = `${titleWeight} ${titleFontSize}px "${fontName}", ${DEFAULT_FONT}`
   ctx.font = titleFont
   const titleWidth = title ? ctx.measureText(title).width : 0
   const titleHeight = title ? titleFontSize : 0
   maxColumnWidth = Math.max(maxColumnWidth, titleWidth)
-  overallHeight = title
-    ? titleHeight + (lines.length > 0 ? titleSpacing : 0)
-    : 0
+  overallHeight = title ? titleHeight + titleSpacing : 0 // Spacing added regardless of items *if title exists*
+
+  // Items Calculation (Rest remains the same)
   const itemWeight = parseInt(fontWeight, 10) || 400
   const itemFont = `${itemWeight} ${itemFontSize}px "${fontName}", ${DEFAULT_FONT}`
   const contextWeight = 300
   const contextFont = `${contextWeight} ${contextFontSize}px "${fontName}", ${DEFAULT_FONT}`
-  if (lines.length > 0) {
-    let currentColumnHeightOnlyItems = 0
-    lines.forEach((item, index) => {
-      currentColumnItemCount++
-      ctx.font = itemFont
-      const prefix =
-        listStyle === "dash"
-          ? "- "
-          : listStyle === "number"
-          ? `${index + 1}. `
-          : "• "
-      const itemText = `${prefix}${item.text}`
-      const itemWidth = ctx.measureText(itemText).width
-      let contextWidth = 0
-      let itemTotalHeight = itemFontSize
-      if (item.context) {
-        ctx.font = contextFont
-        contextWidth = ctx.measureText(item.context).width
-        itemTotalHeight += contextTopMargin + contextFontSize
-      }
-      const effectiveContextWidth = item.context
-        ? contextWidth + itemFontSize * 0.75
-        : 0
-      currentColumnWidth = Math.max(
-        currentColumnWidth,
-        itemWidth,
-        effectiveContextWidth
-      )
-      if (currentColumnItemCount > 1) {
-        currentColumnHeightOnlyItems += itemSpacing
-      }
-      currentColumnHeightOnlyItems += itemTotalHeight
-      if (
-        currentColumnItemCount >= maxItemsPerColumn &&
-        index < lines.length - 1
-      ) {
-        maxColumnWidth = Math.max(maxColumnWidth, currentColumnWidth)
-        maxColumnItemHeight = Math.max(
-          maxColumnItemHeight,
-          currentColumnHeightOnlyItems
-        )
-        numColumns++
-        currentColumnWidth = 0
-        currentColumnItemCount = 0
-        currentColumnHeightOnlyItems = 0
-      }
-    })
-    maxColumnWidth = Math.max(maxColumnWidth, currentColumnWidth)
-    maxColumnItemHeight = Math.max(
-      maxColumnItemHeight,
-      currentColumnHeightOnlyItems
+
+  let currentColumnHeightOnlyItems = 0
+  lines.forEach((item, index) => {
+    currentColumnItemCount++
+    ctx.font = itemFont
+    const prefix =
+      listStyle === "dash"
+        ? "- "
+        : listStyle === "number"
+        ? `${index + 1}. `
+        : "• "
+    const itemText = `${prefix}${item.text}`
+    const itemWidth = ctx.measureText(itemText).width
+    let contextWidth = 0
+    let itemTotalHeight = itemFontSize
+    if (item.context) {
+      ctx.font = contextFont
+      contextWidth = ctx.measureText(item.context).width
+      itemTotalHeight += contextTopMargin + contextFontSize
+    }
+    const effectiveContextWidth = item.context
+      ? contextWidth + itemFontSize * 0.75
+      : 0
+    currentColumnWidth = Math.max(
+      currentColumnWidth,
+      itemWidth,
+      effectiveContextWidth
     )
-    overallHeight += maxColumnItemHeight
-    overallWidth =
-      numColumns * maxColumnWidth + Math.max(0, numColumns - 1) * columnGap
-  } else {
-    overallWidth = titleWidth
-  }
+    if (currentColumnItemCount > 1) {
+      currentColumnHeightOnlyItems += itemSpacing
+    }
+    currentColumnHeightOnlyItems += itemTotalHeight
+    if (
+      currentColumnItemCount >= maxItemsPerColumn &&
+      index < lines.length - 1
+    ) {
+      maxColumnWidth = Math.max(maxColumnWidth, currentColumnWidth)
+      maxColumnItemHeight = Math.max(
+        maxColumnItemHeight,
+        currentColumnHeightOnlyItems
+      )
+      numColumns++
+      currentColumnWidth = 0
+      currentColumnItemCount = 0
+      currentColumnHeightOnlyItems = 0
+    }
+  })
+  maxColumnWidth = Math.max(maxColumnWidth, currentColumnWidth)
+  maxColumnItemHeight = Math.max(
+    maxColumnItemHeight,
+    currentColumnHeightOnlyItems
+  )
+  overallHeight += maxColumnItemHeight
+  overallWidth =
+    numColumns * maxColumnWidth + Math.max(0, numColumns - 1) * columnGap
+
   return {
     overallWidth,
     overallHeight,
@@ -229,7 +238,7 @@ export function calculateTextStartPositionMultiCol(
   offsetY,
   metrics
 ) {
-  let startX, startY
+  /* ... keep body ... */ let startX, startY
   const requiredHeight = metrics.overallHeight
   const requiredWidth = metrics.overallWidth
   switch (position) {
@@ -277,9 +286,8 @@ export function calculateTextStartPositionMultiCol(
   }
   return { startX: startX + offsetX, startY: startY + offsetY }
 }
-
 export function drawTextBackgroundPanel(ctx, opts) {
-  const {
+  /* ... keep body ... */ const {
     x,
     y,
     width,
@@ -349,6 +357,13 @@ export function drawTextElementsMultiCol(ctx, params) {
     maxItemsPerColumn,
     columnGap,
   } = params
+
+  // *** ADDED CHECK: If no lines, do nothing ***
+  if (!lines || lines.length === 0) {
+    return
+  }
+  // ********************************************
+
   ctx.textAlign = textAlign
   ctx.textBaseline = "top"
   ctx.fillStyle = textColor
@@ -356,13 +371,18 @@ export function drawTextElementsMultiCol(ctx, params) {
   ctx.shadowBlur = 0
   ctx.shadowOffsetX = 0
   ctx.shadowOffsetY = 0
+
   let currentX = startX
   let currentY = startY
   let columnStartX = currentX
   let initialItemY = startY
+
+  // Draw Title (Only if it exists and lines exist)
   const titleWeight = Math.max(parseInt(fontWeight, 10) || 400, 600)
   const titleFont = `${titleWeight} ${titleFontSize}px "${fontName}", ${DEFAULT_FONT}`
   const fallbackTitleFont = `${titleWeight} ${titleFontSize}px ${DEFAULT_FONT}`
+  const titleHeight = title ? titleFontSize : 0 // Get title height for spacing calc
+
   if (title) {
     try {
       ctx.font = titleFont
@@ -375,9 +395,11 @@ export function drawTextElementsMultiCol(ctx, params) {
       ctx.font = fallbackTitleFont
       ctx.fillText(title, currentX, currentY)
     }
-    currentY += titleFontSize + titleSpacing
+    currentY += titleHeight + titleSpacing
     initialItemY = currentY
   }
+
+  // Draw Items (Rest remains the same)
   const itemWeight = parseInt(fontWeight, 10) || 400
   const itemFont = `${itemWeight} ${itemFontSize}px "${fontName}", ${DEFAULT_FONT}`
   const fallbackItemFont = `${itemWeight} ${itemFontSize}px ${DEFAULT_FONT}`
@@ -456,6 +478,7 @@ export function drawTextElementsMultiCol(ctx, params) {
   })
 }
 
+// ... (Keep remaining utility functions: formatAccelerator, mapKeyForDisplay, etc.) ...
 export function formatAccelerator(accelerator) {
   if (!accelerator) return ""
   const platform = navigator.platform
@@ -473,7 +496,6 @@ export function formatAccelerator(accelerator) {
   }
   return displayString.replace(/\+/g, " + ")
 }
-
 export function mapKeyForDisplay(key) {
   switch (key.toUpperCase()) {
     case "COMMANDORCONTROL":
@@ -562,7 +584,6 @@ export function mapKeyForDisplay(key) {
       return key.length === 1 ? key.toUpperCase() : key
   }
 }
-
 export function buildAcceleratorStringParts(
   pressedKeysSet,
   currentAcceleratorString = null
@@ -612,7 +633,6 @@ export function buildAcceleratorStringParts(
   modifiers.sort((a, b) => (modifierOrder[a] || 99) - (modifierOrder[b] || 99))
   return [...modifiers, ...keys]
 }
-
 export function buildAcceleratorString(pressedKeysSet) {
   const modifiers = []
   const keys = []
@@ -639,7 +659,6 @@ export function buildAcceleratorString(pressedKeysSet) {
   const finalParts = [...new Set([...modifiers, ...keys])]
   return finalParts.join("+")
 }
-
 export function mapKeyToAccelerator(key) {
   switch (key.toUpperCase()) {
     case " ":
@@ -727,7 +746,6 @@ export function mapKeyToAccelerator(key) {
       return key.length === 1 ? key.toUpperCase() : key
   }
 }
-
 export function isValidAccelerator(accel) {
   if (!accel) return false
   const parts = accel.split("+")
@@ -761,6 +779,4 @@ export function isValidAccelerator(accel) {
   )
   return hasModifier && hasKey
 }
-
-// Export the constant too if it's only used here now
 export { CONTEXT_MAX_LENGTH }

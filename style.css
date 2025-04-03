@@ -202,9 +202,10 @@ select {
 }
 
 .button-small {
-    height: calc(var(--input-height) - 6px);
-    padding: var(--spacing-xs) var(--spacing-md);
-    font-size: 0.85rem;
+    height: calc(var(--input-height) - 8px);
+    /* Make slightly smaller */
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.8rem;
 }
 
 /* --- App Shell & Header --- */
@@ -254,7 +255,6 @@ select {
     height: 100%;
 }
 
-/* Header button order */
 .header-right #apply-wallpaper-btn {
     order: 1;
 }
@@ -262,7 +262,6 @@ select {
 .header-right #open-app-settings-modal-btn {
     order: 2;
     margin-left: auto;
-    /* Push app settings left */
 }
 
 .header-right #toggle-settings-btn {
@@ -277,7 +276,6 @@ select {
 .window-controls {
     display: flex;
     gap: 0;
-    /* Removed margin-left: auto */
     height: 100%;
 }
 
@@ -433,6 +431,13 @@ body:not(.maximized) .maximize-restore-btn .icon-restore {
 }
 
 /* --- Todos Column Specific --- */
+.column-header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+/* Wrapper for buttons */
 .column-todos .column-header:not(.completed-header) {
     margin-bottom: var(--spacing-sm);
 }
@@ -470,7 +475,8 @@ body:not(.maximized) .maximize-restore-btn .icon-restore {
     border-bottom: none;
 }
 
-#clear-completed-btn {
+#clear-completed-btn,
+#clear-active-btn {
     flex-shrink: 0;
 }
 
@@ -739,7 +745,6 @@ input.invalid {
     height: 14px;
 }
 
-/* Styles for checkboxes moved to modal section */
 .checkbox-hint {
     grid-column: 2 / 4;
     font-size: 0.75rem;
@@ -773,7 +778,6 @@ input.invalid {
     align-items: center;
 }
 
-/* Removed old shortcut display styles from sidebar */
 /* Font Controls */
 #system-font-controls.hidden,
 #google-font-controls.hidden {
@@ -1220,14 +1224,6 @@ input.invalid {
     transition: opacity var(--transition-speed) var(--transition-curve), visibility 0s var(--transition-speed) linear;
 }
 
-.modal-overlay.modal-temporarily-hidden {
-    opacity: 0;
-    pointer-events: none;
-    /* Don't change visibility here, let the main 'hidden' class control that */
-    /* Quick transition for hiding */
-    transition: opacity 0.1s ease-out !important;
-}
-
 .modal-overlay:not(.hidden) {
     opacity: 1;
     visibility: visible;
@@ -1240,6 +1236,12 @@ input.invalid {
 
 #record-shortcut-modal {
     z-index: 1042;
+}
+
+.modal-overlay.modal-temporarily-hidden {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.1s ease-out !important;
 }
 
 .modal-content {
@@ -1293,7 +1295,6 @@ input.invalid {
     display: block;
 }
 
-/* Default for add/edit */
 .modal-input-group .input {
     font-size: 0.9rem;
     width: 100%;
@@ -1411,7 +1412,6 @@ span.key-display.modifier {
     grid-column: 2 / 3;
     justify-self: start;
     min-width: 150px;
-    /* Copied from sidebar style */
     font-family: monospace;
     background-color: hsl(var(--input));
     padding: var(--spacing-xs) var(--spacing-sm);
