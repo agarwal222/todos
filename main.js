@@ -9,6 +9,7 @@ const {
   globalShortcut,
   dialog,
   Notification,
+  nativeImage, // Import nativeImage
 } = require("electron")
 const path = require("node:path")
 const fs = require("node:fs")
@@ -29,17 +30,14 @@ const gotTheLock = app.requestSingleInstanceLock()
 
 if (!gotTheLock) {
   log.warn("Another instance is already running. Quitting this instance.")
-  // Optional: You could show a dialog here, but focusing the existing window is standard.
-  // dialog.showErrorBox('Visido Already Running', 'Another instance of Visido is already running.');
   app.quit()
 } else {
   app.on("second-instance", (event, commandLine, workingDirectory) => {
-    // Someone tried to run a second instance, we should focus our window.
     log.info("Second instance detected. Focusing main window.")
     if (mainWindow) {
       if (!mainWindow.isVisible()) {
         log.info("Main window was hidden, showing...")
-        showMainWindow() // Use our function to handle showing/recreating if needed
+        showMainWindow()
       } else if (mainWindow.isMinimized()) {
         log.info("Main window was minimized, restoring...")
         mainWindow.restore()
@@ -47,7 +45,6 @@ if (!gotTheLock) {
       log.info("Focusing main window.")
       mainWindow.focus()
     } else {
-      // If mainWindow is somehow null, try creating it again.
       log.warn(
         "Main window was null when second instance detected. Recreating..."
       )
@@ -60,7 +57,8 @@ if (!gotTheLock) {
   let tray = null
   let quickAddWindow = null
   let isQuitting = false
-  const DEFAULT_SHORTCUT = "CommandOrControl+Shift+Slash"
+  // ** NEW DEFAULT SHORTCUT **
+  const DEFAULT_SHORTCUT = "CommandOrControl+Shift+Q"
 
   let appSettings = {
     runInTray: false,
@@ -79,7 +77,6 @@ if (!gotTheLock) {
 
   // --- Main Window Creation ---
   function createWindow() {
-    // Prevent creating multiple main windows if called again unnecessarily
     if (mainWindow && !mainWindow.isDestroyed()) {
       log.warn(
         "createWindow called but mainWindow already exists. Focusing existing."
@@ -88,7 +85,6 @@ if (!gotTheLock) {
       return
     }
     log.info("Creating main browser window...")
-
     const primaryDisplay = screen.getPrimaryDisplay()
     const screenDimensions = primaryDisplay.size
     mainWindow = new BrowserWindow({
@@ -106,7 +102,6 @@ if (!gotTheLock) {
       backgroundColor: "#111827",
     })
     mainWindow.loadFile("index.html")
-
     mainWindow.webContents.on("did-finish-load", () => {
       log.info("Main window finished loading.")
       mainWindow.webContents.send("screen-dimensions", screenDimensions)
@@ -118,8 +113,6 @@ if (!gotTheLock) {
       log.info("Checking for updates...")
       autoUpdater.checkForUpdatesAndNotify()
     })
-
-    // Window state change listeners
     mainWindow.on("maximize", () => {
       if (mainWindow && !mainWindow.isDestroyed())
         mainWindow.webContents.send("window-state-changed", {
@@ -148,8 +141,6 @@ if (!gotTheLock) {
           isFullScreen: false,
         })
     })
-
-    // Close/Minimize handlers
     mainWindow.on("close", (event) => {
       log.info(
         `Main window close requested. RunInTray: ${appSettings.runInTray}, IsQuitting: ${isQuitting}`
@@ -164,7 +155,6 @@ if (!gotTheLock) {
         mainWindow = null
       }
     })
-
     mainWindow.on("minimize", (event) => {
       if (appSettings.runInTray && process.platform !== "darwin") {
         event.preventDefault()
@@ -172,26 +162,62 @@ if (!gotTheLock) {
         log.info("Main window hidden to tray on minimize (non-macOS).")
       }
     })
-
     mainWindow.on("closed", () => {
       log.info("Main window instance closed event fired.")
-      mainWindow = null // Important to allow app to quit correctly
+      mainWindow = null
     })
-    // mainWindow.webContents.openDevTools();
   }
 
-  // --- Tray Icon Creation ---
+  // --- Tray Icon Creation (Improved Path Handling) ---
   function createTray() {
     if (tray) {
       log.warn("Tray already exists.")
       return true
     }
     log.info("Creating system tray icon...")
+
+    // Determine base path depending on packaged status
+    const basePath = app.isPackaged
+      ? path.dirname(app.getPath("exe"))
+      : __dirname
+    const assetsPath = path.join(
+      basePath,
+      app.isPackaged ? "resources/app/assets" : "assets"
+    ) // Adjust path for packaged app
+
     const iconName =
       process.platform === "win32" ? "icon.ico" : "iconTemplate.png"
-    const iconPath = path.join(__dirname, "assets", iconName)
+    const primaryIconPath = path.join(assetsPath, iconName)
+    const fallbackIconPath = path.join(assetsPath, "icon.png") // Fallback PNG
+
+    let finalIconPath = null
+    let usedFallback = false
+
+    if (fs.existsSync(primaryIconPath)) {
+      finalIconPath = primaryIconPath
+      log.info(`Using primary tray icon path: ${finalIconPath}`)
+    } else if (fs.existsSync(fallbackIconPath)) {
+      finalIconPath = fallbackIconPath
+      usedFallback = true
+      log.warn(
+        `Primary icon not found at ${primaryIconPath}, using fallback: ${finalIconPath}`
+      )
+    } else {
+      log.error(
+        `Neither primary (${primaryIconPath}) nor fallback (${fallbackIconPath}) tray icons found.`
+      )
+      return false // Cannot create tray
+    }
+
     try {
-      tray = new Tray(iconPath)
+      const image = nativeImage.createFromPath(finalIconPath)
+      if (image.isEmpty()) {
+        throw new Error(
+          `Failed to create nativeImage from path: ${finalIconPath}`
+        )
+      }
+      tray = new Tray(image) // Use nativeImage object
+
       if (process.platform === "darwin") tray.setIgnoreDoubleClickEvents(true)
       const contextMenu = Menu.buildFromTemplate([
         { label: "Show Visido", click: () => showMainWindow() },
@@ -207,12 +233,19 @@ if (!gotTheLock) {
       tray.setToolTip("Visido - Wallpaper Tasks")
       tray.setContextMenu(contextMenu)
       tray.on("click", () => showMainWindow())
-      log.info("System tray icon created successfully.")
-      return true
+      log.info(
+        `System tray icon created successfully${
+          usedFallback ? " (using fallback)" : ""
+        }.`
+      )
+      return true // Success
     } catch (err) {
-      log.error("Tray icon creation failed:", err)
-      // Fallback logic removed for brevity, assume it works or fails clearly
-      return false
+      log.error(
+        "Tray icon creation failed (nativeImage or Tray constructor):",
+        err
+      )
+      tray = null // Ensure tray is null if creation fails
+      return false // Failure
     }
   }
 
@@ -224,7 +257,6 @@ if (!gotTheLock) {
       log.info("System tray icon destroyed.")
     }
   }
-
   // --- Show Main Window ---
   function showMainWindow() {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -297,7 +329,6 @@ if (!gotTheLock) {
     }
     return success
   }
-
   function unregisterCurrentShortcut() {
     if (currentShortcut) {
       const shortcutToUnregister = currentShortcut
@@ -314,10 +345,7 @@ if (!gotTheLock) {
     }
   }
 
-  // --- Quick Add Window Creation (remains the same) ---
-  function createOrShowQuickAddWindow() {
-    /* ... function content ... */
-  }
+  // --- Quick Add Window Creation ---
   function createOrShowQuickAddWindow() {
     if (quickAddWindow && !quickAddWindow.isDestroyed()) {
       quickAddWindow.focus()
@@ -481,8 +509,6 @@ if (!gotTheLock) {
       }
     }
   })
-
-  // Other IPC handlers...
   ipcMain.handle("get-screen-dimensions", () => screen.getPrimaryDisplay().size)
   ipcMain.handle("get-system-fonts", async () => {
     try {
@@ -502,27 +528,316 @@ if (!gotTheLock) {
   ipcMain.handle(
     "load-google-font-by-name",
     async (event, { fontName, fontWeight }) => {
-      /* ... font loading ... */
+      if (!fontName) return { success: false, error: "Font name is required." }
+      const requestedWeight = fontWeight || "400"
+      const weightsToRequest = [
+        ...new Set([requestedWeight, "400", "700"]),
+      ].join(";")
+      const formattedName = fontName.replace(/ /g, "+")
+      const fontUrl = `https://fonts.googleapis.com/css2?family=${formattedName}:wght@${weightsToRequest}&display=swap`
+      try {
+        const cssContent = await fetchGoogleFontCSS(fontUrl)
+        const fontFaceRegex =
+          /@font-face\s*{[^{}]*?font-family:\s*['"]?([^;'"]+)['"]?[^{}]*?font-weight:\s*(\d+)[^{}]*?url\((https:\/\/fonts\.gstatic\.com\/s\/[^)]+\.woff2)\)[^{}]*?}/gs
+        let match
+        const availableFonts = []
+        while ((match = fontFaceRegex.exec(cssContent)) !== null) {
+          availableFonts.push({
+            family: match[1],
+            weight: match[2],
+            url: match[3],
+          })
+        }
+        if (availableFonts.length === 0) {
+          const woffRegex =
+            /@font-face\s*{[^{}]*?font-family:\s*['"]?([^;'"]+)['"]?[^{}]*?font-weight:\s*(\d+)[^{}]*?url\((https:\/\/fonts\.gstatic\.com\/s\/[^)]+\.woff)\)[^{}]*?}/gs
+          while ((match = woffRegex.exec(cssContent)) !== null) {
+            availableFonts.push({
+              family: match[1],
+              weight: match[2],
+              url: match[3],
+              format: "woff",
+            })
+          }
+        }
+        if (availableFonts.length === 0)
+          return { success: false, error: "Could not parse font details." }
+        let bestMatch = availableFonts.find((f) => f.weight === requestedWeight)
+        if (!bestMatch) {
+          bestMatch =
+            availableFonts.find((f) => f.weight === "400") || availableFonts[0]
+          log.warn(
+            `Requested weight ${requestedWeight} not found, using ${bestMatch.weight}`
+          )
+        }
+        const fontData = await fetchFontData(bestMatch.url)
+        const mimeType =
+          bestMatch.format === "woff" ? "font/woff" : "font/woff2"
+        return {
+          success: true,
+          fontFamily: bestMatch.family,
+          fontWeight: bestMatch.weight,
+          fontDataUrl: `data:${mimeType};base64,${fontData}`,
+        }
+      } catch (error) {
+        log.error("Main: Google Font load error:", error)
+        return { success: false, error: error.message || "Failed font load." }
+      }
     }
   )
   function fetchGoogleFontCSS(url) {
-    /* ... fetch ... */
+    return new Promise((resolve, reject) => {
+      const options = {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
+        },
+      }
+      https
+        .get(url, options, (res) => {
+          if (
+            res.statusCode >= 300 &&
+            res.statusCode < 400 &&
+            res.headers.location
+          ) {
+            return fetchGoogleFontCSS(res.headers.location)
+              .then(resolve)
+              .catch(reject)
+          }
+          if (res.statusCode !== 200) {
+            return reject(
+              new Error(`Failed CSS fetch: Status ${res.statusCode}`)
+            )
+          }
+          let data = ""
+          res.on("data", (c) => (data += c))
+          res.on("end", () => resolve(data))
+        })
+        .on("error", (e) =>
+          reject(new Error(`CSS Request Error: ${e.message}`))
+        )
+    })
   }
   function fetchFontData(url) {
-    /* ... fetch ... */
+    return new Promise((resolve, reject) => {
+      https
+        .get(url, (res) => {
+          if (
+            res.statusCode >= 300 &&
+            res.statusCode < 400 &&
+            res.headers.location
+          ) {
+            return fetchFontData(res.headers.location)
+              .then(resolve)
+              .catch(reject)
+          }
+          if (res.statusCode !== 200) {
+            return reject(
+              new Error(`Failed font fetch: Status ${res.statusCode}`)
+            )
+          }
+          const data = []
+          res.on("data", (c) => data.push(c))
+          res.on("end", () => resolve(Buffer.concat(data).toString("base64")))
+        })
+        .on("error", (e) =>
+          reject(new Error(`Font Request Error: ${e.message}`))
+        )
+    })
   }
   ipcMain.handle("update-wallpaper", async (event, imageDataUrl) => {
-    /* ... update wallpaper ... */
+    log.info("Main: Updating wallpaper...")
+    let tempFilePath = null
+    try {
+      const { setWallpaper } = await import("wallpaper")
+      const tempDir = os.tmpdir()
+      tempFilePath = path.join(tempDir, `visido-wallpaper-${Date.now()}.png`)
+      const base64Data = imageDataUrl.replace(/^data:image\/png;base64,/, "")
+      const imageBuffer = Buffer.from(base64Data, "base64")
+      await fs.promises.mkdir(tempDir, { recursive: true })
+      log.info("Main: Writing temp wallpaper file to:", tempFilePath)
+      await fs.promises.writeFile(tempFilePath, imageBuffer)
+      log.info("Main: Calling setWallpaper with path:", tempFilePath)
+      await setWallpaper(tempFilePath, { scale: "auto" })
+      log.info("Main: Wallpaper set command issued successfully.")
+      setTimeout(() => {
+        if (tempFilePath) {
+          fs.unlink(tempFilePath, (err) => {
+            if (err) log.error("Error deleting temp wallpaper file:", err)
+            else log.info("Main: Deleted temp wallpaper file:", tempFilePath)
+          })
+        }
+      }, 10000)
+      return { success: true }
+    } catch (error) {
+      log.error("Main: Failed to set wallpaper. Full Error:", error)
+      let errorMessage = "Unknown error setting wallpaper"
+      if (error && error.message) {
+        errorMessage = error.message
+      }
+      return { success: false, error: errorMessage }
+    }
   })
   ipcMain.on("update-settings", (event, settings) => {
-    /* ... update settings handler ... */
-  }) // No changes needed here from previous step
+    log.info("Main received settings update request:", settings)
+    if (!rendererSettingsLoaded) {
+      log.warn("Ignoring settings update, initial load incomplete.")
+      return
+    }
+    const previousSettings = { ...appSettings }
+    let stateChanged = false
+    if (
+      typeof settings.runInTray === "boolean" &&
+      appSettings.runInTray !== settings.runInTray
+    ) {
+      appSettings.runInTray = settings.runInTray
+      stateChanged = true
+    }
+    if (
+      typeof settings.quickAddTranslucent === "boolean" &&
+      appSettings.quickAddTranslucent !== settings.quickAddTranslucent
+    ) {
+      appSettings.quickAddTranslucent = settings.quickAddTranslucent
+      stateChanged = true
+    }
+    if (
+      typeof settings.quickAddShortcut === "string" &&
+      settings.quickAddShortcut &&
+      appSettings.quickAddShortcut !== settings.quickAddShortcut
+    ) {
+      appSettings.quickAddShortcut = settings.quickAddShortcut
+      stateChanged = true
+    } else if (
+      settings.hasOwnProperty("quickAddShortcut") &&
+      !settings.quickAddShortcut
+    ) {
+      if (appSettings.quickAddShortcut !== DEFAULT_SHORTCUT) {
+        appSettings.quickAddShortcut = DEFAULT_SHORTCUT
+        stateChanged = true
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("force-setting-update", {
+            quickAddShortcut: DEFAULT_SHORTCUT,
+          })
+        }
+      }
+    }
+    if (!stateChanged) {
+      log.info("No relevant settings changed.")
+      return
+    }
+    log.info("App settings potentially updated:", appSettings)
+    const trayModeChanged = previousSettings.runInTray !== appSettings.runInTray
+    const shortcutChanged =
+      previousSettings.quickAddShortcut !== appSettings.quickAddShortcut
+    const translucencyChanged =
+      previousSettings.quickAddTranslucent !== appSettings.quickAddTranslucent
+    if (trayModeChanged) {
+      if (appSettings.runInTray) {
+        log.info("Enabling tray mode via settings.")
+        const trayCreated = createTray()
+        if (trayCreated) {
+          const shortcutRegistered = registerGlobalShortcut(
+            appSettings.quickAddShortcut
+          )
+          if (shortcutRegistered) {
+            if (process.platform === "darwin") app.dock?.hide()
+          } else {
+            log.warn(
+              "Shortcut registration failed during tray enable, state reverted by register function."
+            )
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send("force-setting-update", {
+                runInTray: false,
+              })
+            }
+          }
+        } else {
+          log.error("Failed to create tray icon when enabling via settings.")
+          appSettings.runInTray = false
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("force-setting-update", {
+              runInTray: false,
+            })
+          }
+        }
+      } else {
+        log.info("Disabling tray mode via settings.")
+        unregisterCurrentShortcut()
+        destroyTray()
+        if (process.platform === "darwin") app.dock?.show()
+        if (
+          mainWindow &&
+          !mainWindow.isDestroyed() &&
+          !mainWindow.isVisible()
+        ) {
+          showMainWindow()
+        }
+      }
+    } else if (appSettings.runInTray && shortcutChanged) {
+      log.info(`Shortcut changed while tray enabled, re-registering.`)
+      const shortcutRegistered = registerGlobalShortcut(
+        appSettings.quickAddShortcut
+      )
+      if (!shortcutRegistered) {
+        log.warn("Shortcut re-registration failed, forcing tray mode off.")
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("force-setting-update", {
+            runInTray: false,
+          })
+        }
+      }
+    } else if (!appSettings.runInTray && currentShortcut) {
+      log.info("Tray mode is off, ensuring shortcut is unregistered.")
+      unregisterCurrentShortcut()
+    }
+    if (
+      translucencyChanged &&
+      quickAddWindow &&
+      !quickAddWindow.isDestroyed()
+    ) {
+      log.info(
+        "Quick Add translucency setting changed, closing current quick add window."
+      )
+      quickAddWindow.close()
+    }
+  })
   ipcMain.on(
     "setting-update-error",
     (event, { setting, error, fallbackValue }) => {
-      /* ... error handler ... */
+      log.warn(
+        `Renderer reported setting update failed for '${setting}': ${error}. Falling back to ${fallbackValue}`
+      )
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("force-setting-update", {
+          [setting]: fallbackValue,
+        })
+      }
+      if (appSettings.hasOwnProperty(setting)) {
+        log.info(
+          `Updating main process setting '${setting}' to fallback value: ${fallbackValue}`
+        )
+        appSettings[setting] = fallbackValue
+        if (setting === "quickAddShortcut" && appSettings.runInTray) {
+          log.warn(
+            "Attempting to re-register shortcut with fallback value after renderer error."
+          )
+          registerGlobalShortcut(appSettings.quickAddShortcut)
+          if (!currentShortcut && appSettings.runInTray) {
+            appSettings.runInTray = false
+            destroyTray()
+            if (process.platform === "darwin") app.dock?.show()
+            mainWindow.webContents.send("force-setting-update", {
+              runInTray: false,
+            })
+          }
+        } else if (setting === "runInTray" && !fallbackValue) {
+          unregisterCurrentShortcut()
+          destroyTray()
+          if (process.platform === "darwin") app.dock?.show()
+        }
+      }
     }
-  ) // No changes needed here
+  )
   ipcMain.on("add-task-from-overlay", (event, taskText) => {
     log.info("Main received task from quick add overlay:", taskText)
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -560,7 +875,34 @@ if (!gotTheLock) {
     }
   })
   ipcMain.on("resize-quick-add", (event, { height }) => {
-    /* ... resize handler ... */
+    if (quickAddWindow && !quickAddWindow.isDestroyed()) {
+      try {
+        const currentBounds = quickAddWindow.getBounds()
+        const primaryDisplay = screen.getPrimaryDisplay()
+        const maxHeight = Math.round(
+          primaryDisplay.workArea.height * QUICK_ADD_MAX_HEIGHT_FACTOR
+        )
+        const newHeight = Math.max(
+          QUICK_ADD_MIN_HEIGHT,
+          Math.min(Math.round(height), maxHeight)
+        )
+        log.info(
+          `Resizing Quick Add window to height: ${newHeight} (requested: ${height})`
+        )
+        quickAddWindow.setSize(currentBounds.width, newHeight, false)
+        if (!quickAddWindow.isVisible()) {
+          log.info("Showing and focusing Quick Add window after resize.")
+          quickAddWindow.show()
+          quickAddWindow.focus()
+        }
+      } catch (err) {
+        log.error("Failed to resize quick add window:", err)
+      }
+    } else {
+      log.warn(
+        "Resize requested for non-existent or destroyed Quick Add window."
+      )
+    }
   })
   ipcMain.on("restart_app", () => {
     log.info("Restarting app to install update...")
@@ -570,22 +912,17 @@ if (!gotTheLock) {
   // --- App Lifecycle ---
   app.whenReady().then(() => {
     log.info("App is ready.")
-    // Create the initial window *inside* the 'else' block of the instance lock check
-    // or call it from here if the lock was acquired.
     createWindow()
-
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         log.info("App activated with no windows open, creating main window.")
         createWindow()
       } else if (mainWindow) {
-        // Use showMainWindow to handle visibility/focus
         log.info("App activated, ensuring main window is visible and focused.")
         showMainWindow()
       }
     })
   })
-
   app.on("window-all-closed", () => {
     log.info("All windows closed event received.")
     if (process.platform !== "darwin") {
@@ -596,16 +933,14 @@ if (!gotTheLock) {
       app.quit()
     } else {
       log.info("App running in tray (macOS), keeping alive.")
-    } // No need to hide dock here, close handler does it
+    }
   })
-
   app.on("before-quit", () => {
     log.info("App before-quit event triggered.")
     isQuitting = true
     unregisterCurrentShortcut()
     globalShortcut.unregisterAll()
   })
-
   app.on("will-quit", () => {
     log.info("App will-quit event triggered. Final cleanup.")
     destroyTray()
@@ -650,4 +985,4 @@ if (!gotTheLock) {
       body: "A new version has been downloaded. Restart the application to apply the update.",
     }).show()
   })
-} // End of the 'else' block for the single instance lock
+} // End single instance lock 'else'

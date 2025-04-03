@@ -6,13 +6,14 @@ const DEFAULT_FONT = "Inter"
 const DEFAULT_WEIGHT = "400"
 const DEFAULT_TEXT_COLOR = "#f3f4f6"
 const DEFAULT_BG_COLOR = "#111827"
-const DEFAULT_SHORTCUT = "CommandOrControl+Shift+Slash" // Corresponds to Ctrl/Cmd+Shift+?
+// ** UPDATED DEFAULT SHORTCUT **
+const DEFAULT_SHORTCUT = "CommandOrControl+Shift+Q"
 const DEFAULT_TEXT_BG_COLOR = "rgba(0, 0, 0, 0.5)"
 const DEFAULT_TEXT_BORDER_COLOR = "rgba(255, 255, 255, 0.1)"
 const DEFAULT_OVERALL_OPACITY = 1.0
 const DEFAULT_PANEL_OPACITY = 0.5
 const CONTEXT_MAX_LENGTH = 100
-const TOAST_DURATION = 3000 // Default duration in ms
+const TOAST_DURATION = 3000
 
 // --- DOM Elements ---
 const applyWallpaperBtn = document.getElementById("apply-wallpaper-btn")
@@ -109,7 +110,7 @@ const recordInstructions = recordShortcutModal.querySelector(
 )
 const canvas = document.getElementById("image-canvas")
 const ctx = canvas.getContext("2d")
-const toastContainer = document.getElementById("toast-container") // Added
+const toastContainer = document.getElementById("toast-container")
 
 // --- Application State ---
 let state = {
@@ -148,7 +149,7 @@ let state = {
   textBackgroundBorderRadius: 5,
   settingsCollapsed: false,
   runInTray: false,
-  quickAddShortcut: DEFAULT_SHORTCUT, // Use updated default
+  quickAddShortcut: DEFAULT_SHORTCUT,
   quickAddTranslucent: false,
   lastGeneratedImageDataUrl: null,
   screenWidth: 1920,
@@ -170,33 +171,20 @@ function showToast(message, type = "info", duration = TOAST_DURATION) {
     console.error("Toast container not found!")
     return
   }
-
-  // Create toast element
   const toast = document.createElement("div")
-  toast.className = `toast toast--${type}` // Add base and type class
-  toast.setAttribute("role", "status") // Accessibility
-  toast.setAttribute("aria-live", "polite") // Accessibility
-
-  // Create message span
+  toast.className = `toast toast--${type}`
+  toast.setAttribute("role", "status")
+  toast.setAttribute("aria-live", "polite")
   const messageSpan = document.createElement("span")
   messageSpan.textContent = message
   toast.appendChild(messageSpan)
-
-  // Add to container (prepends so new toasts are on top if flex-direction: column-reverse)
   toastContainer.prepend(toast)
-
-  // Trigger enter animation
   requestAnimationFrame(() => {
     toast.classList.add("toast-visible")
   })
-
-  // Set timeout to remove the toast
   const timerId = setTimeout(() => {
-    // Start exit animation
     toast.classList.remove("toast-visible")
     toast.classList.add("toast-exiting")
-
-    // Remove from DOM after animation completes
     toast.addEventListener(
       "transitionend",
       () => {
@@ -206,21 +194,17 @@ function showToast(message, type = "info", duration = TOAST_DURATION) {
       },
       { once: true }
     )
-
-    // Fallback removal if transitionend doesn't fire (e.g., element removed early)
     setTimeout(() => {
       if (toast.parentNode === toastContainer) {
         console.warn("Toast fallback removal triggered.")
         toastContainer.removeChild(toast)
       }
-    }, 500) // Slightly longer than transition
+    }, 500)
   }, duration)
-
-  // Optional: Allow clicking toast to dismiss early
   toast.addEventListener(
     "click",
     () => {
-      clearTimeout(timerId) // Cancel the scheduled removal
+      clearTimeout(timerId)
       toast.classList.remove("toast-visible")
       toast.classList.add("toast-exiting")
       toast.addEventListener(
@@ -238,7 +222,7 @@ function showToast(message, type = "info", duration = TOAST_DURATION) {
       }, 500)
     },
     { once: true }
-  ) // Only allow one click dismissal
+  )
 }
 
 // --- Initialization ---
@@ -1980,7 +1964,7 @@ function handleModalSubmit(event) {
     renderTodoList()
     generateTodoImageAndUpdatePreview()
     saveState()
-    closeModal() /* showToast("Task added", "info", 1500); */
+    closeModal()
   } else {
     modalTodoInput.focus()
     modalTodoInput.classList.add("shake-animation")
@@ -2252,7 +2236,7 @@ function mapKeyToAccelerator(k) {
       return "."
     case "SLASH":
       return "Slash"
-    /* Use Slash for ? */ case "F1":
+    /* Kept as Slash for consistency, but default changed */ case "F1":
     case "F2":
     case "F3":
     case "F4":
