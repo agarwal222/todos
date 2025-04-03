@@ -17,7 +17,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   loadGoogleFontByName: (fontName, fontWeight) =>
     ipcRenderer.invoke("load-google-font-by-name", { fontName, fontWeight }),
   updateSettings: (settings) => ipcRenderer.send("update-settings", settings),
-  // ** NEW API to send loaded settings from renderer **
   sendRendererSettingsLoaded: (settings) => {
     ipcRenderer.send("renderer-settings-loaded", settings)
   },
@@ -64,6 +63,19 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on(channel, listener)
     return () => ipcRenderer.removeListener(channel, listener)
   },
+  // ** NEW: Listeners for main window to perform actions **
+  onPerformTaskToggle: (callback) => {
+    const channel = "perform-task-toggle"
+    const listener = (event, taskId) => callback(taskId)
+    ipcRenderer.on(channel, listener)
+    return () => ipcRenderer.removeListener(channel, listener)
+  },
+  onPerformTaskDelete: (callback) => {
+    const channel = "perform-task-delete"
+    const listener = (event, taskId) => callback(taskId)
+    ipcRenderer.on(channel, listener)
+    return () => ipcRenderer.removeListener(channel, listener)
+  },
 
   // == APIs for Quick Add Renderer ==
   sendTaskToMain: (taskText) =>
@@ -82,6 +94,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return () => ipcRenderer.removeListener(channel, listener)
   },
   resizeQuickAdd: (height) => ipcRenderer.send("resize-quick-add", { height }),
+  // ** NEW: Functions for Quick Add to send actions **
+  sendQuickAddToggleTask: (taskId) =>
+    ipcRenderer.send("quick-add-toggle-task", taskId),
+  sendQuickAddDeleteTask: (taskId) =>
+    ipcRenderer.send("quick-add-delete-task", taskId),
 
   // == Auto Updater APIs ==
   onUpdateAvailable: (callback) => {
@@ -104,7 +121,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on(channel, (event, ...args) => callback(...args))
     return () => ipcRenderer.removeAllListeners(channel)
   },
-  restartApp: () => ipcRenderer.send("restart_app"), // Send command to main to restart
+  restartApp: () => ipcRenderer.send("restart_app"),
 })
 
 console.log("Preload script finished exposing API successfully.")

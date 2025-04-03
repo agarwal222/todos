@@ -12,7 +12,7 @@ const DEFAULT_TEXT_BORDER_COLOR = "rgba(255, 255, 255, 0.1)"
 const DEFAULT_OVERALL_OPACITY = 1.0
 const DEFAULT_PANEL_OPACITY = 0.5
 const CONTEXT_MAX_LENGTH = 100
-const TOAST_DURATION = 3000 // Default duration in ms
+const TOAST_DURATION = 3000
 
 // --- DOM Elements ---
 const applyWallpaperBtn = document.getElementById("apply-wallpaper-btn")
@@ -109,7 +109,7 @@ const recordInstructions = recordShortcutModal.querySelector(
 )
 const canvas = document.getElementById("image-canvas")
 const ctx = canvas.getContext("2d")
-const toastContainer = document.getElementById("toast-container") // Added
+const toastContainer = document.getElementById("toast-container")
 
 // --- Application State ---
 let state = {
@@ -148,7 +148,7 @@ let state = {
   textBackgroundBorderRadius: 5,
   settingsCollapsed: false,
   runInTray: false,
-  quickAddShortcut: DEFAULT_SHORTCUT, // Use updated default
+  quickAddShortcut: DEFAULT_SHORTCUT,
   quickAddTranslucent: false,
   lastGeneratedImageDataUrl: null,
   screenWidth: 1920,
@@ -170,22 +170,17 @@ function showToast(message, type = "info", duration = TOAST_DURATION) {
     console.error("Toast container not found!")
     return
   }
-
   const toast = document.createElement("div")
   toast.className = `toast toast--${type}`
   toast.setAttribute("role", "status")
   toast.setAttribute("aria-live", "polite")
-
   const messageSpan = document.createElement("span")
   messageSpan.textContent = message
   toast.appendChild(messageSpan)
-
   toastContainer.prepend(toast)
-
   requestAnimationFrame(() => {
     toast.classList.add("toast-visible")
   })
-
   const timerId = setTimeout(() => {
     toast.classList.remove("toast-visible")
     toast.classList.add("toast-exiting")
@@ -205,7 +200,6 @@ function showToast(message, type = "info", duration = TOAST_DURATION) {
       }
     }, 500)
   }, duration)
-
   toast.addEventListener(
     "click",
     () => {
@@ -292,6 +286,31 @@ async function initialize() {
   })
   window.electronAPI.onWindowStateChange(handleWindowStateChange)
   window.electronAPI.onForceSettingUpdate(handleForcedSettingUpdate)
+  // *** Listen for actions relayed from main process ***
+  window.electronAPI.onPerformTaskToggle((taskId) => {
+    console.log(`Renderer received toggle request for task ID: ${taskId}`)
+    toggleDone(taskId)
+    renderTodoList()
+    saveState()
+    generateTodoImageAndUpdatePreview()
+      .then(() => handleApplyWallpaper()) // Apply wallpaper after toggle
+      .catch((err) => {
+        console.error("Error applying wallpaper after toggle:", err)
+        showToast("Error applying wallpaper.", "error") // Show toast on error
+      })
+  })
+  window.electronAPI.onPerformTaskDelete((taskId) => {
+    console.log(`Renderer received delete request for task ID: ${taskId}`)
+    deleteTodo(taskId)
+    renderTodoList() // Re-render list immediately
+    saveState()
+    generateTodoImageAndUpdatePreview()
+      .then(() => handleApplyWallpaper()) // Apply wallpaper after delete
+      .catch((err) => {
+        console.error("Error applying wallpaper after delete:", err)
+        showToast("Error applying wallpaper.", "error")
+      })
+  })
   const platform = window.electronAPI.getPlatform()
   document.body.dataset.platform = platform
   console.log("Renderer initialized on platform:", platform)
@@ -830,19 +849,14 @@ function handleSettingChange(event) {
     needsIpcUpdate = false
   const id = target.id
   let value = target.type === "checkbox" ? target.checked : target.value
-  const key = target.name || id // Use name for radio groups
-
-  // Early exit for elements we handle differently or don't handle
+  const key = target.name || id
   if (id.endsWith("-hex") || id.endsWith("-picker") || !key) return
-
-  // --- Specific Handling for Radio Groups ---
   if (key === "font-source") {
-    value = target.value // Get the value of the selected radio
+    value = target.value
     if (target.checked && state.fontSource !== value) {
       state.fontSource = value
       settingChanged = true
       requiresSave = true
-      // Handle font activation/deactivation logic
       if (value === "default") {
         state.activeFontFamily = DEFAULT_FONT
         updateFontStatus("idle", DEFAULT_FONT)
@@ -872,15 +886,13 @@ function handleSettingChange(event) {
         }
       }
     } else if (!target.checked) {
-      // If a radio is unchecked, another was checked, the change handler on the *newly checked* one handles it.
       settingChanged = false
       requiresRegeneration = false
       requiresSave = false
     }
-    // ** Always update UI visibility for font source **
     updateFontControlsVisibility()
   } else if (key === "bg-type") {
-    value = target.value // Get the value of the selected radio
+    value = target.value
     if (target.checked && state.backgroundType !== value) {
       state.backgroundType = value
       settingChanged = true
@@ -890,12 +902,10 @@ function handleSettingChange(event) {
       requiresRegeneration = false
       requiresSave = false
     }
-    // ** Always update UI visibility for background type **
     updateBackgroundControlsVisibility()
   } else {
-    // Handle other inputs (checkboxes, text, numbers, selects)
     let hasPropertyChanged = false
-    let propertyName = id // Assume id is the state property name
+    let propertyName = id
     const idToStateMap = {
       "wallpaper-title-input": "title",
       "font-size": "fontSize",
@@ -922,7 +932,6 @@ function handleSettingChange(event) {
       "quick-add-translucent-checkbox": "quickAddTranslucent",
     }
     propertyName = idToStateMap[id] || id
-
     if (state.hasOwnProperty(propertyName)) {
       const oldValue = state[propertyName]
       let newValue = value
@@ -938,15 +947,12 @@ function handleSettingChange(event) {
         }
       } else if (target.type === "checkbox") {
         newValue = target.checked
-      } // Ensure boolean
-
+      }
       if (oldValue !== newValue) {
         state[propertyName] = newValue
         hasPropertyChanged = true
-        settingChanged = true // Mark setting as changed if property updated
-        requiresSave = true // Always save if property updated
-
-        // Check for specific side effects / UI updates
+        settingChanged = true
+        requiresSave = true
         if (propertyName === "runInTray") {
           needsIpcUpdate = true
           updateShortcutInputVisibility()
@@ -957,8 +963,6 @@ function handleSettingChange(event) {
         if (propertyName === "textBackgroundEnabled") {
           updateTextBackgroundControlsVisibility()
         }
-
-        // Determine if regeneration is needed
         const nonRegenProps = [
           "systemFontFamily",
           "googleFontName",
@@ -989,10 +993,9 @@ function handleSettingChange(event) {
             }
           }
         } else {
-          requiresRegeneration = true // Default to regenerating for other changes
+          requiresRegeneration = true
         }
       } else {
-        // Value didn't change, no action needed for this property
         settingChanged = false
         requiresRegeneration = false
         requiresSave = false
@@ -1006,9 +1009,7 @@ function handleSettingChange(event) {
       requiresRegeneration = false
       requiresSave = false
     }
-  } // End handling for non-radio inputs
-
-  // Perform actions based on flags
+  }
   if (settingChanged) {
     if (requiresRegeneration) {
       generateTodoImageAndUpdatePreview()
@@ -1030,7 +1031,6 @@ function handleSettingChange(event) {
     }
   }
 }
-
 function setupEventListeners() {
   console.log("Setting up event listeners...")
   applyWallpaperBtn.addEventListener("click", handleApplyWallpaper)

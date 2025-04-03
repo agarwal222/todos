@@ -30,17 +30,14 @@ const gotTheLock = app.requestSingleInstanceLock()
 
 if (!gotTheLock) {
   log.warn("Another instance is already running. Quitting this instance.")
-  // Optional: You could show a dialog here, but focusing the existing window is standard.
-  // dialog.showErrorBox('Visido Already Running', 'Another instance of Visido is already running.');
   app.quit()
 } else {
   app.on("second-instance", (event, commandLine, workingDirectory) => {
-    // Someone tried to run a second instance, we should focus our window.
     log.info("Second instance detected. Focusing main window.")
     if (mainWindow) {
       if (!mainWindow.isVisible()) {
         log.info("Main window was hidden, showing...")
-        showMainWindow() // Use our function to handle showing/recreating if needed
+        showMainWindow()
       } else if (mainWindow.isMinimized()) {
         log.info("Main window was minimized, restoring...")
         mainWindow.restore()
@@ -48,7 +45,6 @@ if (!gotTheLock) {
       log.info("Focusing main window.")
       mainWindow.focus()
     } else {
-      // If mainWindow is somehow null, try creating it again.
       log.warn(
         "Main window was null when second instance detected. Recreating..."
       )
@@ -61,9 +57,7 @@ if (!gotTheLock) {
   let tray = null
   let quickAddWindow = null
   let isQuitting = false
-  // ** NEW DEFAULT SHORTCUT **
   const DEFAULT_SHORTCUT = "CommandOrControl+Shift+Q"
-
   let appSettings = {
     runInTray: false,
     quickAddShortcut: DEFAULT_SHORTCUT,
@@ -77,11 +71,10 @@ if (!gotTheLock) {
   const QUICK_ADD_VIBRANCY_FALLBACK_BG = "rgba(46, 46, 48, 0.9)"
   const QUICK_ADD_MIN_HEIGHT = 100
   const QUICK_ADD_MAX_HEIGHT_FACTOR = 1.5
-  const INITIAL_SETUP_DELAY = 300 // ms delay before initial tray/shortcut setup
+  const INITIAL_SETUP_DELAY = 300
 
   // --- Main Window Creation ---
   function createWindow() {
-    // Prevent creating multiple main windows if called again unnecessarily
     if (mainWindow && !mainWindow.isDestroyed()) {
       log.warn(
         "createWindow called but mainWindow already exists. Focusing existing."
@@ -90,7 +83,6 @@ if (!gotTheLock) {
       return
     }
     log.info("Creating main browser window...")
-
     const primaryDisplay = screen.getPrimaryDisplay()
     const screenDimensions = primaryDisplay.size
     mainWindow = new BrowserWindow({
@@ -108,7 +100,6 @@ if (!gotTheLock) {
       backgroundColor: "#111827",
     })
     mainWindow.loadFile("index.html")
-
     mainWindow.webContents.on("did-finish-load", () => {
       log.info("Main window finished loading.")
       mainWindow.webContents.send("screen-dimensions", screenDimensions)
@@ -116,12 +107,10 @@ if (!gotTheLock) {
         isMaximized: mainWindow.isMaximized(),
         isFullScreen: mainWindow.isFullScreen(),
       })
-      mainWindow.show() // Show the window regardless of tray settings initially
+      mainWindow.show()
       log.info("Checking for updates...")
       autoUpdater.checkForUpdatesAndNotify()
     })
-
-    // Window state change listeners
     mainWindow.on("maximize", () => {
       if (mainWindow && !mainWindow.isDestroyed())
         mainWindow.webContents.send("window-state-changed", {
@@ -150,8 +139,6 @@ if (!gotTheLock) {
           isFullScreen: false,
         })
     })
-
-    // Close/Minimize handlers - These contain the logic to hide when tray mode is ON
     mainWindow.on("close", (event) => {
       log.info(
         `Main window close requested. RunInTray: ${appSettings.runInTray}, IsQuitting: ${isQuitting}`
@@ -163,10 +150,9 @@ if (!gotTheLock) {
         log.info("Main window hidden to tray on close.")
       } else {
         log.info("Main window closing normally (or quitting).")
-        mainWindow = null // Allow app to quit if not running in tray or explicitly quitting
+        mainWindow = null
       }
     })
-
     mainWindow.on("minimize", (event) => {
       if (appSettings.runInTray && process.platform !== "darwin") {
         event.preventDefault()
@@ -174,36 +160,28 @@ if (!gotTheLock) {
         log.info("Main window hidden to tray on minimize (non-macOS).")
       }
     })
-
     mainWindow.on("closed", () => {
       log.info("Main window instance closed event fired.")
-      mainWindow = null // Important to allow app to quit correctly
+      mainWindow = null
     })
-    // mainWindow.webContents.openDevTools();
   }
 
-  // --- Tray Icon Creation (Improved Path Handling) ---
+  // --- Tray Icon Creation ---
   function createTray() {
     if (tray) {
       log.warn("Tray already exists.")
       return true
     }
     log.info("Creating system tray icon...")
-
-    // Determine base path depending on packaged status
-    // Corrected path logic for assets within packaged app
     const assetsPath = app.isPackaged
-      ? path.join(process.resourcesPath, "app/assets") // Standard location for extra resources
+      ? path.join(process.resourcesPath, "app/assets")
       : path.join(__dirname, "assets")
-
     const iconName =
       process.platform === "win32" ? "icon.ico" : "iconTemplate.png"
     const primaryIconPath = path.join(assetsPath, iconName)
-    const fallbackIconPath = path.join(assetsPath, "icon.png") // Fallback PNG
-
+    const fallbackIconPath = path.join(assetsPath, "icon.png")
     let finalIconPath = null
     let usedFallback = false
-
     log.info(`Attempting to find tray icon at primary: ${primaryIconPath}`)
     if (fs.existsSync(primaryIconPath)) {
       finalIconPath = primaryIconPath
@@ -218,10 +196,9 @@ if (!gotTheLock) {
         log.info(`Using fallback tray icon path: ${finalIconPath}`)
       } else {
         log.error(`Neither primary nor fallback tray icons found.`)
-        return false // Cannot create tray
+        return false
       }
     }
-
     try {
       const image = nativeImage.createFromPath(finalIconPath)
       if (image.isEmpty()) {
@@ -229,8 +206,7 @@ if (!gotTheLock) {
           `Failed to create nativeImage from path: ${finalIconPath}`
         )
       }
-      tray = new Tray(image) // Use nativeImage object
-
+      tray = new Tray(image)
       if (process.platform === "darwin") tray.setIgnoreDoubleClickEvents(true)
       const contextMenu = Menu.buildFromTemplate([
         { label: "Show Visido", click: () => showMainWindow() },
@@ -251,18 +227,16 @@ if (!gotTheLock) {
           usedFallback ? " (using fallback)" : ""
         }.`
       )
-      return true // Success
+      return true
     } catch (err) {
       log.error(
         "Tray icon creation failed (nativeImage or Tray constructor):",
         err
       )
-      tray = null // Ensure tray is null if creation fails
-      return false // Failure
+      tray = null
+      return false
     }
   }
-
-  // --- Remove Tray Icon ---
   function destroyTray() {
     if (tray) {
       tray.destroy()
@@ -270,8 +244,6 @@ if (!gotTheLock) {
       log.info("System tray icon destroyed.")
     }
   }
-
-  // --- Show Main Window ---
   function showMainWindow() {
     if (mainWindow && !mainWindow.isDestroyed()) {
       if (!mainWindow.isVisible()) {
@@ -870,7 +842,6 @@ if (!gotTheLock) {
     } else {
       log.warn("Main window not available to add task from overlay.")
     }
-    if (quickAddWindow && !quickAddWindow.isDestroyed()) quickAddWindow.close()
   })
   ipcMain.on("close-quick-add", () => {
     if (quickAddWindow && !quickAddWindow.isDestroyed()) quickAddWindow.close()
@@ -932,6 +903,22 @@ if (!gotTheLock) {
   ipcMain.on("restart_app", () => {
     log.info("Restarting app to install update...")
     autoUpdater.quitAndInstall()
+  })
+  ipcMain.on("quick-add-toggle-task", (event, taskId) => {
+    log.info(`Received toggle request for task ID ${taskId} from Quick Add`)
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("perform-task-toggle", taskId)
+    } else {
+      log.warn(`Main window not available to toggle task ID ${taskId}`)
+    }
+  })
+  ipcMain.on("quick-add-delete-task", (event, taskId) => {
+    log.info(`Received delete request for task ID ${taskId} from Quick Add`)
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("perform-task-delete", taskId)
+    } else {
+      log.warn(`Main window not available to delete task ID ${taskId}`)
+    }
   })
 
   // --- App Lifecycle ---
