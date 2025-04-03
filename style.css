@@ -203,7 +203,6 @@ select {
 
 .button-small {
     height: calc(var(--input-height) - 8px);
-    /* Make slightly smaller */
     padding: var(--spacing-xs) var(--spacing-sm);
     font-size: 0.8rem;
 }
@@ -437,7 +436,6 @@ body:not(.maximized) .maximize-restore-btn .icon-restore {
     gap: var(--spacing-sm);
 }
 
-/* Wrapper for buttons */
 .column-todos .column-header:not(.completed-header) {
     margin-bottom: var(--spacing-sm);
 }
@@ -597,11 +595,12 @@ body:not(.maximized) .maximize-restore-btn .icon-restore {
     border-top: none;
 }
 
+/* Input Groups */
 .input-group {
     display: grid;
     grid-template-columns: 90px 1fr auto;
     align-items: center;
-    gap: var(--spacing-md);
+    gap: var(--spacing-sm) var(--spacing-md);
     margin-bottom: var(--spacing-lg);
 }
 
@@ -612,13 +611,16 @@ body:not(.maximized) .maximize-restore-btn .icon-restore {
     text-align: right;
     padding-right: var(--spacing-md);
     line-height: 1.2;
+    align-self: center;
 }
 
-.input-group>*:nth-child(2):not(label):not(.button-group):not(.color-picker-widget) {
+/* Default span for controls without suffix */
+.input-group>*:nth-child(2):not(label):not(.button-group):not(.color-picker-widget):not(.stepper-buttons):not(.slider-value) {
     grid-column: 2 / 4;
 }
 
-.input-group>*:nth-child(2):not(label):not(.button-group)+.button-group {
+/* Input followed by button group */
+.input-group>*:nth-child(2):not(label):not(.color-picker-widget):not(.stepper-buttons):not(.slider-value)+.button-group {
     grid-column: 2 / 3;
 }
 
@@ -627,6 +629,53 @@ body:not(.maximized) .maximize-restore-btn .icon-restore {
     justify-self: end;
 }
 
+/* Slider Group Layout */
+.slider-group {
+    /* Label | Slider | Value */
+    /* Adjust grid: Label (90px), Slider (flexible), Value (fixed) */
+    grid-template-columns: 90px 1fr 50px;
+    gap: var(--spacing-sm) var(--spacing-md); /* Keep column gap */
+    align-items: center; /* Vertically center all items in the row */
+}
+
+.slider-group>label {
+    grid-column: 1 / 2;
+    grid-row: 1 / 2; /* Explicitly set row */
+    align-self: center; /* Already centered by group, but good practice */
+}
+
+.slider-group>.slider-input {
+    grid-column: 2 / 3;
+    grid-row: 1 / 2; /* Explicitly set row */
+    align-self: center; /* Already centered */
+    width: 100%; /* Ensure slider takes available space */
+}
+
+.slider-group>.slider-value {
+    grid-column: 3 / 4;
+    grid-row: 1 / 2; /* Explicitly set row */
+    align-self: center; /* Already centered */
+    font-size: 0.8rem;
+    color: hsl(var(--muted-foreground));
+    text-align: right;
+    /* min-width: 40px; */ /* Replaced by fixed column width */
+    padding-left: var(--spacing-xs); /* Add a little space before the number */
+    font-variant-numeric: tabular-nums; /* Keeps numbers aligned */
+}
+
+
+.input-group>.checkbox-hint {
+    grid-column: 2 / 4;
+    grid-row: 2 / 3;
+    padding-left: 0;
+    margin-top: calc(var(--spacing-xs) * -1);
+    font-size: 0.75rem;
+    color: hsl(var(--muted-foreground));
+    line-height: 1.2;
+}
+
+
+/* Improved Input Styles */
 .input,
 .select {
     flex-grow: 1;
@@ -672,6 +721,57 @@ body:not(.maximized) .maximize-restore-btn .icon-restore {
     margin: 0;
 }
 
+/* Slider Styles */
+.slider-input {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: hsl(var(--input));
+    outline: none;
+    opacity: 0.9;
+    transition: opacity .15s ease-in-out;
+    border-radius: 3px;
+    cursor: pointer;
+    border: 1px solid hsl(var(--border));
+    vertical-align: middle; /* Align slider track better */
+}
+
+.slider-input:hover {
+    opacity: 1;
+}
+
+.slider-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: hsl(var(--primary) / 0.8);
+    border-radius: 50%;
+    cursor: pointer;
+    border: 1px solid hsl(var(--primary));
+    transition: background-color 0.15s ease-in-out;
+}
+
+.slider-input:active::-webkit-slider-thumb {
+    background: hsl(var(--primary));
+}
+
+.slider-input::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: hsl(var(--primary) / 0.8);
+    border-radius: 50%;
+    cursor: pointer;
+    border: 1px solid hsl(var(--primary));
+    transition: background-color 0.15s ease-in-out;
+}
+
+.slider-input:active::-moz-range-thumb {
+    background: hsl(var(--primary));
+}
+
+/* Color Picker Group */
 .color-picker-group {
     grid-template-columns: 90px auto 1fr;
     gap: var(--spacing-sm);
@@ -711,6 +811,7 @@ input.invalid {
     border-color: hsl(var(--destructive));
 }
 
+/* Select dropdown */
 .select {
     appearance: none;
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23a1a1aa'%3e%3cpath fill-rule='evenodd' d='M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z' clip-rule='evenodd'/%3e%3c/svg%3e");
@@ -720,6 +821,7 @@ input.invalid {
     padding-right: calc(var(--spacing-sm) * 2 + 1em);
 }
 
+/* Radio Group */
 .radio-group {
     grid-column: 2 / 4;
     display: flex;
@@ -745,14 +847,18 @@ input.invalid {
     height: 14px;
 }
 
-.checkbox-hint {
-    grid-column: 2 / 4;
-    font-size: 0.75rem;
-    color: hsl(var(--muted-foreground));
-    padding-left: 0;
-    margin-top: -10px;
+/* Checkbox Input in regular group */
+.input-group>.checkbox-input {
+    grid-column: 2 / 3;
+    justify-self: start;
+    width: 16px;
+    height: 16px;
+    align-self: center;
+    accent-color: hsl(var(--primary));
+    margin-top: 2px;
 }
 
+/* Filename Display */
 .filename-display {
     font-style: italic;
     color: hsl(var(--muted-foreground));
@@ -771,6 +877,7 @@ input.invalid {
     align-self: center;
 }
 
+/* Button Group */
 .button-group {
     display: flex;
     gap: var(--spacing-sm);
@@ -1359,7 +1466,7 @@ span.key-display.modifier {
     border-color: hsl(var(--primary));
 }
 
-/* --- NEW: App Settings Modal Specific Styles --- */
+/* --- App Settings Modal Specific Styles --- */
 .app-settings-content {
     max-width: 520px;
 }

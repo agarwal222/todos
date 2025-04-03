@@ -1,1016 +1,786 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self';"
-    />
-    <title>Visido</title>
-    <link
-      rel="stylesheet"
-      href="node_modules/@simonwep/pickr/dist/themes/nano.min.css"
-    />
-    <link rel="stylesheet" href="style.css" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-  </head>
-  <body data-platform="">
-    <div class="app-shell">
-      <!-- App Header -->
-      <header class="app-header">
-        <div class="header-left"><h1 class="app-title">Visido</h1></div>
-        <div class="header-right">
-          <button
-            id="apply-wallpaper-btn"
-            class="button button-primary"
-            title="Apply current settings as wallpaper"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              width="16"
-              height="16"
-            >
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self';" />
+  <title>Visido</title>
+  <link rel="stylesheet" href="node_modules/@simonwep/pickr/dist/themes/nano.min.css" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+
+<body data-platform="">
+  <div class="app-shell">
+    <!-- App Header (no changes) -->
+    <header class="app-header">
+      <div class="header-left">
+        <h1 class="app-title">Visido</h1>
+      </div>
+      <div class="header-right"> <button id="apply-wallpaper-btn" class="button button-primary"
+          title="Apply current settings as wallpaper"> <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"
+            fill="currentColor" width="16" height="16">
+            <path
+              d="M8.75 2.75a.75.75 0 0 0-1.5 0v7.14L4.53 7.119a.75.75 0 0 0-1.06 1.06l3.25 3.25a.75.75 0 0 0 1.06 0l3.25-3.25a.75.75 0 1 0-1.06-1.06L8.75 9.889V2.75Z" />
+            <path
+              d="M3.5 12.75a.75.75 0 0 0-1.5 0v.5A2.75 2.75 0 0 0 4.75 16h6.5A2.75 2.75 0 0 0 14 13.25v-.5a.75.75 0 0 0-1.5 0v.5c0 .69-.56 1.25-1.25 1.25h-6.5c-.69 0-1.25-.56-1.25-1.25v-.5Z" />
+          </svg> <span>Apply Wallpaper</span> </button> <button id="open-app-settings-modal-btn"
+          class="button button-secondary button-icon" title="App Settings (Global)"
+          aria-label="Open Application Settings"> <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"
+            fill="currentColor" width="16" height="16">
+            <path fill-rule="evenodd"
+              d="M4.203 3.06a.75.75 0 0 1 .894-.53L6.5 3.018a4.5 4.5 0 0 1 3 0l1.403-.488a.75.75 0 0 1 .894.53l.865 1.988a.75.75 0 0 1-.334.904l-1.364.682a4.53 4.53 0 0 1 0 2.632l1.364.682a.75.75 0 0 1 .334.904l-.865 1.988a.75.75 0 0 1-.894.53L9.5 12.982a4.5 4.5 0 0 1-3 0l-1.403.488a.75.75 0 0 1-.894-.53L3.338 11a.75.75 0 0 1 .334-.904l1.364-.682a4.53 4.53 0 0 1 0-2.632L3.672 6.098a.75.75 0 0 1-.334-.904L4.203 3.06Zm1.188.998L4.78 5.46a6.03 6.03 0 0 0 0 5.08l.611 1.403 1.115-.388a6 6 0 0 0 3.988 0l1.115.388.612-1.402a6.03 6.03 0 0 0 0-5.08l-.612-1.403-1.115.388a6 6 0 0 0-3.988 0L5.39 4.058Z M8 6.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"
+              clip-rule="evenodd" />
+          </svg> </button> <button id="toggle-settings-btn" class="button button-secondary button-icon"
+          title="Toggle Visual Settings Panel (Alt+S)" aria-label="Toggle Visual Settings Panel" aria-expanded="true">
+          <svg id="settings-icon-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"
+            width="16" height="16">
+            <path fill-rule="evenodd"
+              d="M6.94 4.036c.276 0 .524.105.71.291l.355.355A4.001 4.001 0 0 1 10.25 4a.75.75 0 0 1 .75.75V6h.944c.39 0 .74.21.92.533l.247.433a.75.75 0 0 1 0 .798l-.247.433a1.23 1.23 0 0 1-.92.533H11v1.207a4.013 4.013 0 0 1-2.24 3.453l-.355.355a.999.999 0 0 1-.71.291H7.5a1 1 0 0 1-1-1V4.536a.5.5 0 0 1 .44-.499Zm1.06 1.464v7.25h.25a.75.75 0 0 1 .75-.75 2.5 2.5 0 0 0 0-5 .75.75 0 0 1-.75-.75h-.25Z"
+              clip-rule="evenodd" />
+          </svg> <svg id="settings-icon-close" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"
+            fill="currentColor" width="16" height="16" class="hidden">
+            <path
+              d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
+          </svg> </button>
+        <div class="window-controls"> <button id="minimize-btn" class="window-control-btn minimize-btn"
+            aria-label="Minimize" title="Minimize"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 1"
+              fill="currentColor">
+              <rect width="10" height="1" />
+            </svg></button> <button id="maximize-restore-btn" class="window-control-btn maximize-restore-btn"
+            aria-label="Maximize" title="Maximize"> <svg class="icon-maximize" xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="0.75" y="0.75" width="8.5" height="8.5" rx="1" />
+            </svg> <svg class="icon-restore hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" fill="none"
+              stroke="currentColor" stroke-width="1.5">
+              <rect x="2.75" y="0.75" width="6.5" height="6.5" rx="1" />
               <path
-                d="M8.75 2.75a.75.75 0 0 0-1.5 0v7.14L4.53 7.119a.75.75 0 0 0-1.06 1.06l3.25 3.25a.75.75 0 0 0 1.06 0l3.25-3.25a.75.75 0 1 0-1.06-1.06L8.75 9.889V2.75Z"
-              />
+                d="M0.75 2.75C0.75 1.92157 1.42157 1.25 2.25 1.25H6.25 M2.75 9.25V 6.25C2.75 5.42157 3.42157 4.75 4.25 4.75H7.25" />
+            </svg> </button> <button id="close-btn" class="window-control-btn close-btn" aria-label="Close"
+            title="Close"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" fill="currentColor">
               <path
-                d="M3.5 12.75a.75.75 0 0 0-1.5 0v.5A2.75 2.75 0 0 0 4.75 16h6.5A2.75 2.75 0 0 0 14 13.25v-.5a.75.75 0 0 0-1.5 0v.5c0 .69-.56 1.25-1.25 1.25h-6.5c-.69 0-1.25-.56-1.25-1.25v-.5Z"
-              />
-            </svg>
-            <span>Apply Wallpaper</span>
-          </button>
-          <button
-            id="open-app-settings-modal-btn"
-            class="button button-secondary button-icon"
-            title="App Settings (Global)"
-            aria-label="Open Application Settings"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              width="16"
-              height="16"
-            >
-              <path
-                fill-rule="evenodd"
-                d="M4.203 3.06a.75.75 0 0 1 .894-.53L6.5 3.018a4.5 4.5 0 0 1 3 0l1.403-.488a.75.75 0 0 1 .894.53l.865 1.988a.75.75 0 0 1-.334.904l-1.364.682a4.53 4.53 0 0 1 0 2.632l1.364.682a.75.75 0 0 1 .334.904l-.865 1.988a.75.75 0 0 1-.894.53L9.5 12.982a4.5 4.5 0 0 1-3 0l-1.403.488a.75.75 0 0 1-.894-.53L3.338 11a.75.75 0 0 1 .334-.904l1.364-.682a4.53 4.53 0 0 1 0-2.632L3.672 6.098a.75.75 0 0 1-.334-.904L4.203 3.06Zm1.188.998L4.78 5.46a6.03 6.03 0 0 0 0 5.08l.611 1.403 1.115-.388a6 6 0 0 0 3.988 0l1.115.388.612-1.402a6.03 6.03 0 0 0 0-5.08l-.612-1.403-1.115.388a6 6 0 0 0-3.988 0L5.39 4.058Z M8 6.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"
-                clip-rule="evenodd"
-              />
-            </svg>
-          </button>
-          <button
-            id="toggle-settings-btn"
-            class="button button-secondary button-icon"
-            title="Toggle Visual Settings Panel (Alt+S)"
-            aria-label="Toggle Visual Settings Panel"
-            aria-expanded="true"
-          >
-            <svg
-              id="settings-icon-open"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              width="16"
-              height="16"
-            >
-              <path
-                fill-rule="evenodd"
-                d="M6.94 4.036c.276 0 .524.105.71.291l.355.355A4.001 4.001 0 0 1 10.25 4a.75.75 0 0 1 .75.75V6h.944c.39 0 .74.21.92.533l.247.433a.75.75 0 0 1 0 .798l-.247.433a1.23 1.23 0 0 1-.92.533H11v1.207a4.013 4.013 0 0 1-2.24 3.453l-.355.355a.999.999 0 0 1-.71.291H7.5a1 1 0 0 1-1-1V4.536a.5.5 0 0 1 .44-.499Zm1.06 1.464v7.25h.25a.75.75 0 0 1 .75-.75 2.5 2.5 0 0 0 0-5 .75.75 0 0 1-.75-.75h-.25Z"
-                clip-rule="evenodd"
-              />
-            </svg>
-            <svg
-              id="settings-icon-close"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              width="16"
-              height="16"
-              class="hidden"
-            >
-              <path
-                d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
-              />
-            </svg>
-          </button>
-          <div class="window-controls">
-            <button
-              id="minimize-btn"
-              class="window-control-btn minimize-btn"
-              aria-label="Minimize"
-              title="Minimize"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 10 1"
-                fill="currentColor"
-              >
-                <rect width="10" height="1" />
-              </svg>
-            </button>
-            <button
-              id="maximize-restore-btn"
-              class="window-control-btn maximize-restore-btn"
-              aria-label="Maximize"
-              title="Maximize"
-            >
-              <svg
-                class="icon-maximize"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 10 10"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-              >
-                <rect x="0.75" y="0.75" width="8.5" height="8.5" rx="1" />
-              </svg>
-              <svg
-                class="icon-restore hidden"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 10 10"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-              >
-                <rect x="2.75" y="0.75" width="6.5" height="6.5" rx="1" />
+                d="M1.06066 0L0 1.06066L3.93934 5L0 8.93934L1.06066 10L5 6.06066L8.93934 10L10 8.93934L6.06066 5L10 1.06066L8.93934 0L5 3.93934L1.06066 0Z" />
+            </svg></button> </div>
+    </header>
+    <main class="app-main">
+      <aside class="column column-todos">
+        <div class="column-header">
+          <h2 class="column-title">Active Tasks</h2>
+          <div class="column-header-actions"> <button id="clear-active-btn" class="button button-danger button-small"
+              title="Remove all active tasks" style="display: none;">Clear Active</button> <button
+              id="open-add-todo-modal-btn" class="button button-secondary button-icon" title="Add New Task (Ctrl+N)">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
                 <path
-                  d="M0.75 2.75C0.75 1.92157 1.42157 1.25 2.25 1.25H6.25 M2.75 9.25V 6.25C2.75 5.42157 3.42157 4.75 4.25 4.75H7.25"
-                />
+                  d="M8.75 3.75a.75.75 0 0 0-1.5 0v3.5h-3.5a.75.75 0 0 0 0 1.5h3.5v3.5a.75.75 0 0 0 1.5 0v-3.5h3.5a.75.75 0 0 0 0-1.5h-3.5v-3.5Z" />
+              </svg> </button> </div>
+        </div>
+        <div class="todo-list-container scrollable-content">
+          <ul id="todo-list"></ul>
+        </div>
+        <div class="column-header completed-header hidden">
+          <h2 class="column-title completed-title">Completed</h2> <button id="clear-completed-btn"
+            class="button button-danger button-small" title="Remove all completed tasks">Clear Completed</button>
+        </div>
+        <div class="todo-list-container completed-list-container scrollable-content hidden">
+          <ul id="completed-todo-list"></ul>
+        </div>
+      </aside>
+      <section class="column column-preview">
+        <div class="preview-area-container" id="preview-container">
+          <div id="preview-loader" class="preview-loader">Loading Preview...</div> <img id="preview-area"
+            alt="Wallpaper Preview" src="" /> <canvas id="image-canvas" width="1920" height="1080"
+            class="hidden"></canvas>
+        </div>
+      </section>
+      <aside class="column column-settings" id="settings-column" data-collapsed="false">
+        <div class="column-header">
+          <h2 class="column-title">Visual Settings</h2>
+        </div>
+        <div class="scrollable-content">
+          <div class="setting-section" data-section-id="text-layout">
+            <button class="setting-section-toggle" aria-expanded="true" aria-controls="section-content-text-layout">
+              <h3>Text & Layout</h3> <svg class="toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"
+                fill="currentColor" width="16" height="16">
+                <path fill-rule="evenodd"
+                  d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
+                  clip-rule="evenodd" />
               </svg>
             </button>
-            <button
-              id="close-btn"
-              class="window-control-btn close-btn"
-              aria-label="Close"
-              title="Close"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 10 10"
-                fill="currentColor"
-              >
-                <path
-                  d="M1.06066 0L0 1.06066L3.93934 5L0 8.93934L1.06066 10L5 6.06066L8.93934 10L10 8.93934L6.06066 5L10 1.06066L8.93934 0L5 3.93934L1.06066 0Z"
-                />
+            <div class="setting-section-content" id="section-content-text-layout">
+              <h4 class="sub-setting-header">Appearance</h4>
+              <div class="sub-setting-group">
+                <div class="input-group"><label for="wallpaper-title-input">Title</label><input type="text"
+                    id="wallpaper-title-input" class="input" value="My Tasks" /></div>
+                <div class="input-group color-picker-group"><label for="text-color-hex">Text Color</label>
+                  <div class="color-picker-widget" id="text-color-picker"></div><input type="text" id="text-color-hex"
+                    class="input input-hex" aria-label="Text color hex code" />
+                </div>
+                <div class="input-group"><label for="font-size">Font Size</label><input type="number" id="font-size"
+                    class="input input-number" value="48" min="10" max="200" step="1" title="Font size in pixels" />
+                </div>
+                <div class="input-group"><label for="font-weight-select">Font Weight</label><select
+                    id="font-weight-select" class="select">
+                    <option value="300">Light</option>
+                    <option value="400">Regular</option>
+                    <option value="500">Medium</option>
+                    <option value="600">Semi-Bold</option>
+                    <option value="700">Bold</option>
+                  </select></div>
+                <div class="input-group"><label for="list-style-select">List Style</label><select id="list-style-select"
+                    class="select">
+                    <option value="bullet">Bullet (•)</option>
+                    <option value="dash">Dash (-)</option>
+                    <option value="number">Number (1.)</option>
+                  </select></div>
+                <!-- *** Overall Opacity Slider *** -->
+                <div class="input-group slider-group">
+                  <label for="overall-opacity">Overall Opacity</label>
+                  <input type="range" id="overall-opacity" class="slider-input" value="1.0" min="0" max="1" step="0.05"
+                    title="Overall opacity for text and background panel" />
+                  <span class="slider-value" id="overall-opacity-value">1.00</span>
+                  <span class="checkbox-hint">Affects text & panel if enabled.</span>
+                </div>
+              </div>
+              <h4 class="sub-setting-header">Positioning</h4>
+              <div class="sub-setting-group">
+                <div class="input-group"><label for="text-position">Position</label><select id="text-position"
+                    class="select">
+                    <option value="top-left">Top Left</option>
+                    <option value="top-center">Top Center</option>
+                    <option value="top-right">Top Right</option>
+                    <option value="center-left">Center Left</option>
+                    <option value="center">Center</option>
+                    <option value="bottom-left">Bottom Left</option>
+                    <option value="bottom-center">Bottom Center</option>
+                    <option value="bottom-right">Bottom Right</option>
+                  </select></div>
+                <div class="input-group"><label for="text-align-select">Alignment</label><select id="text-align-select"
+                    class="select">
+                    <option value="left">Left</option>
+                    <option value="center">Center</option>
+                    <option value="right">Right</option>
+                  </select></div>
+                <div class="input-group"><label for="offset-x">Offset X</label><input type="number" id="offset-x"
+                    class="input input-number" value="0" step="5" title="Horizontal offset in pixels" /></div>
+                <div class="input-group"><label for="offset-y">Offset Y</label><input type="number" id="offset-y"
+                    class="input input-number" value="0" step="5" title="Vertical offset in pixels" /></div>
+              </div>
+              <h4 class="sub-setting-header">Spacing & Columns</h4>
+              <div class="sub-setting-group">
+                <div class="input-group"><label for="title-spacing-input"
+                    title="Space between title and first item">Title Spacing</label><input type="number"
+                    id="title-spacing-input" class="input input-number" value="40" min="0" max="200" step="5" /></div>
+                <div class="input-group"><label for="item-spacing-input" title="Vertical space between list items">Item
+                    Spacing</label><input type="number" id="item-spacing-input" class="input input-number" value="20"
+                    min="0" max="100" step="2" /></div>
+                <div class="input-group"><label for="max-items-input" title="Max items before starting a new column">Max
+                    Items/Col</label><input type="number" id="max-items-input" class="input input-number" value="10"
+                    min="1" max="50" step="1" /></div>
+                <div class="input-group"><label for="column-gap-input" title="Horizontal space between columns">Column
+                    Gap</label><input type="number" id="column-gap-input" class="input input-number" value="50" min="0"
+                    max="500" step="10" /></div>
+              </div>
+            </div>
+          </div>
+          <div class="setting-section" data-section-id="text-background">
+            <button class="setting-section-toggle" aria-expanded="true" aria-controls="section-content-text-background">
+              <h3>Text Background</h3> <svg class="toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"
+                fill="currentColor" width="16" height="16">
+                <path fill-rule="evenodd"
+                  d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
+                  clip-rule="evenodd" />
               </svg>
             </button>
-          </div>
-        </div>
-      </header>
-      <main class="app-main">
-        <aside class="column column-todos">
-          <div class="column-header">
-            <h2 class="column-title">Active Tasks</h2>
-            <div class="column-header-actions">
-              <!-- *** ADDED THIS BUTTON *** -->
-              <button
-                id="clear-active-btn"
-                class="button button-danger button-small"
-                title="Remove all active tasks"
-                style="display: none"
-              >
-                Clear Active
-              </button>
-              <button
-                id="open-add-todo-modal-btn"
-                class="button button-secondary button-icon"
-                title="Add New Task (Ctrl+N)"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  width="16"
-                  height="16"
-                >
-                  <path
-                    d="M8.75 3.75a.75.75 0 0 0-1.5 0v3.5h-3.5a.75.75 0 0 0 0 1.5h3.5v3.5a.75.75 0 0 0 1.5 0v-3.5h3.5a.75.75 0 0 0 0-1.5h-3.5v-3.5Z"
-                  />
-                </svg>
-              </button>
+            <div class="setting-section-content" id="section-content-text-background">
+              <div class="input-group"><label for="text-background-enable">Enable</label><input type="checkbox"
+                  id="text-background-enable" class="checkbox-input" /><span class="checkbox-hint">Draw a panel behind
+                  the text.</span></div>
+              <div id="text-background-controls" class="hidden">
+                <div class="input-group color-picker-group"><label for="text-bg-color-hex">Panel Color</label>
+                  <div class="color-picker-widget" id="text-bg-color-picker"></div><input type="text"
+                    id="text-bg-color-hex" class="input input-hex" aria-label="Text background color hex code" />
+                </div>
+                <!-- *** Panel Opacity Slider *** -->
+                <div class="input-group slider-group">
+                  <label for="text-panel-opacity">Panel Opacity</label>
+                  <input type="range" id="text-panel-opacity" class="slider-input" value="0.5" min="0" max="1"
+                    step="0.05" title="Opacity of the panel itself" />
+                  <span class="slider-value" id="text-panel-opacity-value">0.50</span>
+                </div>
+                <div class="input-group padding-group"><label>Padding</label><input type="number"
+                    id="text-bg-padding-inline" class="input input-number" value="15" min="0" max="100" step="5"
+                    title="Inline (Left/Right) Padding" /><input type="number" id="text-bg-padding-block"
+                    class="input input-number" value="15" min="0" max="100" step="5"
+                    title="Block (Top/Bottom) Padding" /></div>
+                <!-- *** Border Radius Slider *** -->
+                <div class="input-group slider-group">
+                  <label for="text-bg-border-radius">Radius</label>
+                  <input type="range" id="text-bg-border-radius" class="slider-input" value="5" min="0" max="50"
+                    step="1" title="Corner roundness" />
+                  <span class="slider-value" id="text-bg-border-radius-value">5</span>
+                </div>
+                <div class="input-group color-picker-group"><label for="text-border-color-hex">Border</label>
+                  <div class="color-picker-widget" id="text-border-color-picker"></div><input type="text"
+                    id="text-border-color-hex" class="input input-hex"
+                    aria-label="Text background border color hex code" />
+                </div>
+                <div class="input-group"><label for="text-bg-border-width">Border Width</label><input type="number"
+                    id="text-bg-border-width" class="input input-number" value="0" min="0" max="20" step="1" /></div>
+              </div>
             </div>
           </div>
-          <div class="todo-list-container scrollable-content">
-            <ul id="todo-list"></ul>
-          </div>
-
-          <div class="column-header completed-header hidden">
-            <h2 class="column-title completed-title">Completed</h2>
-            <button
-              id="clear-completed-btn"
-              class="button button-danger button-small"
-              title="Remove all completed tasks"
-            >
-              Clear Completed
+          <div class="setting-section" data-section-id="font"> <button class="setting-section-toggle"
+              aria-expanded="true" aria-controls="section-content-font">
+              <h3>Font</h3> <svg class="toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"
+                fill="currentColor" width="16" height="16">
+                <path fill-rule="evenodd"
+                  d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
+                  clip-rule="evenodd" />
+              </svg>
             </button>
-          </div>
-          <div
-            class="todo-list-container completed-list-container scrollable-content hidden"
-          >
-            <ul id="completed-todo-list"></ul>
-          </div>
-        </aside>
-        <section class="column column-preview">
-          <div class="preview-area-container" id="preview-container">
-            <div id="preview-loader" class="preview-loader">
-              Loading Preview...
-            </div>
-            <img id="preview-area" alt="Wallpaper Preview" src="" />
-            <canvas
-              id="image-canvas"
-              width="1920"
-              height="1080"
-              class="hidden"
-            ></canvas>
-          </div>
-        </section>
-        <aside
-          class="column column-settings"
-          id="settings-column"
-          data-collapsed="false"
-        >
-          <div class="column-header">
-            <h2 class="column-title">Visual Settings</h2>
-          </div>
-          <div class="scrollable-content">
-            <div class="setting-section" data-section-id="text-layout">
-              <button
-                class="setting-section-toggle"
-                aria-expanded="true"
-                aria-controls="section-content-text-layout"
-              >
-                <h3>Text & Layout</h3>
-                <svg
-                  class="toggle-icon"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  width="16"
-                  height="16"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-              </button>
-              <div
-                class="setting-section-content"
-                id="section-content-text-layout"
-              >
-                <h4 class="sub-setting-header">Appearance</h4>
-                <div class="sub-setting-group">
-                  <div class="input-group">
-                    <label for="wallpaper-title-input">Title</label
-                    ><input
-                      type="text"
-                      id="wallpaper-title-input"
-                      class="input"
-                      value="My Tasks"
-                    />
-                  </div>
-                  <div class="input-group color-picker-group">
-                    <label for="text-color-hex">Text Color</label>
-                    <div
-                      class="color-picker-widget"
-                      id="text-color-picker"
-                    ></div>
-                    <input
-                      type="text"
-                      id="text-color-hex"
-                      class="input input-hex"
-                      aria-label="Text color hex code"
-                    />
-                  </div>
-                  <div class="input-group">
-                    <label for="font-size">Font Size</label
-                    ><input
-                      type="number"
-                      id="font-size"
-                      class="input input-number"
-                      value="48"
-                      min="10"
-                      max="200"
-                      title="Font size in pixels"
-                    />
-                  </div>
-                  <div class="input-group">
-                    <label for="font-weight-select">Font Weight</label
-                    ><select id="font-weight-select" class="select">
-                      <option value="300">Light</option>
-                      <option value="400">Regular</option>
-                      <option value="500">Medium</option>
-                      <option value="600">Semi-Bold</option>
-                      <option value="700">Bold</option>
-                    </select>
-                  </div>
-                  <div class="input-group">
-                    <label for="list-style-select">List Style</label
-                    ><select id="list-style-select" class="select">
-                      <option value="bullet">Bullet (•)</option>
-                      <option value="dash">Dash (-)</option>
-                      <option value="number">Number (1.)</option>
-                    </select>
-                  </div>
-                  <div class="input-group">
-                    <label for="overall-opacity">Overall Opacity</label
-                    ><input
-                      type="number"
-                      id="overall-opacity"
-                      class="input input-number"
-                      value="1.0"
-                      min="0"
-                      max="1"
-                      step="0.05"
-                      title="Overall opacity for text and background panel"
-                    /><span class="checkbox-hint"
-                      >Affects text & panel if enabled.</span
-                    >
-                  </div>
-                </div>
-                <h4 class="sub-setting-header">Positioning</h4>
-                <div class="sub-setting-group">
-                  <div class="input-group">
-                    <label for="text-position">Position</label
-                    ><select id="text-position" class="select">
-                      <option value="top-left">Top Left</option>
-                      <option value="top-center">Top Center</option>
-                      <option value="top-right">Top Right</option>
-                      <option value="center-left">Center Left</option>
-                      <option value="center">Center</option>
-                      <option value="bottom-left">Bottom Left</option>
-                      <option value="bottom-center">Bottom Center</option>
-                      <option value="bottom-right">Bottom Right</option>
-                    </select>
-                  </div>
-                  <div class="input-group">
-                    <label for="text-align-select">Alignment</label
-                    ><select id="text-align-select" class="select">
-                      <option value="left">Left</option>
-                      <option value="center">Center</option>
-                      <option value="right">Right</option>
-                    </select>
-                  </div>
-                  <div class="input-group">
-                    <label for="offset-x">Offset X</label
-                    ><input
-                      type="number"
-                      id="offset-x"
-                      class="input input-number"
-                      value="0"
-                      step="5"
-                      title="Horizontal offset in pixels"
-                    />
-                  </div>
-                  <div class="input-group">
-                    <label for="offset-y">Offset Y</label
-                    ><input
-                      type="number"
-                      id="offset-y"
-                      class="input input-number"
-                      value="0"
-                      step="5"
-                      title="Vertical offset in pixels"
-                    />
-                  </div>
-                </div>
-                <h4 class="sub-setting-header">Spacing & Columns</h4>
-                <div class="sub-setting-group">
-                  <div class="input-group">
-                    <label
-                      for="title-spacing-input"
-                      title="Space between title and first item"
-                      >Title Spacing</label
-                    ><input
-                      type="number"
-                      id="title-spacing-input"
-                      class="input input-number"
-                      value="40"
-                      min="0"
-                      max="200"
-                      step="5"
-                    />
-                  </div>
-                  <div class="input-group">
-                    <label
-                      for="item-spacing-input"
-                      title="Vertical space between list items"
-                      >Item Spacing</label
-                    ><input
-                      type="number"
-                      id="item-spacing-input"
-                      class="input input-number"
-                      value="20"
-                      min="0"
-                      max="100"
-                      step="2"
-                    />
-                  </div>
-                  <div class="input-group">
-                    <label
-                      for="max-items-input"
-                      title="Max items before starting a new column"
-                      >Max Items/Col</label
-                    ><input
-                      type="number"
-                      id="max-items-input"
-                      class="input input-number"
-                      value="10"
-                      min="1"
-                      max="50"
-                      step="1"
-                    />
-                  </div>
-                  <div class="input-group">
-                    <label
-                      for="column-gap-input"
-                      title="Horizontal space between columns"
-                      >Column Gap</label
-                    ><input
-                      type="number"
-                      id="column-gap-input"
-                      class="input input-number"
-                      value="50"
-                      min="0"
-                      max="500"
-                      step="10"
-                    />
-                  </div>
-                </div>
+            <div class="setting-section-content" id="section-content-font">
+              <div class="input-group"><label>Source</label>
+                <div class="radio-group"><label><input type="radio" name="font-source" value="default"
+                      id="font-source-default" checked /> Default</label><label><input type="radio" name="font-source"
+                      value="system" id="font-source-system" /> System</label><label><input type="radio"
+                      name="font-source" value="google" id="font-source-google" /> Google</label></div>
               </div>
-            </div>
-            <div class="setting-section" data-section-id="text-background">
-              <button
-                class="setting-section-toggle"
-                aria-expanded="true"
-                aria-controls="section-content-text-background"
-              >
-                <h3>Text Background</h3>
-                <svg
-                  class="toggle-icon"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  width="16"
-                  height="16"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-              </button>
-              <div
-                class="setting-section-content"
-                id="section-content-text-background"
-              >
-                <div class="input-group">
-                  <label for="text-background-enable">Enable</label
-                  ><input
-                    type="checkbox"
-                    id="text-background-enable"
-                    class="checkbox-input"
-                  /><span class="checkbox-hint"
-                    >Draw a panel behind the text.</span
-                  >
-                </div>
-                <div id="text-background-controls" class="hidden">
-                  <div class="input-group color-picker-group">
-                    <label for="text-bg-color-hex">Panel Color</label>
-                    <div
-                      class="color-picker-widget"
-                      id="text-bg-color-picker"
-                    ></div>
-                    <input
-                      type="text"
-                      id="text-bg-color-hex"
-                      class="input input-hex"
-                      aria-label="Text background color hex code"
-                    />
-                  </div>
-                  <div class="input-group">
-                    <label for="text-panel-opacity">Panel Opacity</label
-                    ><input
-                      type="number"
-                      id="text-panel-opacity"
-                      class="input input-number"
-                      value="0.5"
-                      min="0"
-                      max="1"
-                      step="0.05"
-                      title="Opacity of the panel itself"
-                    />
-                  </div>
-                  <div class="input-group padding-group">
-                    <label>Padding</label
-                    ><input
-                      type="number"
-                      id="text-bg-padding-inline"
-                      class="input input-number"
-                      value="15"
-                      min="0"
-                      max="100"
-                      step="5"
-                      title="Inline (Left/Right) Padding"
-                    /><input
-                      type="number"
-                      id="text-bg-padding-block"
-                      class="input input-number"
-                      value="15"
-                      min="0"
-                      max="100"
-                      step="5"
-                      title="Block (Top/Bottom) Padding"
-                    />
-                  </div>
-                  <div class="input-group">
-                    <label for="text-bg-border-radius">Radius</label
-                    ><input
-                      type="number"
-                      id="text-bg-border-radius"
-                      class="input input-number"
-                      value="5"
-                      min="0"
-                      max="50"
-                      step="1"
-                      title="Corner roundness"
-                    />
-                  </div>
-                  <div class="input-group color-picker-group">
-                    <label for="text-border-color-hex">Border</label>
-                    <div
-                      class="color-picker-widget"
-                      id="text-border-color-picker"
-                    ></div>
-                    <input
-                      type="text"
-                      id="text-border-color-hex"
-                      class="input input-hex"
-                      aria-label="Text background border color hex code"
-                    />
-                  </div>
-                  <div class="input-group">
-                    <label for="text-bg-border-width">Border Width</label
-                    ><input
-                      type="number"
-                      id="text-bg-border-width"
-                      class="input input-number"
-                      value="0"
-                      min="0"
-                      max="20"
-                      step="1"
-                    />
-                  </div>
-                </div>
+              <div id="system-font-controls" class="input-group hidden"><label for="system-font-select">System
+                  Font</label><select id="system-font-select" class="select">
+                  <option value="" disabled selected>Loading fonts...</option>
+                </select></div>
+              <div id="google-font-controls" class="hidden">
+                <div class="input-group"><label for="google-font-name">Font Name</label><input type="text"
+                    id="google-font-name" class="input" placeholder="e.g., Roboto, Open Sans" /></div>
+                <div class="input-group"><label></label><button id="load-font-btn" class="button button-secondary">Load
+                    Font</button></div>
               </div>
-            </div>
-            <div class="setting-section" data-section-id="font">
-              <button
-                class="setting-section-toggle"
-                aria-expanded="true"
-                aria-controls="section-content-font"
-              >
-                <h3>Font</h3>
-                <svg
-                  class="toggle-icon"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  width="16"
-                  height="16"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-              </button>
-              <div class="setting-section-content" id="section-content-font">
-                <div class="input-group">
-                  <label>Source</label>
-                  <div class="radio-group">
-                    <label
-                      ><input
-                        type="radio"
-                        name="font-source"
-                        value="default"
-                        id="font-source-default"
-                        checked
-                      />
-                      Default</label
-                    ><label
-                      ><input
-                        type="radio"
-                        name="font-source"
-                        value="system"
-                        id="font-source-system"
-                      />
-                      System</label
-                    ><label
-                      ><input
-                        type="radio"
-                        name="font-source"
-                        value="google"
-                        id="font-source-google"
-                      />
-                      Google</label
-                    >
-                  </div>
-                </div>
-                <div id="system-font-controls" class="input-group hidden">
-                  <label for="system-font-select">System Font</label
-                  ><select id="system-font-select" class="select">
-                    <option value="" disabled selected>Loading fonts...</option>
-                  </select>
-                </div>
-                <div id="google-font-controls" class="hidden">
-                  <div class="input-group">
-                    <label for="google-font-name">Font Name</label
-                    ><input
-                      type="text"
-                      id="google-font-name"
-                      class="input"
-                      placeholder="e.g., Roboto, Open Sans"
-                    />
-                  </div>
-                  <div class="input-group">
-                    <label></label
-                    ><button id="load-font-btn" class="button button-secondary">
-                      Load Font
-                    </button>
-                  </div>
-                </div>
-                <div class="input-group">
-                  <label>Status</label
-                  ><span id="font-status" class="font-status-display"
-                    >Default: Inter</span
-                  >
-                </div>
-              </div>
-            </div>
-            <div class="setting-section" data-section-id="background">
-              <button
-                class="setting-section-toggle"
-                aria-expanded="true"
-                aria-controls="section-content-background"
-              >
-                <h3>Wallpaper Background</h3>
-                <svg
-                  class="toggle-icon"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  width="16"
-                  height="16"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-              </button>
-              <div
-                class="setting-section-content"
-                id="section-content-background"
-              >
-                <div class="input-group">
-                  <label>Type</label>
-                  <div class="radio-group">
-                    <label
-                      ><input
-                        type="radio"
-                        name="bg-type"
-                        value="color"
-                        id="bg-type-color"
-                        checked
-                      />
-                      Color</label
-                    ><label
-                      ><input
-                        type="radio"
-                        name="bg-type"
-                        value="image"
-                        id="bg-type-image"
-                      />
-                      Image</label
-                    >
-                  </div>
-                </div>
-                <div
-                  id="bg-color-controls"
-                  class="input-group color-picker-group"
-                >
-                  <label for="bg-color-hex">Color</label>
-                  <div class="color-picker-widget" id="bg-color-picker"></div>
-                  <input
-                    type="text"
-                    id="bg-color-hex"
-                    class="input input-hex"
-                    aria-label="Background color hex code"
-                  />
-                </div>
-                <div id="bg-image-controls" class="input-group hidden">
-                  <label>Image</label
-                  ><span id="image-filename" class="filename-display"
-                    >No file chosen</span
-                  >
-                  <div class="button-group">
-                    <button
-                      id="choose-image-btn"
-                      class="button button-secondary"
-                    >
-                      Choose...
-                    </button>
-                    <button
-                      id="clear-image-btn"
-                      class="button button-danger button-icon"
-                      title="Clear selected image"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 16 16"
-                        fill="currentColor"
-                        width="16"
-                        height="16"
-                      >
-                        <path
-                          d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                  <input
-                    type="file"
-                    id="image-file-input"
-                    accept="image/png, image/jpeg, image/webp"
-                    class="hidden"
-                  />
-                </div>
-              </div>
+              <div class="input-group"><label>Status</label><span id="font-status" class="font-status-display">Default:
+                  Inter</span></div>
             </div>
           </div>
-        </aside>
-      </main>
-
-      <div id="update-notification-area" class="update-notification hidden">
-        <span id="update-message">Update message goes here</span>
-        <button
-          id="restart-button"
-          class="button button-primary button-small"
-          style="display: none"
-        >
-          Restart & Install
-        </button>
-      </div>
-
-      <!-- Modals -->
-      <div id="add-todo-modal" class="modal-overlay hidden">
-        <div class="modal-content">
-          <button
-            id="modal-close-btn"
-            class="modal-close-button button button-ghost button-icon"
-            title="Close (Esc)"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              width="16"
-              height="16"
-            >
-              <path
-                d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
-              />
-            </svg>
-          </button>
-          <h2>Add New Task</h2>
-          <form id="add-todo-form">
-            <div class="input-group modal-input-group">
-              <label for="modal-todo-input" class="sr-only">Task</label
-              ><input
-                type="text"
-                id="modal-todo-input"
-                class="input"
-                placeholder="Enter task..."
-                required
-              />
-            </div>
-            <div class="modal-actions">
-              <button
-                type="button"
-                id="modal-cancel-btn"
-                class="button button-secondary"
-              >
-                Cancel</button
-              ><button type="submit" class="button button-primary">
-                Add Task
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-      <div id="edit-todo-modal" class="modal-overlay hidden">
-        <div class="modal-content">
-          <button
-            id="edit-modal-close-btn"
-            class="modal-close-button button button-ghost button-icon"
-            title="Close (Esc)"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              width="16"
-              height="16"
-            >
-              <path
-                d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
-              />
-            </svg>
-          </button>
-          <h2>Edit Task</h2>
-          <form id="edit-todo-form">
-            <div class="input-group modal-input-group">
-              <label for="modal-edit-input" class="sr-only">Task</label
-              ><input
-                type="text"
-                id="modal-edit-input"
-                class="input"
-                placeholder="Enter task..."
-                required
-              />
-            </div>
-            <input type="hidden" id="edit-todo-id" />
-            <div class="modal-actions">
-              <button
-                type="button"
-                id="edit-modal-cancel-btn"
-                class="button button-secondary"
-              >
-                Cancel</button
-              ><button type="submit" class="button button-primary">
-                Save Changes
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-      <div id="record-shortcut-modal" class="modal-overlay hidden">
-        <div class="modal-content record-shortcut-content">
-          <button
-            id="record-modal-close-btn"
-            class="modal-close-button button button-ghost button-icon"
-            title="Cancel (Esc)"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              width="16"
-              height="16"
-            >
-              <path
-                d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
-              />
-            </svg>
-          </button>
-          <h2>Record Shortcut</h2>
-          <p class="record-instructions">Press the desired key combination.</p>
-          <div
-            id="shortcut-display-area"
-            class="shortcut-display-area"
-            aria-live="polite"
-          >
-            <span>Press keys...</span>
-          </div>
-          <div class="modal-actions">
-            <button
-              type="button"
-              id="record-cancel-btn"
-              class="button button-secondary"
-            >
-              Cancel</button
-            ><button
-              type="button"
-              id="record-save-btn"
-              class="button button-primary"
-              disabled
-            >
-              Save
+          <div class="setting-section" data-section-id="background"> <button class="setting-section-toggle"
+              aria-expanded="true" aria-controls="section-content-background">
+              <h3>Wallpaper Background</h3> <svg class="toggle-icon" xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
+                <path fill-rule="evenodd"
+                  d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
+                  clip-rule="evenodd" />
+              </svg>
             </button>
+            <div class="setting-section-content" id="section-content-background">
+              <div class="input-group"><label>Type</label>
+                <div class="radio-group"><label><input type="radio" name="bg-type" value="color" id="bg-type-color"
+                      checked /> Color</label><label><input type="radio" name="bg-type" value="image"
+                      id="bg-type-image" /> Image</label></div>
+              </div>
+              <div id="bg-color-controls" class="input-group color-picker-group"><label for="bg-color-hex">Color</label>
+                <div class="color-picker-widget" id="bg-color-picker"></div><input type="text" id="bg-color-hex"
+                  class="input input-hex" aria-label="Background color hex code" />
+              </div>
+              <div id="bg-image-controls" class="input-group hidden"> <label>Image</label><span id="image-filename"
+                  class="filename-display">No file chosen</span>
+                <div class="button-group"> <button id="choose-image-btn"
+                    class="button button-secondary">Choose...</button> <button id="clear-image-btn"
+                    class="button button-danger button-icon" title="Clear selected image"><svg
+                      xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
+                      <path
+                        d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
+                    </svg></button> </div> <input type="file" id="image-file-input"
+                  accept="image/png, image/jpeg, image/webp" class="hidden" />
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-      <div id="app-settings-modal" class="modal-overlay hidden">
-        <div class="modal-content app-settings-content">
-          <button
-            id="app-settings-modal-close-btn"
-            class="modal-close-button button button-ghost button-icon"
-            title="Close (Esc)"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              width="16"
-              height="16"
-            >
-              <path
-                d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
-              />
-            </svg>
-          </button>
-          <h2>App Settings</h2>
-          <form id="app-settings-form">
-            <div class="input-group modal-input-group">
-              <label for="modal-run-in-tray-checkbox">Run in Tray</label>
-              <input
-                type="checkbox"
-                id="modal-run-in-tray-checkbox"
-                class="checkbox-input"
-              />
-              <span class="checkbox-hint"
-                >Keep app running in tray on close, enable Quick Add.</span
-              >
-            </div>
-            <div
-              class="input-group modal-input-group shortcut-display-group hidden"
-              id="modal-shortcut-group"
-            >
-              <label>Quick Add Key</label>
-              <span
-                id="modal-current-shortcut-display"
-                class="shortcut-display"
-              ></span>
-              <button
-                type="button"
-                id="modal-change-shortcut-btn"
-                class="button button-secondary"
-              >
-                Change
-              </button>
-            </div>
-            <div
-              class="input-group modal-input-group hidden"
-              id="modal-quick-add-translucent-group"
-            >
-              <label for="modal-quick-add-translucent-checkbox"
-                >Translucent Quick Add</label
-              >
-              <input
-                type="checkbox"
-                id="modal-quick-add-translucent-checkbox"
-                class="checkbox-input"
-              />
-              <span class="checkbox-hint"
-                >Use background blur/transparency for Quick Add UI.</span
-              >
-            </div>
-            <div class="input-group modal-input-group">
-              <label for="modal-auto-apply-checkbox"
-                >Auto-Apply Wallpaper</label
-              >
-              <input
-                type="checkbox"
-                id="modal-auto-apply-checkbox"
-                class="checkbox-input"
-              />
-              <span class="checkbox-hint"
-                >Automatically update wallpaper after changes (tasks, visual
-                settings).</span
-              >
-            </div>
-            <div class="modal-actions">
-              <button
-                type="button"
-                id="app-settings-modal-done-btn"
-                class="button button-primary"
-              >
-                Done
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+      </aside>
+    </main>
 
-      <div id="toast-container" class="toast-container"></div>
+    <!-- Modals (keep existing structures) -->
+    <div id="update-notification-area" class="update-notification hidden"> <span id="update-message">Update message goes
+        here</span> <button id="restart-button" class="button button-primary button-small"
+        style="display: none;">Restart & Install</button> </div>
+    <div id="add-todo-modal" class="modal-overlay hidden">
+      <div class="modal-content"> <button id="modal-close-btn"
+          class="modal-close-button button button-ghost button-icon" title="Close (Esc)"><svg
+            xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
+            <path
+              d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
+          </svg></button>
+        <h2>Add New Task</h2>
+        <form id="add-todo-form">
+          <div class="input-group modal-input-group"><label for="modal-todo-input" class="sr-only">Task</label><input
+              type="text" id="modal-todo-input" class="input" placeholder="Enter task..." required /></div>
+          <div class="modal-actions"><button type="button" id="modal-cancel-btn"
+              class="button button-secondary">Cancel</button><button type="submit" class="button button-primary">Add
+              Task</button></div>
+        </form>
+      </div>
     </div>
-    <script src="node_modules/@simonwep/pickr/dist/pickr.min.js"></script>
-    <!-- ES Module Scripts -->
-    <script type="module" src="./state.js"></script>
-    <script type="module" src="./utils.js"></script>
-    <script type="module" src="./renderer.js"></script>
-  </body>
+    <div id="edit-todo-modal" class="modal-overlay hidden">
+      <div class="modal-content"> <button id="edit-modal-close-btn"
+          class="modal-close-button button button-ghost button-icon" title="Close (Esc)"><svg
+            xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
+            <path
+              d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
+          </svg></button>
+        <h2>Edit Task</h2>
+        <form id="edit-todo-form">
+          <div class="input-group modal-input-group"><label for="modal-edit-input" class="sr-only">Task</label><input
+              type="text" id="modal-edit-input" class="input" placeholder="Enter task..." required /></div> <input
+            type="hidden" id="edit-todo-id" />
+          <div class="modal-actions"><button type="button" id="edit-modal-cancel-btn"
+              class="button button-secondary">Cancel</button><button type="submit" class="button button-primary">Save
+              Changes</button></div>
+        </form>
+      </div>
+    </div>
+    <div id="record-shortcut-modal" class="modal-overlay hidden">
+      <div class="modal-content record-shortcut-content"> <button id="record-modal-close-btn"
+          class="modal-close-button button button-ghost button-icon" title="Cancel (Esc)"><svg
+            xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
+            <path
+              d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
+          </svg></button>
+        <h2>Record Shortcut</h2>
+        <p class="record-instructions">Press the desired key combination.</p>
+        <div id="shortcut-display-area" class="shortcut-display-area" aria-live="polite"><span>Press keys...</span>
+        </div>
+        <div class="modal-actions"><button type="button" id="record-cancel-btn"
+            class="button button-secondary">Cancel</button><button type="button" id="record-save-btn"
+            class="button button-primary" disabled>Save</button></div>
+      </div>
+    </div>
+    <div id="app-settings-modal" class="modal-overlay hidden">
+      <div class="modal-content app-settings-content"> <button id="app-settings-modal-close-btn"
+          class="modal-close-button button button-ghost button-icon" title="Close (Esc)"> <svg
+            xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
+            <path
+              d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
+          </svg> </button>
+        <h2>App Settings</h2>
+        <form id="app-settings-form">
+          <div class="input-group modal-input-group"> <label for="modal-run-in-tray-checkbox">Run in Tray</label> <input
+              type="checkbox" id="modal-run-in-tray-checkbox" class="checkbox-input" /> <span class="checkbox-hint">Keep
+              app running in tray on close, enable Quick Add.</span> </div>
+          <div class="input-group modal-input-group shortcut-display-group hidden" id="modal-shortcut-group">
+            <label>Quick Add Key</label> <span id="modal-current-shortcut-display" class="shortcut-display"></span>
+            <button type="button" id="modal-change-shortcut-btn" class="button button-secondary">Change</button> </div>
+          <div class="input-group modal-input-group hidden" id="modal-quick-add-translucent-group"> <label
+              for="modal-quick-add-translucent-checkbox">Translucent Quick Add</label> <input type="checkbox"
+              id="modal-quick-add-translucent-checkbox" class="checkbox-input" /> <span class="checkbox-hint">Use
+              background blur/transparency for Quick Add UI.</span> </div>
+          <div class="input-group modal-input-group"> <label for="modal-auto-apply-checkbox">Auto-Apply
+              Wallpaper</label> <input type="checkbox" id="modal-auto-apply-checkbox" class="checkbox-input" /> <span
+              class="checkbox-hint">Automatically update wallpaper after changes (tasks, visual settings).</span> </div>
+          <div class="modal-actions"> <button type="button" id="app-settings-modal-done-btn"
+              class="button button-primary">Done</button> </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+  </div>
+  <script src="node_modules/@simonwep/pickr/dist/pickr.min.js"></script>
+  <!-- ES Module Scripts -->
+  <script type="module" src="./state.js"></script>
+  <script type="module" src="./utils.js"></script>
+  <script type="module" src="./renderer.js"></script>
+</body>
+
+</html>
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self';" />
+  <title>Visido</title>
+  <link rel="stylesheet" href="node_modules/@simonwep/pickr/dist/themes/nano.min.css" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+
+<body data-platform="">
+  <div class="app-shell">
+    <!-- App Header (no changes) -->
+    <header class="app-header">
+      <div class="header-left">
+        <h1 class="app-title">Visido</h1>
+      </div>
+      <div class="header-right"> <button id="apply-wallpaper-btn" class="button button-primary"
+          title="Apply current settings as wallpaper"> <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"
+            fill="currentColor" width="16" height="16">
+            <path
+              d="M8.75 2.75a.75.75 0 0 0-1.5 0v7.14L4.53 7.119a.75.75 0 0 0-1.06 1.06l3.25 3.25a.75.75 0 0 0 1.06 0l3.25-3.25a.75.75 0 1 0-1.06-1.06L8.75 9.889V2.75Z" />
+            <path
+              d="M3.5 12.75a.75.75 0 0 0-1.5 0v.5A2.75 2.75 0 0 0 4.75 16h6.5A2.75 2.75 0 0 0 14 13.25v-.5a.75.75 0 0 0-1.5 0v.5c0 .69-.56 1.25-1.25 1.25h-6.5c-.69 0-1.25-.56-1.25-1.25v-.5Z" />
+          </svg> <span>Apply Wallpaper</span> </button> <button id="open-app-settings-modal-btn"
+          class="button button-secondary button-icon" title="App Settings (Global)"
+          aria-label="Open Application Settings"> <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"
+            fill="currentColor" width="16" height="16">
+            <path fill-rule="evenodd"
+              d="M4.203 3.06a.75.75 0 0 1 .894-.53L6.5 3.018a4.5 4.5 0 0 1 3 0l1.403-.488a.75.75 0 0 1 .894.53l.865 1.988a.75.75 0 0 1-.334.904l-1.364.682a4.53 4.53 0 0 1 0 2.632l1.364.682a.75.75 0 0 1 .334.904l-.865 1.988a.75.75 0 0 1-.894.53L9.5 12.982a4.5 4.5 0 0 1-3 0l-1.403.488a.75.75 0 0 1-.894-.53L3.338 11a.75.75 0 0 1 .334-.904l1.364-.682a4.53 4.53 0 0 1 0-2.632L3.672 6.098a.75.75 0 0 1-.334-.904L4.203 3.06Zm1.188.998L4.78 5.46a6.03 6.03 0 0 0 0 5.08l.611 1.403 1.115-.388a6 6 0 0 0 3.988 0l1.115.388.612-1.402a6.03 6.03 0 0 0 0-5.08l-.612-1.403-1.115.388a6 6 0 0 0-3.988 0L5.39 4.058Z M8 6.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"
+              clip-rule="evenodd" />
+          </svg> </button> <button id="toggle-settings-btn" class="button button-secondary button-icon"
+          title="Toggle Visual Settings Panel (Alt+S)" aria-label="Toggle Visual Settings Panel" aria-expanded="true">
+          <svg id="settings-icon-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"
+            width="16" height="16">
+            <path fill-rule="evenodd"
+              d="M6.94 4.036c.276 0 .524.105.71.291l.355.355A4.001 4.001 0 0 1 10.25 4a.75.75 0 0 1 .75.75V6h.944c.39 0 .74.21.92.533l.247.433a.75.75 0 0 1 0 .798l-.247.433a1.23 1.23 0 0 1-.92.533H11v1.207a4.013 4.013 0 0 1-2.24 3.453l-.355.355a.999.999 0 0 1-.71.291H7.5a1 1 0 0 1-1-1V4.536a.5.5 0 0 1 .44-.499Zm1.06 1.464v7.25h.25a.75.75 0 0 1 .75-.75 2.5 2.5 0 0 0 0-5 .75.75 0 0 1-.75-.75h-.25Z"
+              clip-rule="evenodd" />
+          </svg> <svg id="settings-icon-close" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"
+            fill="currentColor" width="16" height="16" class="hidden">
+            <path
+              d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
+          </svg> </button>
+        <div class="window-controls"> <button id="minimize-btn" class="window-control-btn minimize-btn"
+            aria-label="Minimize" title="Minimize"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 1"
+              fill="currentColor">
+              <rect width="10" height="1" />
+            </svg></button> <button id="maximize-restore-btn" class="window-control-btn maximize-restore-btn"
+            aria-label="Maximize" title="Maximize"> <svg class="icon-maximize" xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="0.75" y="0.75" width="8.5" height="8.5" rx="1" />
+            </svg> <svg class="icon-restore hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" fill="none"
+              stroke="currentColor" stroke-width="1.5">
+              <rect x="2.75" y="0.75" width="6.5" height="6.5" rx="1" />
+              <path
+                d="M0.75 2.75C0.75 1.92157 1.42157 1.25 2.25 1.25H6.25 M2.75 9.25V 6.25C2.75 5.42157 3.42157 4.75 4.25 4.75H7.25" />
+            </svg> </button> <button id="close-btn" class="window-control-btn close-btn" aria-label="Close"
+            title="Close"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" fill="currentColor">
+              <path
+                d="M1.06066 0L0 1.06066L3.93934 5L0 8.93934L1.06066 10L5 6.06066L8.93934 10L10 8.93934L6.06066 5L10 1.06066L8.93934 0L5 3.93934L1.06066 0Z" />
+            </svg></button> </div>
+    </header>
+    <main class="app-main">
+      <aside class="column column-todos">
+        <div class="column-header">
+          <h2 class="column-title">Active Tasks</h2>
+          <div class="column-header-actions"> <button id="clear-active-btn" class="button button-danger button-small"
+              title="Remove all active tasks" style="display: none;">Clear Active</button> <button
+              id="open-add-todo-modal-btn" class="button button-secondary button-icon" title="Add New Task (Ctrl+N)">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
+                <path
+                  d="M8.75 3.75a.75.75 0 0 0-1.5 0v3.5h-3.5a.75.75 0 0 0 0 1.5h3.5v3.5a.75.75 0 0 0 1.5 0v-3.5h3.5a.75.75 0 0 0 0-1.5h-3.5v-3.5Z" />
+              </svg> </button> </div>
+        </div>
+        <div class="todo-list-container scrollable-content">
+          <ul id="todo-list"></ul>
+        </div>
+        <div class="column-header completed-header hidden">
+          <h2 class="column-title completed-title">Completed</h2> <button id="clear-completed-btn"
+            class="button button-danger button-small" title="Remove all completed tasks">Clear Completed</button>
+        </div>
+        <div class="todo-list-container completed-list-container scrollable-content hidden">
+          <ul id="completed-todo-list"></ul>
+        </div>
+      </aside>
+      <section class="column column-preview">
+        <div class="preview-area-container" id="preview-container">
+          <div id="preview-loader" class="preview-loader">Loading Preview...</div> <img id="preview-area"
+            alt="Wallpaper Preview" src="" /> <canvas id="image-canvas" width="1920" height="1080"
+            class="hidden"></canvas>
+        </div>
+      </section>
+      <aside class="column column-settings" id="settings-column" data-collapsed="false">
+        <div class="column-header">
+          <h2 class="column-title">Visual Settings</h2>
+        </div>
+        <div class="scrollable-content">
+          <div class="setting-section" data-section-id="text-layout">
+            <button class="setting-section-toggle" aria-expanded="true" aria-controls="section-content-text-layout">
+              <h3>Text & Layout</h3> <svg class="toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"
+                fill="currentColor" width="16" height="16">
+                <path fill-rule="evenodd"
+                  d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
+                  clip-rule="evenodd" />
+              </svg>
+            </button>
+            <div class="setting-section-content" id="section-content-text-layout">
+              <h4 class="sub-setting-header">Appearance</h4>
+              <div class="sub-setting-group">
+                <div class="input-group"><label for="wallpaper-title-input">Title</label><input type="text"
+                    id="wallpaper-title-input" class="input" value="My Tasks" /></div>
+                <div class="input-group color-picker-group"><label for="text-color-hex">Text Color</label>
+                  <div class="color-picker-widget" id="text-color-picker"></div><input type="text" id="text-color-hex"
+                    class="input input-hex" aria-label="Text color hex code" />
+                </div>
+                <div class="input-group"><label for="font-size">Font Size</label><input type="number" id="font-size"
+                    class="input input-number" value="48" min="10" max="200" step="1" title="Font size in pixels" />
+                </div>
+                <div class="input-group"><label for="font-weight-select">Font Weight</label><select
+                    id="font-weight-select" class="select">
+                    <option value="300">Light</option>
+                    <option value="400">Regular</option>
+                    <option value="500">Medium</option>
+                    <option value="600">Semi-Bold</option>
+                    <option value="700">Bold</option>
+                  </select></div>
+                <div class="input-group"><label for="list-style-select">List Style</label><select id="list-style-select"
+                    class="select">
+                    <option value="bullet">Bullet (•)</option>
+                    <option value="dash">Dash (-)</option>
+                    <option value="number">Number (1.)</option>
+                  </select></div>
+                <!-- *** Overall Opacity Slider *** -->
+                <div class="input-group slider-group">
+                  <label for="overall-opacity">Overall Opacity</label>
+                  <input type="range" id="overall-opacity" class="slider-input" value="1.0" min="0" max="1" step="0.05"
+                    title="Overall opacity for text and background panel" />
+                  <span class="slider-value" id="overall-opacity-value">1.00</span>
+                  <span class="checkbox-hint">Affects text & panel if enabled.</span>
+                </div>
+              </div>
+              <h4 class="sub-setting-header">Positioning</h4>
+              <div class="sub-setting-group">
+                <div class="input-group"><label for="text-position">Position</label><select id="text-position"
+                    class="select">
+                    <option value="top-left">Top Left</option>
+                    <option value="top-center">Top Center</option>
+                    <option value="top-right">Top Right</option>
+                    <option value="center-left">Center Left</option>
+                    <option value="center">Center</option>
+                    <option value="bottom-left">Bottom Left</option>
+                    <option value="bottom-center">Bottom Center</option>
+                    <option value="bottom-right">Bottom Right</option>
+                  </select></div>
+                <div class="input-group"><label for="text-align-select">Alignment</label><select id="text-align-select"
+                    class="select">
+                    <option value="left">Left</option>
+                    <option value="center">Center</option>
+                    <option value="right">Right</option>
+                  </select></div>
+                <div class="input-group"><label for="offset-x">Offset X</label><input type="number" id="offset-x"
+                    class="input input-number" value="0" step="5" title="Horizontal offset in pixels" /></div>
+                <div class="input-group"><label for="offset-y">Offset Y</label><input type="number" id="offset-y"
+                    class="input input-number" value="0" step="5" title="Vertical offset in pixels" /></div>
+              </div>
+              <h4 class="sub-setting-header">Spacing & Columns</h4>
+              <div class="sub-setting-group">
+                <div class="input-group"><label for="title-spacing-input"
+                    title="Space between title and first item">Title Spacing</label><input type="number"
+                    id="title-spacing-input" class="input input-number" value="40" min="0" max="200" step="5" /></div>
+                <div class="input-group"><label for="item-spacing-input" title="Vertical space between list items">Item
+                    Spacing</label><input type="number" id="item-spacing-input" class="input input-number" value="20"
+                    min="0" max="100" step="2" /></div>
+                <div class="input-group"><label for="max-items-input" title="Max items before starting a new column">Max
+                    Items/Col</label><input type="number" id="max-items-input" class="input input-number" value="10"
+                    min="1" max="50" step="1" /></div>
+                <div class="input-group"><label for="column-gap-input" title="Horizontal space between columns">Column
+                    Gap</label><input type="number" id="column-gap-input" class="input input-number" value="50" min="0"
+                    max="500" step="10" /></div>
+              </div>
+            </div>
+          </div>
+          <div class="setting-section" data-section-id="text-background">
+            <button class="setting-section-toggle" aria-expanded="true" aria-controls="section-content-text-background">
+              <h3>Text Background</h3> <svg class="toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"
+                fill="currentColor" width="16" height="16">
+                <path fill-rule="evenodd"
+                  d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
+                  clip-rule="evenodd" />
+              </svg>
+            </button>
+            <div class="setting-section-content" id="section-content-text-background">
+              <div class="input-group"><label for="text-background-enable">Enable</label><input type="checkbox"
+                  id="text-background-enable" class="checkbox-input" /><span class="checkbox-hint">Draw a panel behind
+                  the text.</span></div>
+              <div id="text-background-controls" class="hidden">
+                <div class="input-group color-picker-group"><label for="text-bg-color-hex">Panel Color</label>
+                  <div class="color-picker-widget" id="text-bg-color-picker"></div><input type="text"
+                    id="text-bg-color-hex" class="input input-hex" aria-label="Text background color hex code" />
+                </div>
+                <!-- *** Panel Opacity Slider *** -->
+                <div class="input-group slider-group">
+                  <label for="text-panel-opacity">Panel Opacity</label>
+                  <input type="range" id="text-panel-opacity" class="slider-input" value="0.5" min="0" max="1"
+                    step="0.05" title="Opacity of the panel itself" />
+                  <span class="slider-value" id="text-panel-opacity-value">0.50</span>
+                </div>
+                <div class="input-group padding-group"><label>Padding</label><input type="number"
+                    id="text-bg-padding-inline" class="input input-number" value="15" min="0" max="100" step="5"
+                    title="Inline (Left/Right) Padding" /><input type="number" id="text-bg-padding-block"
+                    class="input input-number" value="15" min="0" max="100" step="5"
+                    title="Block (Top/Bottom) Padding" /></div>
+                <!-- *** Border Radius Slider *** -->
+                <div class="input-group slider-group">
+                  <label for="text-bg-border-radius">Radius</label>
+                  <input type="range" id="text-bg-border-radius" class="slider-input" value="5" min="0" max="50"
+                    step="1" title="Corner roundness" />
+                  <span class="slider-value" id="text-bg-border-radius-value">5</span>
+                </div>
+                <div class="input-group color-picker-group"><label for="text-border-color-hex">Border</label>
+                  <div class="color-picker-widget" id="text-border-color-picker"></div><input type="text"
+                    id="text-border-color-hex" class="input input-hex"
+                    aria-label="Text background border color hex code" />
+                </div>
+                <div class="input-group"><label for="text-bg-border-width">Border Width</label><input type="number"
+                    id="text-bg-border-width" class="input input-number" value="0" min="0" max="20" step="1" /></div>
+              </div>
+            </div>
+          </div>
+          <div class="setting-section" data-section-id="font"> <button class="setting-section-toggle"
+              aria-expanded="true" aria-controls="section-content-font">
+              <h3>Font</h3> <svg class="toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"
+                fill="currentColor" width="16" height="16">
+                <path fill-rule="evenodd"
+                  d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
+                  clip-rule="evenodd" />
+              </svg>
+            </button>
+            <div class="setting-section-content" id="section-content-font">
+              <div class="input-group"><label>Source</label>
+                <div class="radio-group"><label><input type="radio" name="font-source" value="default"
+                      id="font-source-default" checked /> Default</label><label><input type="radio" name="font-source"
+                      value="system" id="font-source-system" /> System</label><label><input type="radio"
+                      name="font-source" value="google" id="font-source-google" /> Google</label></div>
+              </div>
+              <div id="system-font-controls" class="input-group hidden"><label for="system-font-select">System
+                  Font</label><select id="system-font-select" class="select">
+                  <option value="" disabled selected>Loading fonts...</option>
+                </select></div>
+              <div id="google-font-controls" class="hidden">
+                <div class="input-group"><label for="google-font-name">Font Name</label><input type="text"
+                    id="google-font-name" class="input" placeholder="e.g., Roboto, Open Sans" /></div>
+                <div class="input-group"><label></label><button id="load-font-btn" class="button button-secondary">Load
+                    Font</button></div>
+              </div>
+              <div class="input-group"><label>Status</label><span id="font-status" class="font-status-display">Default:
+                  Inter</span></div>
+            </div>
+          </div>
+          <div class="setting-section" data-section-id="background"> <button class="setting-section-toggle"
+              aria-expanded="true" aria-controls="section-content-background">
+              <h3>Wallpaper Background</h3> <svg class="toggle-icon" xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
+                <path fill-rule="evenodd"
+                  d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
+                  clip-rule="evenodd" />
+              </svg>
+            </button>
+            <div class="setting-section-content" id="section-content-background">
+              <div class="input-group"><label>Type</label>
+                <div class="radio-group"><label><input type="radio" name="bg-type" value="color" id="bg-type-color"
+                      checked /> Color</label><label><input type="radio" name="bg-type" value="image"
+                      id="bg-type-image" /> Image</label></div>
+              </div>
+              <div id="bg-color-controls" class="input-group color-picker-group"><label for="bg-color-hex">Color</label>
+                <div class="color-picker-widget" id="bg-color-picker"></div><input type="text" id="bg-color-hex"
+                  class="input input-hex" aria-label="Background color hex code" />
+              </div>
+              <div id="bg-image-controls" class="input-group hidden"> <label>Image</label><span id="image-filename"
+                  class="filename-display">No file chosen</span>
+                <div class="button-group"> <button id="choose-image-btn"
+                    class="button button-secondary">Choose...</button> <button id="clear-image-btn"
+                    class="button button-danger button-icon" title="Clear selected image"><svg
+                      xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
+                      <path
+                        d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
+                    </svg></button> </div> <input type="file" id="image-file-input"
+                  accept="image/png, image/jpeg, image/webp" class="hidden" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Modals (keep existing structures) -->
+    <div id="update-notification-area" class="update-notification hidden"> <span id="update-message">Update message goes
+        here</span> <button id="restart-button" class="button button-primary button-small"
+        style="display: none;">Restart & Install</button> </div>
+    <div id="add-todo-modal" class="modal-overlay hidden">
+      <div class="modal-content"> <button id="modal-close-btn"
+          class="modal-close-button button button-ghost button-icon" title="Close (Esc)"><svg
+            xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
+            <path
+              d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
+          </svg></button>
+        <h2>Add New Task</h2>
+        <form id="add-todo-form">
+          <div class="input-group modal-input-group"><label for="modal-todo-input" class="sr-only">Task</label><input
+              type="text" id="modal-todo-input" class="input" placeholder="Enter task..." required /></div>
+          <div class="modal-actions"><button type="button" id="modal-cancel-btn"
+              class="button button-secondary">Cancel</button><button type="submit" class="button button-primary">Add
+              Task</button></div>
+        </form>
+      </div>
+    </div>
+    <div id="edit-todo-modal" class="modal-overlay hidden">
+      <div class="modal-content"> <button id="edit-modal-close-btn"
+          class="modal-close-button button button-ghost button-icon" title="Close (Esc)"><svg
+            xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
+            <path
+              d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
+          </svg></button>
+        <h2>Edit Task</h2>
+        <form id="edit-todo-form">
+          <div class="input-group modal-input-group"><label for="modal-edit-input" class="sr-only">Task</label><input
+              type="text" id="modal-edit-input" class="input" placeholder="Enter task..." required /></div> <input
+            type="hidden" id="edit-todo-id" />
+          <div class="modal-actions"><button type="button" id="edit-modal-cancel-btn"
+              class="button button-secondary">Cancel</button><button type="submit" class="button button-primary">Save
+              Changes</button></div>
+        </form>
+      </div>
+    </div>
+    <div id="record-shortcut-modal" class="modal-overlay hidden">
+      <div class="modal-content record-shortcut-content"> <button id="record-modal-close-btn"
+          class="modal-close-button button button-ghost button-icon" title="Cancel (Esc)"><svg
+            xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
+            <path
+              d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
+          </svg></button>
+        <h2>Record Shortcut</h2>
+        <p class="record-instructions">Press the desired key combination.</p>
+        <div id="shortcut-display-area" class="shortcut-display-area" aria-live="polite"><span>Press keys...</span>
+        </div>
+        <div class="modal-actions"><button type="button" id="record-cancel-btn"
+            class="button button-secondary">Cancel</button><button type="button" id="record-save-btn"
+            class="button button-primary" disabled>Save</button></div>
+      </div>
+    </div>
+    <div id="app-settings-modal" class="modal-overlay hidden">
+      <div class="modal-content app-settings-content"> <button id="app-settings-modal-close-btn"
+          class="modal-close-button button button-ghost button-icon" title="Close (Esc)"> <svg
+            xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
+            <path
+              d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
+          </svg> </button>
+        <h2>App Settings</h2>
+        <form id="app-settings-form">
+          <div class="input-group modal-input-group"> <label for="modal-run-in-tray-checkbox">Run in Tray</label> <input
+              type="checkbox" id="modal-run-in-tray-checkbox" class="checkbox-input" /> <span class="checkbox-hint">Keep
+              app running in tray on close, enable Quick Add.</span> </div>
+          <div class="input-group modal-input-group shortcut-display-group hidden" id="modal-shortcut-group">
+            <label>Quick Add Key</label> <span id="modal-current-shortcut-display" class="shortcut-display"></span>
+            <button type="button" id="modal-change-shortcut-btn" class="button button-secondary">Change</button> </div>
+          <div class="input-group modal-input-group hidden" id="modal-quick-add-translucent-group"> <label
+              for="modal-quick-add-translucent-checkbox">Translucent Quick Add</label> <input type="checkbox"
+              id="modal-quick-add-translucent-checkbox" class="checkbox-input" /> <span class="checkbox-hint">Use
+              background blur/transparency for Quick Add UI.</span> </div>
+          <div class="input-group modal-input-group"> <label for="modal-auto-apply-checkbox">Auto-Apply
+              Wallpaper</label> <input type="checkbox" id="modal-auto-apply-checkbox" class="checkbox-input" /> <span
+              class="checkbox-hint">Automatically update wallpaper after changes (tasks, visual settings).</span> </div>
+          <div class="modal-actions"> <button type="button" id="app-settings-modal-done-btn"
+              class="button button-primary">Done</button> </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+  </div>
+  <script src="node_modules/@simonwep/pickr/dist/pickr.min.js"></script>
+  <!-- ES Module Scripts -->
+  <script type="module" src="./state.js"></script>
+  <script type="module" src="./utils.js"></script>
+  <script type="module" src="./renderer.js"></script>
+</body>
+
 </html>

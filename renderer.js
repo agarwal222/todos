@@ -48,6 +48,7 @@ const settingsInputs = {
   fontWeight: document.getElementById("font-weight-select"),
   listStyle: document.getElementById("list-style-select"),
   overallOpacity: document.getElementById("overall-opacity"),
+  overallOpacityValue: document.getElementById("overall-opacity-value"),
   textPosition: document.getElementById("text-position"),
   textAlign: document.getElementById("text-align-select"),
   offsetX: document.getElementById("offset-x"),
@@ -56,14 +57,18 @@ const settingsInputs = {
   itemSpacing: document.getElementById("item-spacing-input"),
   maxItems: document.getElementById("max-items-input"),
   columnGap: document.getElementById("column-gap-input"),
-  textBackgroundEnable: document.getElementById("text-background-enable"),
+  textBackgroundEnable: document.getElementById("text-background-enable"), // Checkbox
   textBackgroundControls: document.getElementById("text-background-controls"),
   textBgColorPickerEl: document.getElementById("text-bg-color-picker"),
   textBgColorHex: document.getElementById("text-bg-color-hex"),
   textPanelOpacity: document.getElementById("text-panel-opacity"),
+  textPanelOpacityValue: document.getElementById("text-panel-opacity-value"),
   textBgPaddingInline: document.getElementById("text-bg-padding-inline"),
   textBgPaddingBlock: document.getElementById("text-bg-padding-block"),
   textBgBorderRadius: document.getElementById("text-bg-border-radius"),
+  textBgBorderRadiusValue: document.getElementById(
+    "text-bg-border-radius-value"
+  ),
   textBorderColorPickerEl: document.getElementById("text-border-color-picker"),
   textBorderColorHex: document.getElementById("text-border-color-hex"),
   textBgBorderWidth: document.getElementById("text-bg-border-width"),
@@ -136,7 +141,7 @@ const updateNotificationArea = document.getElementById(
 )
 const updateMessage = document.getElementById("update-message")
 const restartButton = document.getElementById("restart-button")
-const recordInstructions = recordShortcutModal.querySelector(
+const recordInstructions = recordShortcutModal?.querySelector(
   ".record-instructions"
 )
 const canvas = document.getElementById("image-canvas")
@@ -146,7 +151,7 @@ const toastContainer = document.getElementById("toast-container")
 // --- Application State ---
 let state = JSON.parse(JSON.stringify(initialState))
 
-// ... (Keep rest of state variables) ...
+// ... (Keep rest of state vars) ...
 let isRecordingShortcut = false
 let pressedKeys = new Set()
 let currentRecordedString = ""
@@ -157,11 +162,17 @@ let bgColorPickr = null
 let textBgColorPickr = null
 let textBorderColorPickr = null
 
+// *** Debounced function for preview generation + auto-apply ***
+const DEBOUNCE_DELAY = 300 // Milliseconds to wait after user stops interacting
+const debouncedGenerateAndApply = utils.debounce(() => {
+  console.log("Debounced action triggered")
+  generateTodoImageAndUpdatePreview() // Generate the preview
+  maybeAutoApplyWallpaper() // Check if wallpaper should be applied
+}, DEBOUNCE_DELAY)
+
 // --- Initialization ---
 async function initialize() {
-  /* ... (Keep initialize the same) ... */ console.log(
-    "Initializing Renderer..."
-  )
+  /* ... */ console.log("Initializing Renderer...")
   const dims = window.electronAPI.getScreenDimensions()
   if (dims?.width && dims?.height) {
     state.screenWidth = dims.width
@@ -175,7 +186,7 @@ async function initialize() {
   setupAutoUpdaterListeners()
   initializeColorPickers()
   applyStateToUI()
-  previewContainer.classList.remove("loaded")
+  if (previewContainer) previewContainer.classList.remove("loaded")
   let imageLoadPromise = Promise.resolve()
   if (state.backgroundType === "image" && state.backgroundImageName) {
     console.log(
@@ -270,20 +281,14 @@ async function initialize() {
     toggleDone(taskId)
     renderTodoList()
     saveState()
-    maybeAutoApplyWallpaper().catch((err) => {
-      console.error("Error during auto-apply after toggle:", err)
-      utils.showToast(toastContainer, "Error updating wallpaper.", "error")
-    })
+    debouncedGenerateAndApply()
   })
   window.electronAPI.onPerformTaskDelete((taskId) => {
     console.log(`Renderer received delete request for task ID: ${taskId}`)
     deleteTodo(taskId)
     renderTodoList()
     saveState()
-    maybeAutoApplyWallpaper().catch((err) => {
-      console.error("Error during auto-apply after delete:", err)
-      utils.showToast(toastContainer, "Error updating wallpaper.", "error")
-    })
+    debouncedGenerateAndApply()
   })
   const platform = window.electronAPI.getPlatform()
   document.body.dataset.platform = platform
@@ -360,9 +365,8 @@ function initializeColorPickers() {
       state[prop] = newColor
       settingsInputs[hexInputId].value = newColor
       settingsInputs[hexInputId].classList.remove("invalid")
-      generateTodoImageAndUpdatePreview()
       saveState()
-      maybeAutoApplyWallpaper()
+      debouncedGenerateAndApply()
     }
     instance.hide()
   }
@@ -426,6 +430,8 @@ function applyStateToUI() {
   settingsInputs.fontWeight.value = state.fontWeight
   settingsInputs.listStyle.value = state.listStyle
   settingsInputs.overallOpacity.value = state.overallOpacity
+  settingsInputs.textPanelOpacity.value = state.textPanelOpacity
+  settingsInputs.textBgBorderRadius.value = state.textBackgroundBorderRadius
   settingsInputs.textPosition.value = state.textPosition
   settingsInputs.textAlign.value = state.textAlign
   settingsInputs.offsetX.value = state.offsetX
@@ -435,10 +441,8 @@ function applyStateToUI() {
   settingsInputs.maxItems.value = state.maxItemsPerColumn
   settingsInputs.columnGap.value = state.columnGap
   settingsInputs.textBackgroundEnable.checked = state.textBackgroundEnabled
-  settingsInputs.textPanelOpacity.value = state.textPanelOpacity
   settingsInputs.textBgPaddingInline.value = state.textBackgroundPaddingInline
   settingsInputs.textBgPaddingBlock.value = state.textBackgroundPaddingBlock
-  settingsInputs.textBgBorderRadius.value = state.textBackgroundBorderRadius
   settingsInputs.textBgBorderWidth.value = state.textBackgroundBorderWidth
   settingsInputs.googleFontName.value = state.googleFontName || ""
   settingsInputs.fontSourceDefault.checked = state.fontSource === "default"
@@ -582,6 +586,7 @@ async function loadState() {
     }
   }
 }
+
 // --- Event Handlers ---
 function handleGlobalKeyDown(event) {
   /* ... */ if (!addTodoModal.classList.contains("hidden")) {
@@ -633,172 +638,203 @@ function handleHexInputChange(event) {
     }
     if (state[stateProp] !== value) {
       state[stateProp] = value
-      saveState() /* Save state, preview on blur/enter */
+      saveState()
+      debouncedGenerateAndApply()
     }
   } else {
     input.classList.add("invalid")
   }
 }
+
+// MODIFIED: handleVisualSettingChange uses debounce for sliders
 function handleVisualSettingChange(event) {
-  /* ... */ const target = event.target
-  let requiresRegeneration = true
+  const target = event.target
   const id = target.id
   const value = target.type === "checkbox" ? target.checked : target.value
   const key = target.name || id
-  if (
-    id.endsWith("-hex") ||
-    id.endsWith("-picker") ||
-    !key ||
-    key === "font-source" ||
-    key === "bg-type"
-  ) {
-    if (key === "font-source") {
-      if (target.checked && state.fontSource !== value) {
-        state.fontSource = value
-        if (value === "default") {
-          state.activeFontFamily = DEFAULT_FONT
-          updateFontStatus("idle", DEFAULT_FONT)
-          state.systemFontFamily = ""
-          state.googleFontName = ""
-          generateTodoImageAndUpdatePreview()
-          maybeAutoApplyWallpaper()
-        } else if (value === "system") {
-          const selectedSystemFont = settingsInputs.systemFontSelect.value
-          if (selectedSystemFont) {
-            state.activeFontFamily = selectedSystemFont
-            state.systemFontFamily = selectedSystemFont
-            updateFontStatus("loaded", selectedSystemFont)
-            generateTodoImageAndUpdatePreview()
-            maybeAutoApplyWallpaper()
-          } else {
-            state.activeFontFamily = DEFAULT_FONT
-            state.systemFontFamily = ""
-            updateFontStatus("idle", DEFAULT_FONT)
-          }
-          state.googleFontName = ""
-        } else if (value === "google") {
-          state.systemFontFamily = ""
-          if (state.googleFontName && state.customFontStatus === "loaded") {
-            updateFontStatus("loaded", state.activeFontFamily)
-          } else {
-            updateFontStatus("idle", state.googleFontName || DEFAULT_FONT)
-            state.customFontStatus = "idle"
-          }
-        }
-        updateFontControlsVisibility()
-        saveState()
-      }
-      return
-    } else if (key === "bg-type") {
-      if (target.checked && state.backgroundType !== value) {
-        state.backgroundType = value
-        updateBackgroundControlsVisibility()
-        generateTodoImageAndUpdatePreview()
-        saveState()
-        maybeAutoApplyWallpaper()
-      }
-      return
-    }
-    return
-  }
   let stateChanged = false
-  const idToStateMap = {
-    "wallpaper-title-input": "title",
-    "font-size": "fontSize",
-    "font-weight-select": "fontWeight",
-    "list-style-select": "listStyle",
-    "overall-opacity": "overallOpacity",
-    "text-position": "textPosition",
-    "text-align-select": "textAlign",
-    "offset-x": "offsetX",
-    "offset-y": "offsetY",
-    "title-spacing-input": "titleBottomMargin",
-    "item-spacing-input": "itemSpacing",
-    "max-items-input": "maxItemsPerColumn",
-    "column-gap-input": "columnGap",
-    "text-background-enable": "textBackgroundEnabled",
-    "text-panel-opacity": "textPanelOpacity",
-    "text-bg-padding-inline": "textBackgroundPaddingInline",
-    "text-bg-padding-block": "textBackgroundPaddingBlock",
-    "text-bg-border-radius": "textBackgroundBorderRadius",
-    "text-bg-border-width": "textBackgroundBorderWidth",
-    "system-font-select": "systemFontFamily",
-    "google-font-name": "googleFontName",
-  }
-  const propertyName = idToStateMap[id]
-  if (propertyName && state.hasOwnProperty(propertyName)) {
-    const oldValue = state[propertyName]
-    let newValue = value
-    if (target.type === "number") {
-      newValue = parseFloat(value)
-      if (isNaN(newValue)) newValue = 0
-      if (target.min !== "" && newValue < parseFloat(target.min))
-        newValue = parseFloat(target.min)
-      if (target.max !== "" && newValue > parseFloat(target.max))
-        newValue = parseFloat(target.max)
-      const step = target.getAttribute("step")
-      if (!step || step === "1") {
-        newValue = Math.round(newValue)
-      }
-    } else if (target.type === "checkbox") {
-      newValue = target.checked
-    }
-    if (oldValue !== newValue) {
-      state[propertyName] = newValue
+  let requiresImmediateRegeneration = false
+  let isSlider = target.type === "range"
+  const eventType = event.type
+
+  // Handle immediate changes (radios, selects, checkboxes) first
+  if (key === "font-source") {
+    if (target.checked && state.fontSource !== value) {
+      state.fontSource = value
       stateChanged = true
-      if (propertyName === "textBackgroundEnabled") {
-        updateTextBackgroundControlsVisibility()
-      } else if (
-        propertyName === "systemFontFamily" &&
-        state.fontSource === "system"
-      ) {
-        if (newValue) {
-          state.activeFontFamily = newValue
-          updateFontStatus("loaded", newValue)
+      requiresImmediateRegeneration = false
+      if (value === "default") {
+        state.activeFontFamily = DEFAULT_FONT
+        updateFontStatus("idle", DEFAULT_FONT)
+        state.systemFontFamily = ""
+        state.googleFontName = ""
+        requiresImmediateRegeneration = true
+      } else if (value === "system") {
+        const selectedSystemFont = settingsInputs.systemFontSelect.value
+        if (selectedSystemFont) {
+          state.activeFontFamily = selectedSystemFont
+          state.systemFontFamily = selectedSystemFont
+          updateFontStatus("loaded", selectedSystemFont)
+          requiresImmediateRegeneration = true
         } else {
           state.activeFontFamily = DEFAULT_FONT
+          state.systemFontFamily = ""
           updateFontStatus("idle", DEFAULT_FONT)
-          requiresRegeneration = false
         }
-      } else if (propertyName === "googleFontName") {
-        if (
-          state.customFontStatus === "loaded" ||
-          state.customFontStatus === "error"
-        ) {
-          updateFontStatus("idle", state.activeFontFamily)
+        state.googleFontName = ""
+      } else if (value === "google") {
+        state.systemFontFamily = ""
+        if (state.googleFontName && state.customFontStatus === "loaded") {
+          updateFontStatus("loaded", state.activeFontFamily)
+        } else {
+          updateFontStatus("idle", state.googleFontName || DEFAULT_FONT)
           state.customFontStatus = "idle"
         }
-        requiresRegeneration = false
       }
-      const nonRegenProps = ["googleFontName"]
-      if (
-        propertyName === "systemFontFamily" &&
-        state.fontSource === "system" &&
-        !newValue
-      ) {
-        requiresRegeneration = false
-      }
-      if (nonRegenProps.includes(propertyName)) {
-        requiresRegeneration = false
-      }
+      updateFontControlsVisibility()
     }
+  } else if (key === "bg-type") {
+    if (target.checked && state.backgroundType !== value) {
+      state.backgroundType = value
+      stateChanged = true
+      updateBackgroundControlsVisibility()
+      requiresImmediateRegeneration = true
+    }
+  } else if (id.endsWith("-hex") || id.endsWith("-picker")) {
+    return
   } else {
-    console.warn(
-      `Visual Setting: State property not found or unmapped for element ID/name: ${id}`
-    )
+    // Handle text, number, range, select, checkbox (non-radio)
+    const idToStateMap = {
+      "wallpaper-title-input": "title",
+      "font-size": "fontSize",
+      "font-weight-select": "fontWeight",
+      "list-style-select": "listStyle",
+      "overall-opacity": "overallOpacity",
+      "text-position": "textPosition",
+      "text-align-select": "textAlign",
+      "offset-x": "offsetX",
+      "offset-y": "offsetY",
+      "title-spacing-input": "titleBottomMargin",
+      "item-spacing-input": "itemSpacing",
+      "max-items-input": "maxItemsPerColumn",
+      "column-gap-input": "columnGap",
+      "text-background-enable": "textBackgroundEnabled",
+      "text-panel-opacity": "textPanelOpacity",
+      "text-bg-padding-inline": "textBackgroundPaddingInline",
+      "text-bg-padding-block": "textBackgroundPaddingBlock",
+      "text-bg-border-radius": "textBackgroundBorderRadius",
+      "text-bg-border-width": "textBackgroundBorderWidth",
+      "system-font-select": "systemFontFamily",
+      "google-font-name": "googleFontName",
+    }
+    const propertyName = idToStateMap[id]
+    if (propertyName && state.hasOwnProperty(propertyName)) {
+      const oldValue = state[propertyName]
+      let newValue = value
+      if (target.type === "number" || target.type === "range") {
+        newValue = parseFloat(value)
+        if (isNaN(newValue)) newValue = 0
+        if (target.min !== "" && newValue < parseFloat(target.min))
+          newValue = parseFloat(target.min)
+        if (target.max !== "" && newValue > parseFloat(target.max))
+          newValue = parseFloat(target.max)
+        if (target.type === "number") {
+          const step = target.getAttribute("step")
+          if (!step || step === "1") {
+            newValue = Math.round(newValue)
+          }
+        } else if (
+          isSlider &&
+          (target.step === "0.01" || target.step === "0.05")
+        ) {
+          newValue = parseFloat(newValue.toFixed(2))
+        } /* Keep precision for float sliders */
+      } else if (target.type === "checkbox") {
+        newValue = target.checked
+      }
+
+      if (oldValue !== newValue) {
+        state[propertyName] = newValue
+        stateChanged = true
+        // Update slider value display immediately on input
+        if (isSlider && eventType === "input") {
+          const valueSpan = document.getElementById(`${id}-value`)
+          if (valueSpan) {
+            valueSpan.textContent =
+              target.step && (target.step === "0.01" || target.step === "0.05")
+                ? newValue.toFixed(2)
+                : newValue.toFixed(0)
+          }
+          requiresImmediateRegeneration = false // No regen on slider drag
+        } else if (propertyName === "textBackgroundEnabled") {
+          // This is a checkbox, handled by 'change'
+          updateTextBackgroundControlsVisibility()
+          requiresImmediateRegeneration = true // Requires regen
+        } else if (
+          propertyName === "systemFontFamily" &&
+          state.fontSource === "system"
+        ) {
+          // This is a select, handled by 'change'
+          if (newValue) {
+            state.activeFontFamily = newValue
+            updateFontStatus("loaded", newValue)
+          } else {
+            state.activeFontFamily = DEFAULT_FONT
+            updateFontStatus("idle", DEFAULT_FONT)
+            requiresImmediateRegeneration = false
+          }
+          requiresImmediateRegeneration = true // Requires regen on selection
+        } else if (propertyName === "googleFontName") {
+          // This is text input, defer regen
+          if (
+            state.customFontStatus === "loaded" ||
+            state.customFontStatus === "error"
+          ) {
+            updateFontStatus("idle", state.activeFontFamily)
+            state.customFontStatus = "idle"
+          }
+          requiresImmediateRegeneration = false
+        }
+
+        // Assume other simple inputs (selects, checkboxes not handled above) require immediate regen on change
+        if (!isSlider && eventType === "change") {
+          requiresImmediateRegeneration = true
+        }
+        // Text/number input events defer regeneration
+        if (
+          eventType === "input" &&
+          !isSlider &&
+          (target.type === "text" || target.type === "number")
+        ) {
+          requiresImmediateRegeneration = false
+        }
+      }
+    } else {
+      console.warn(
+        `Visual Setting: State property not found or unmapped for element ID/name: ${id}`
+      )
+    }
   }
+
+  // Save state if changed
   if (stateChanged) {
     saveState()
-    if (event.type === "change" && requiresRegeneration) {
-      generateTodoImageAndUpdatePreview()
-      maybeAutoApplyWallpaper()
+    // Trigger regeneration/apply only if needed
+    if (requiresImmediateRegeneration) {
+      console.log(
+        `Regenerating preview immediately due to '${eventType}' event on '${id}'`
+      )
+      debouncedGenerateAndApply() // Use debounced version even for immediate changes to avoid rapid fire
+    } else if (isSlider && eventType === "input") {
+      // Already updated span, now call debounced function to handle final update after delay
+      debouncedGenerateAndApply()
     }
+    // Text/Number inputs handled by handleInputBlurOrEnter
   }
 }
+
 function handleInputBlurOrEnter(event) {
-  /* ... */ if (event.type === "keydown" && event.key !== "Enter") {
-    return
-  }
+  /* ... */ if (event.type === "keydown" && event.key !== "Enter") return
   const target = event.target
   if (
     target.tagName === "INPUT" &&
@@ -809,8 +845,9 @@ function handleInputBlurOrEnter(event) {
     console.log(
       `Triggering preview update due to ${event.type} on ${target.id}`
     )
-    generateTodoImageAndUpdatePreview()
-    maybeAutoApplyWallpaper()
+    debouncedGenerateAndApply()
+    /* Use debounced version */ if (event.type === "keydown" && target.blur)
+      target.blur()
   }
 }
 function handleAppSettingChange(event) {
@@ -865,7 +902,9 @@ function handleAppSettingChange(event) {
   }
 }
 function setupEventListeners() {
-  /* ... */ console.log("Setting up event listeners...")
+  /* ... (Keep event listener setup, including separate input/change for sliders) ... */ console.log(
+    "Setting up event listeners..."
+  )
   applyWallpaperBtn.addEventListener("click", handleApplyWallpaper)
   openAppSettingsModalBtn.addEventListener("click", openAppSettingsModal)
   toggleSettingsBtn.addEventListener("click", handleToggleSettings)
@@ -879,27 +918,15 @@ function setupEventListeners() {
     )
   if (closeBtn)
     closeBtn.addEventListener("click", () => window.electronAPI.closeWindow())
-  const visualInputs = settingsColumn.querySelectorAll(
-    'input[type="text"], input[type="number"], select, input[type="checkbox"], input[type="radio"]'
+  const visualSettingsContainer = document.getElementById("settings-column")
+  visualSettingsContainer.addEventListener("change", handleVisualSettingChange)
+  visualSettingsContainer.addEventListener("input", handleVisualSettingChange)
+  const textNumHexInputs = visualSettingsContainer.querySelectorAll(
+    'input[type="text"], input[type="number"], .input-hex'
   )
-  visualInputs.forEach((input) => {
-    const eventType =
-      input.tagName === "SELECT" ||
-      input.type === "radio" ||
-      input.type === "checkbox"
-        ? "change"
-        : "input"
-    if (!input.id.endsWith("-hex")) {
-      input.addEventListener(eventType, handleVisualSettingChange)
-    }
-    if (
-      (input.tagName === "INPUT" &&
-        (input.type === "text" || input.type === "number")) ||
-      input.classList.contains("input-hex")
-    ) {
-      input.addEventListener("blur", handleInputBlurOrEnter)
-      input.addEventListener("keydown", handleInputBlurOrEnter)
-    }
+  textNumHexInputs.forEach((input) => {
+    input.addEventListener("blur", handleInputBlurOrEnter)
+    input.addEventListener("keydown", handleInputBlurOrEnter)
   })
   settingsInputs.textColorHex.addEventListener("input", handleHexInputChange)
   settingsInputs.bgColorHex.addEventListener("input", handleHexInputChange)
@@ -908,6 +935,7 @@ function setupEventListeners() {
     "input",
     handleHexInputChange
   )
+  visualSettingsContainer.addEventListener("click", handleStepperClick)
   settingsInputs.loadFontBtn.addEventListener("click", handleLoadFontClick)
   settingsInputs.chooseImageBtn.addEventListener("click", () =>
     settingsInputs.imageFileInput.click()
@@ -1125,69 +1153,54 @@ function createTodoElement(todo) {
   li.appendChild(ab)
   return li
 }
-
-// MODIFIED: Handle blur/enter for context input
 function handleContextChange(event) {
-  const input = event.target
-  if (!input.classList.contains("context-input")) return
-
-  const id = parseInt(input.dataset.id, 10)
-  const todo = state.todos.find((t) => t.id === id)
-  if (todo) {
-    let newContext = input.value
-    if (newContext.length > utils.CONTEXT_MAX_LENGTH) {
-      newContext = newContext.substring(0, utils.CONTEXT_MAX_LENGTH)
-      input.value = newContext
+  /* ... */ const i = event.target
+  if (!i.classList.contains("context-input")) return
+  const id = parseInt(i.dataset.id, 10)
+  const t = state.todos.find((t) => t.id === id)
+  if (t) {
+    let nc = i.value
+    if (nc.length > utils.CONTEXT_MAX_LENGTH) {
+      nc = nc.substring(0, utils.CONTEXT_MAX_LENGTH)
+      i.value = nc
     }
-    // Only save if the value actually changed
-    if (todo.context !== newContext) {
-      todo.context = newContext
-      console.log(`Context state updated for ID ${id}: "${newContext}"`)
+    if (t.context !== nc) {
+      t.context = nc
+      console.log(`Context state updated for ID ${id}: "${nc}"`)
       saveState()
-      // Preview generation deferred to blur/enter
     }
   }
 }
-
-// NEW: Handler for context input blur/enter
 function handleContextBlurOrEnter(event) {
-  if (event.type === "keydown" && event.key !== "Enter") return
+  /* ... */ if (event.type === "keydown" && event.key !== "Enter") return
   const target = event.target
   if (target.classList.contains("context-input")) {
     console.log(
       `Triggering preview update due to ${event.type} on context input ${target.dataset.id}`
     )
-    generateTodoImageAndUpdatePreview()
-    maybeAutoApplyWallpaper()
-    if (event.type === "keydown") {
-      // Blur the input after Enter
+    debouncedGenerateAndApply()
+    /* Use debounce */ if (event.type === "keydown") {
       target.blur()
     }
   }
 }
-
-// MODIFIED: Update context input listeners
 function addContextInputListeners() {
-  // Remove old listeners first to prevent duplicates
-  const allInputs = [
+  /* ... */ const allInputs = [
     ...todoListUl.querySelectorAll(".context-input"),
     ...completedTodoListUl.querySelectorAll(".context-input"),
   ]
   allInputs.forEach((input) => {
-    input.removeEventListener("input", handleContextChange) // Remove old listener
-    input.removeEventListener("blur", handleContextBlurOrEnter) // Remove new listeners (just in case)
+    input.removeEventListener("input", handleContextChange)
+    input.removeEventListener("blur", handleContextBlurOrEnter)
     input.removeEventListener("keydown", handleContextBlurOrEnter)
-
-    // Add new listeners
-    input.addEventListener("input", handleContextChange) // Still needed to update state as user types
+    input.addEventListener("input", handleContextChange)
     input.addEventListener("blur", handleContextBlurOrEnter)
     input.addEventListener("keydown", handleContextBlurOrEnter)
   })
 }
-
 // --- Wallpaper Generation ---
 async function generateTodoImageAndUpdatePreview() {
-  /* ... (Keep existing, but ensure check for lines.length before drawing text/panel) ... */ const {
+  /* ... (Keep existing, check lines.length) ... */ const {
     title,
     listStyle,
     activeFontFamily,
@@ -1286,7 +1299,7 @@ async function generateTodoImageAndUpdatePreview() {
     const originalAlpha = ctx.globalAlpha
     ctx.globalAlpha = Math.max(0, Math.min(1, overallOpacity))
     if (textBackgroundEnabled && linesToDraw.length > 0) {
-      /* Check lines.length */ utils.drawTextBackgroundPanel(ctx, {
+      utils.drawTextBackgroundPanel(ctx, {
         x: textStartX,
         y: textStartY,
         width: textBlockMetrics.overallWidth,
@@ -1302,7 +1315,7 @@ async function generateTodoImageAndUpdatePreview() {
       })
     }
     if (linesToDraw.length > 0) {
-      /* Check lines.length */ utils.drawTextElementsMultiCol(ctx, {
+      utils.drawTextElementsMultiCol(ctx, {
         title,
         textColor,
         textAlign,
@@ -1474,7 +1487,7 @@ function handleListClick(event) {
     toggleDone(id)
     renderTodoList()
     saveState()
-    maybeAutoApplyWallpaper()
+    debouncedGenerateAndApply()
   } else if (target.closest(".edit-btn")) {
     openEditModal(id)
   } else if (target.closest(".delete-btn")) {
@@ -1502,7 +1515,7 @@ function handleListClick(event) {
       }
     }, 350)
     saveState()
-    maybeAutoApplyWallpaper()
+    debouncedGenerateAndApply()
   }
 }
 // --- Modal Functions ---
@@ -1521,7 +1534,7 @@ function handleModalSubmit(event) {
     renderTodoList()
     saveState()
     closeModal()
-    maybeAutoApplyWallpaper()
+    debouncedGenerateAndApply()
   } else {
     modalTodoInput.focus()
     modalTodoInput.classList.add("shake-animation")
@@ -1568,7 +1581,7 @@ function handleEditModalSubmit(event) {
       renderTodoList()
       saveState()
       utils.showToast(toastContainer, "Task updated!", "success")
-      maybeAutoApplyWallpaper()
+      debouncedGenerateAndApply()
     } else {
       utils.showToast(toastContainer, "No changes detected.", "info")
     }
@@ -1621,7 +1634,7 @@ function handleClearCompleted() {
     `${completedCount} completed task${completedCount > 1 ? "s" : ""} cleared.`,
     "success"
   )
-  maybeAutoApplyWallpaper()
+  debouncedGenerateAndApply()
 }
 function handleClearActive() {
   /* ... */ const activeCount = state.todos.filter((t) => !t.done).length
@@ -1644,7 +1657,7 @@ function handleClearActive() {
     `${activeCount} active task${activeCount > 1 ? "s" : ""} cleared.`,
     "success"
   )
-  maybeAutoApplyWallpaper()
+  debouncedGenerateAndApply()
 }
 // --- Shortcut Recording ---
 function handleShortcutKeyDown(event) {

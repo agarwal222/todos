@@ -1,11 +1,31 @@
 // utils.js
 
-import { DEFAULT_FONT } from "./state.js" // Import constants if needed
+import { DEFAULT_FONT } from "./state.js"
 
 const CONTEXT_MAX_LENGTH = 100
 const TOAST_DURATION = 3000
 
-// Use export keyword for ES Modules
+// *** NEW: Debounce Utility ***
+/**
+ * Creates a debounced function that delays invoking func until after wait milliseconds have elapsed
+ * since the last time the debounced function was invoked.
+ * @param {Function} func The function to debounce.
+ * @param {number} wait The number of milliseconds to delay.
+ * @returns {Function} Returns the new debounced function.
+ */
+export function debounce(func, wait) {
+  let timeout
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout)
+      func.apply(this, args)
+    }
+    clearTimeout(timeout)
+    timeout = setTimeout(later, wait)
+  }
+}
+// ***************************
+
 export function showToast(
   toastContainer,
   message,
@@ -104,9 +124,8 @@ export function drawBackgroundImage(ctx, img, canvasWidth, canvasHeight) {
   }
   ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight)
 }
-
 export function calculateTextBlockDimensions(ctx, params) {
-  const {
+  /* ... (Keep body with check for lines.length) ... */ const {
     title,
     fontName,
     fontWeight,
@@ -121,8 +140,6 @@ export function calculateTextBlockDimensions(ctx, params) {
     columnGap,
     listStyle,
   } = params
-
-  // *** ADDED CHECK: If no lines, return zero dimensions ***
   if (!lines || lines.length === 0) {
     return {
       overallWidth: 0,
@@ -133,8 +150,6 @@ export function calculateTextBlockDimensions(ctx, params) {
       maxColumnWidth: 0,
     }
   }
-  // **********************************************************
-
   let overallWidth = 0
   let overallHeight = 0
   let maxColumnWidth = 0
@@ -142,22 +157,17 @@ export function calculateTextBlockDimensions(ctx, params) {
   let currentColumnItemCount = 0
   let currentColumnWidth = 0
   let numColumns = 1
-
-  // Title Calculation (Only if lines exist)
   const titleWeight = Math.max(parseInt(fontWeight, 10) || 400, 600)
   const titleFont = `${titleWeight} ${titleFontSize}px "${fontName}", ${DEFAULT_FONT}`
   ctx.font = titleFont
   const titleWidth = title ? ctx.measureText(title).width : 0
   const titleHeight = title ? titleFontSize : 0
   maxColumnWidth = Math.max(maxColumnWidth, titleWidth)
-  overallHeight = title ? titleHeight + titleSpacing : 0 // Spacing added regardless of items *if title exists*
-
-  // Items Calculation (Rest remains the same)
+  overallHeight = title ? titleHeight + titleSpacing : 0
   const itemWeight = parseInt(fontWeight, 10) || 400
   const itemFont = `${itemWeight} ${itemFontSize}px "${fontName}", ${DEFAULT_FONT}`
   const contextWeight = 300
   const contextFont = `${contextWeight} ${contextFontSize}px "${fontName}", ${DEFAULT_FONT}`
-
   let currentColumnHeightOnlyItems = 0
   lines.forEach((item, index) => {
     currentColumnItemCount++
@@ -212,7 +222,6 @@ export function calculateTextBlockDimensions(ctx, params) {
   overallHeight += maxColumnItemHeight
   overallWidth =
     numColumns * maxColumnWidth + Math.max(0, numColumns - 1) * columnGap
-
   return {
     overallWidth,
     overallHeight,
@@ -222,7 +231,6 @@ export function calculateTextBlockDimensions(ctx, params) {
     maxColumnWidth,
   }
 }
-
 export function calculateTextStartPositionMultiCol(
   canvasWidth,
   canvasHeight,
@@ -336,9 +344,8 @@ export function drawTextBackgroundPanel(ctx, opts) {
   }
   ctx.globalAlpha = originalAlpha
 }
-
 export function drawTextElementsMultiCol(ctx, params) {
-  const {
+  /* ... (Keep body with check for lines.length) ... */ const {
     title,
     textColor,
     textAlign,
@@ -357,13 +364,9 @@ export function drawTextElementsMultiCol(ctx, params) {
     maxItemsPerColumn,
     columnGap,
   } = params
-
-  // *** ADDED CHECK: If no lines, do nothing ***
   if (!lines || lines.length === 0) {
     return
   }
-  // ********************************************
-
   ctx.textAlign = textAlign
   ctx.textBaseline = "top"
   ctx.fillStyle = textColor
@@ -371,18 +374,14 @@ export function drawTextElementsMultiCol(ctx, params) {
   ctx.shadowBlur = 0
   ctx.shadowOffsetX = 0
   ctx.shadowOffsetY = 0
-
   let currentX = startX
   let currentY = startY
   let columnStartX = currentX
   let initialItemY = startY
-
-  // Draw Title (Only if it exists and lines exist)
   const titleWeight = Math.max(parseInt(fontWeight, 10) || 400, 600)
   const titleFont = `${titleWeight} ${titleFontSize}px "${fontName}", ${DEFAULT_FONT}`
   const fallbackTitleFont = `${titleWeight} ${titleFontSize}px ${DEFAULT_FONT}`
-  const titleHeight = title ? titleFontSize : 0 // Get title height for spacing calc
-
+  const titleHeight = title ? titleFontSize : 0
   if (title) {
     try {
       ctx.font = titleFont
@@ -398,8 +397,6 @@ export function drawTextElementsMultiCol(ctx, params) {
     currentY += titleHeight + titleSpacing
     initialItemY = currentY
   }
-
-  // Draw Items (Rest remains the same)
   const itemWeight = parseInt(fontWeight, 10) || 400
   const itemFont = `${itemWeight} ${itemFontSize}px "${fontName}", ${DEFAULT_FONT}`
   const fallbackItemFont = `${itemWeight} ${itemFontSize}px ${DEFAULT_FONT}`
@@ -477,10 +474,8 @@ export function drawTextElementsMultiCol(ctx, params) {
     currentY += currentItemTotalHeight + itemSpacing
   })
 }
-
-// ... (Keep remaining utility functions: formatAccelerator, mapKeyForDisplay, etc.) ...
 export function formatAccelerator(accelerator) {
-  if (!accelerator) return ""
+  /* ... keep body ... */ if (!accelerator) return ""
   const platform = navigator.platform
   let displayString = accelerator
   if (platform.toUpperCase().includes("MAC")) {
@@ -497,7 +492,7 @@ export function formatAccelerator(accelerator) {
   return displayString.replace(/\+/g, " + ")
 }
 export function mapKeyForDisplay(key) {
-  switch (key.toUpperCase()) {
+  /* ... keep body ... */ switch (key.toUpperCase()) {
     case "COMMANDORCONTROL":
     case "CMDORCTRL":
       return "Ctrl/Cmd"
@@ -588,7 +583,7 @@ export function buildAcceleratorStringParts(
   pressedKeysSet,
   currentAcceleratorString = null
 ) {
-  const keySet = currentAcceleratorString
+  /* ... keep body ... */ const keySet = currentAcceleratorString
     ? new Set(
         currentAcceleratorString
           .split("+")
@@ -634,7 +629,7 @@ export function buildAcceleratorStringParts(
   return [...modifiers, ...keys]
 }
 export function buildAcceleratorString(pressedKeysSet) {
-  const modifiers = []
+  /* ... keep body ... */ const modifiers = []
   const keys = []
   if (
     pressedKeysSet.has("Meta") ||
@@ -660,7 +655,7 @@ export function buildAcceleratorString(pressedKeysSet) {
   return finalParts.join("+")
 }
 export function mapKeyToAccelerator(key) {
-  switch (key.toUpperCase()) {
+  /* ... keep body ... */ switch (key.toUpperCase()) {
     case " ":
       return "Space"
     case "ESCAPE":
@@ -747,7 +742,7 @@ export function mapKeyToAccelerator(key) {
   }
 }
 export function isValidAccelerator(accel) {
-  if (!accel) return false
+  /* ... keep body ... */ if (!accel) return false
   const parts = accel.split("+")
   if (parts.length < 2) return false
   const hasModifier = parts.some((key) =>
