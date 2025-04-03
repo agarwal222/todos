@@ -143,7 +143,7 @@ const ctx = canvas.getContext("2d")
 const toastContainer = document.getElementById("toast-container")
 
 // --- Application State ---
-let state = JSON.parse(JSON.stringify(initialState))
+let state = JSON.parse(JSON.stringify(initialState)) // Start with defaults
 
 let isRecordingShortcut = false
 let pressedKeys = new Set()
@@ -157,7 +157,7 @@ let textBorderColorPickr = null
 
 // --- Initialization ---
 async function initialize() {
-  /* ... (Keep body same) ... */ console.log("Initializing Renderer...")
+  console.log("Initializing Renderer...")
   const dims = window.electronAPI.getScreenDimensions()
   if (dims?.width && dims?.height) {
     state.screenWidth = dims.width
@@ -166,12 +166,17 @@ async function initialize() {
     console.warn("Could not get screen dimensions sync, using defaults.")
   }
   setCanvasAndPreviewSize(state.screenWidth, state.screenHeight)
-  loadState()
+
+  // Load state from main process first
+  await loadState() // Wait for state to be loaded
+
+  // Continue with initialization
   await populateSystemFonts()
   setupAutoUpdaterListeners()
   initializeColorPickers()
-  applyStateToUI()
+  applyStateToUI() // Apply the loaded or default state
   previewContainer.classList.remove("loaded")
+
   console.log("Sending loaded settings to main process:", {
     runInTray: state.runInTray,
     quickAddShortcut: state.quickAddShortcut,
@@ -182,6 +187,7 @@ async function initialize() {
     quickAddShortcut: state.quickAddShortcut,
     quickAddTranslucent: state.quickAddTranslucent,
   })
+
   let fontLoadPromise = Promise.resolve()
   try {
     if (state.fontSource === "google" && state.googleFontName) {
@@ -203,14 +209,18 @@ async function initialize() {
     applyStateToUI()
     updateFontStatus("error", DEFAULT_FONT, "Initial load failed")
   }
+
   renderTodoList()
   fontLoadPromise
     .catch((err) => console.warn("Font loading promise rejected:", err))
     .finally(() => {
       generateTodoImageAndUpdatePreview()
-    })
+    }) // Generate initial preview
+
   setupEventListeners()
   initializeCollapsibleSections()
+
+  // Setup IPC listeners
   window.electronAPI.onAddTaskAndApply(handleQuickAddTaskAndApply)
   window.electronAPI.onShortcutError(handleShortcutError)
   window.electronAPI.onGetTodosRequest(() => {
@@ -239,10 +249,12 @@ async function initialize() {
       utils.showToast(toastContainer, "Error updating wallpaper.", "error")
     })
   })
+
   const platform = window.electronAPI.getPlatform()
   document.body.dataset.platform = platform
   console.log("Renderer initialized on platform:", platform)
 }
+
 // --- Set Canvas & Preview Size ---
 function setCanvasAndPreviewSize(width, height) {
   /* ... */ canvas.width = width
@@ -452,70 +464,97 @@ function applyStateToUI() {
   settingsColumn.dataset.collapsed = state.settingsCollapsed
   updateToggleIcons(state.settingsCollapsed)
 }
-// --- State Management ---
+
+// --- State Management (MODIFIED) ---
 function saveState() {
-  /* ... */ try {
+  try {
     const stateToSave = { ...state }
-    localStorage.setItem("visidoState", JSON.stringify(stateToSave))
+    // Don't save potentially large image data in the state file
+    delete stateToSave.backgroundImageDataUrl
+    delete stateToSave.lastGeneratedImageDataUrl
+    // Send state to main process for saving
+    window.electronAPI.saveState(stateToSave)
+    // console.log("Renderer: Sent state to main for saving."); // Optional log
   } catch (e) {
-    console.error("Save State Error:", e)
-    utils.showToast(toastContainer, "Error saving settings.", "error")
+    console.error("Save State Error (preparing state):", e)
+    utils.showToast(
+      toastContainer,
+      "Error preparing settings to save.",
+      "error"
+    )
   }
 }
-function loadState() {
-  /* ... */ try {
-    const savedState = localStorage.getItem("visidoState")
+
+async function loadState() {
+  // Make loadState async
+  try {
+    // Request state from main process
+    const loadedStateFromFile = await window.electronAPI.loadState()
     const platform = window.electronAPI?.getPlatform() || "win32"
     const platformDefaultTranslucent = platform === "darwin"
-    if (savedState) {
-      const parsedState = JSON.parse(savedState)
+
+    if (loadedStateFromFile) {
+      console.log("Received state from main process:", loadedStateFromFile)
       const currentScreenDims = {
         screenWidth: state.screenWidth,
         screenHeight: state.screenHeight,
       }
+
+      // Merge loaded state with defaults, ensuring all keys exist
       state = {
         ...initialState,
-        ...parsedState,
-        autoApplyWallpaper:
-          typeof parsedState.autoApplyWallpaper === "boolean"
-            ? parsedState.autoApplyWallpaper
-            : false,
+        ...loadedStateFromFile,
+        // Ensure platform default for translucency if not explicitly saved
         quickAddTranslucent:
-          typeof parsedState.quickAddTranslucent === "boolean"
-            ? parsedState.quickAddTranslucent
+          typeof loadedStateFromFile.quickAddTranslucent === "boolean"
+            ? loadedStateFromFile.quickAddTranslucent
             : platformDefaultTranslucent,
+        // Ensure boolean type for autoApply
+        autoApplyWallpaper:
+          typeof loadedStateFromFile.autoApplyWallpaper === "boolean"
+            ? loadedStateFromFile.autoApplyWallpaper
+            : false,
+        // Restore current screen dims and reset transient state
         ...currentScreenDims,
         customFontStatus: "idle",
         customFontError: null,
         lastGeneratedImageDataUrl: null,
-        todos: Array.isArray(parsedState.todos)
-          ? parsedState.todos.map((t) => ({ ...t, context: t.context || "" }))
+        // Ensure todos have context
+        todos: Array.isArray(loadedStateFromFile.todos)
+          ? loadedStateFromFile.todos.map((t) => ({
+              ...t,
+              context: t.context || "",
+            }))
           : [],
       }
+
+      // Logic to set active font based on loaded source
       if (state.fontSource === "system" && state.systemFontFamily) {
         state.activeFontFamily = state.systemFontFamily
       } else if (state.fontSource === "google" && state.googleFontName) {
-        state.activeFontFamily = state.googleFontName
+        state.activeFontFamily = state.googleFontName // Font loaded in initialize
       } else {
         state.fontSource = "default"
         state.activeFontFamily = DEFAULT_FONT
         state.systemFontFamily = ""
         state.googleFontName = ""
       }
-      console.log("Loaded state:", state)
+      console.log("Final state after loading and merging:", state)
     } else {
+      // No state file found or error reading it, use defaults
       state = {
         ...initialState,
         autoApplyWallpaper: false,
         quickAddTranslucent: platformDefaultTranslucent,
-        screenWidth: state.screenWidth,
+        screenWidth: state.screenWidth, // Keep initial screen dims
         screenHeight: state.screenHeight,
       }
-      console.log("No saved state found, using defaults.")
+      console.log("No valid state file found, using defaults.")
     }
   } catch (e) {
-    console.error("Load State Error:", e)
-    utils.showToast(toastContainer, "Error loading saved settings.", "error")
+    console.error("Load State Error (requesting state):", e)
+    utils.showToast(toastContainer, "Error loading settings.", "error")
+    // Fallback to initial state
     const platform = window.electronAPI?.getPlatform() || "win32"
     state = {
       ...initialState,
@@ -524,9 +563,11 @@ function loadState() {
     }
   }
 }
+
 // --- Event Handlers ---
+// ... (handleGlobalKeyDown, handleHexInputChange, handleVisualSettingChange, handleAppSettingChange, setupEventListeners remain the same) ...
 function handleGlobalKeyDown(event) {
-  /* ... */ if (!addTodoModal.classList.contains("hidden")) {
+  if (!addTodoModal.classList.contains("hidden")) {
     if (event.key === "Escape") closeModal()
   } else if (!editTodoModal.classList.contains("hidden")) {
     if (event.key === "Escape") closeEditModal()
@@ -546,7 +587,7 @@ function handleGlobalKeyDown(event) {
   }
 }
 function handleHexInputChange(event) {
-  /* ... */ const input = event.target
+  const input = event.target
   const value = input.value.trim()
   let pickrInstance = null
   let stateProp = null
@@ -584,7 +625,7 @@ function handleHexInputChange(event) {
   }
 }
 function handleVisualSettingChange(event) {
-  /* ... */ const target = event.target
+  const target = event.target
   let requiresRegeneration = true
   const id = target.id
   const value = target.type === "checkbox" ? target.checked : target.value
@@ -780,9 +821,8 @@ function handleAppSettingChange(event) {
     applyStateToUI()
   }
 }
-
 function setupEventListeners() {
-  console.log("Setting up event listeners...")
+  /* ... */ console.log("Setting up event listeners...")
   applyWallpaperBtn.addEventListener("click", handleApplyWallpaper)
   openAppSettingsModalBtn.addEventListener("click", openAppSettingsModal)
   toggleSettingsBtn.addEventListener("click", handleToggleSettings)
@@ -885,7 +925,7 @@ async function maybeAutoApplyWallpaper() {
 
 // --- Auto Updater Listeners ---
 function setupAutoUpdaterListeners() {
-  window.electronAPI.onUpdateAvailable((i) => {
+  /* ... */ window.electronAPI.onUpdateAvailable((i) => {
     console.log("Update available:", i)
     showUpdateMessage(`Update v${i.version} available. Downloading...`)
     if (restartButton) restartButton.style.display = "none"
@@ -913,14 +953,14 @@ function setupAutoUpdaterListeners() {
   }
 }
 function showUpdateMessage(message) {
-  if (updateNotificationArea && updateMessage) {
+  /* ... */ if (updateNotificationArea && updateMessage) {
     updateMessage.textContent = message
     updateNotificationArea.classList.remove("hidden", "hiding")
     updateNotificationArea.classList.add("visible")
   }
 }
 function hideUpdateMessage() {
-  if (updateNotificationArea) {
+  /* ... */ if (updateNotificationArea) {
     updateNotificationArea.classList.remove("visible")
     updateNotificationArea.classList.add("hiding")
     setTimeout(() => {
@@ -937,7 +977,7 @@ function hideUpdateMessage() {
 }
 // --- Todo Management ---
 function addTodo(text) {
-  const t = text.trim()
+  /* ... */ const t = text.trim()
   if (t) {
     state.todos.push({ id: Date.now(), text: t, context: "", done: false })
     return true
@@ -945,15 +985,15 @@ function addTodo(text) {
   return false
 }
 function deleteTodo(id) {
-  state.todos = state.todos.filter((t) => t.id !== id)
+  /* ... */ state.todos = state.todos.filter((t) => t.id !== id)
 }
 function toggleDone(id) {
-  const t = state.todos.find((t) => t.id === id)
+  /* ... */ const t = state.todos.find((t) => t.id === id)
   if (t) t.done = !t.done
 }
 // --- UI Rendering ---
 function renderTodoList() {
-  todoListUl.innerHTML = ""
+  /* ... */ todoListUl.innerHTML = ""
   completedTodoListUl.innerHTML = ""
   if (!Array.isArray(state.todos)) state.todos = []
   const activeTodos = state.todos.filter((t) => !t.done)
@@ -976,7 +1016,7 @@ function renderTodoList() {
   addContextInputListeners()
 }
 function createTodoElement(todo) {
-  const li = document.createElement("li")
+  /* ... */ const li = document.createElement("li")
   li.className = "todo-item"
   li.dataset.id = todo.id
   if (todo.done) li.classList.add("done")
@@ -1019,7 +1059,7 @@ function createTodoElement(todo) {
   return li
 }
 function handleContextChange(event) {
-  const i = event.target
+  /* ... */ const i = event.target
   if (!i.classList.contains("context-input")) return
   const id = parseInt(i.dataset.id, 10)
   const t = state.todos.find((t) => t.id === id)
@@ -1039,14 +1079,14 @@ function handleContextChange(event) {
   }
 }
 function addContextInputListeners() {
-  todoListUl.removeEventListener("input", handleContextChange)
+  /* ... */ todoListUl.removeEventListener("input", handleContextChange)
   todoListUl.addEventListener("input", handleContextChange)
   completedTodoListUl.removeEventListener("input", handleContextChange)
   completedTodoListUl.addEventListener("input", handleContextChange)
 }
 // --- Wallpaper Generation ---
 async function generateTodoImageAndUpdatePreview() {
-  const {
+  /* ... (Use utils. functions) ... */ const {
     title,
     listStyle,
     activeFontFamily,
@@ -1188,7 +1228,7 @@ async function generateTodoImageAndUpdatePreview() {
   }
 }
 function updatePreviewImage() {
-  try {
+  /* ... */ try {
     state.lastGeneratedImageDataUrl = canvas.toDataURL("image/png")
     previewAreaImg.onload = () => {
       previewContainer.classList.add("loaded")
@@ -1210,7 +1250,7 @@ function updatePreviewImage() {
 }
 // --- Font Handling ---
 async function handleLoadFontClick() {
-  const n = settingsInputs.googleFontName.value.trim()
+  /* ... */ const n = settingsInputs.googleFontName.value.trim()
   if (!n) {
     updateFontStatus("error", state.activeFontFamily, "Enter Google Font name")
     utils.showToast(toastContainer, "Please enter a Google Font name.", "error")
@@ -1219,7 +1259,7 @@ async function handleLoadFontClick() {
   await loadAndApplyGoogleFont(n, true)
 }
 async function loadAndApplyGoogleFont(fontName, shouldSaveState = true) {
-  updateFontStatus("loading", state.activeFontFamily)
+  /* ... */ updateFontStatus("loading", state.activeFontFamily)
   try {
     const w = state.fontWeight || DEFAULT_WEIGHT
     const r = await window.electronAPI.loadGoogleFontByName(fontName, w)
@@ -1255,12 +1295,12 @@ async function loadAndApplyGoogleFont(fontName, shouldSaveState = true) {
   }
 }
 function updateFontControlsVisibility() {
-  const s = state.fontSource
+  /* ... */ const s = state.fontSource
   settingsInputs.systemFontControls.classList.toggle("hidden", s !== "system")
   settingsInputs.googleFontControls.classList.toggle("hidden", s !== "google")
 }
 function updateFontStatus(status, displayFontFamily, error = null) {
-  state.customFontStatus = status
+  /* ... */ state.customFontStatus = status
   state.customFontError = error
   let statusText = ""
   settingsInputs.fontStatus.className = "font-status-display"
@@ -1305,13 +1345,13 @@ function updateFontStatus(status, displayFontFamily, error = null) {
 }
 // --- Settings Panel ---
 function handleToggleSettings() {
-  state.settingsCollapsed = !state.settingsCollapsed
+  /* ... */ state.settingsCollapsed = !state.settingsCollapsed
   settingsColumn.dataset.collapsed = state.settingsCollapsed
   updateToggleIcons(state.settingsCollapsed)
   saveState()
 }
 function updateToggleIcons(isCollapsed) {
-  settingsIconOpen.classList.toggle("hidden", !isCollapsed)
+  /* ... */ settingsIconOpen.classList.toggle("hidden", !isCollapsed)
   settingsIconClose.classList.toggle("hidden", isCollapsed)
   toggleSettingsBtn.title = isCollapsed
     ? "Open Visual Settings (Alt+S)"
@@ -1320,7 +1360,7 @@ function updateToggleIcons(isCollapsed) {
 }
 // --- List Interaction ---
 function handleListClick(event) {
-  const target = event.target
+  /* ... */ const target = event.target
   const li = target.closest(".todo-item")
   if (!li || !li.dataset.id) return
   const id = parseInt(li.dataset.id, 10)
@@ -1364,15 +1404,15 @@ function handleListClick(event) {
 }
 // --- Modal Functions ---
 function openModal() {
-  addTodoModal.classList.remove("hidden")
+  /* ... */ addTodoModal.classList.remove("hidden")
   setTimeout(() => modalTodoInput.focus(), 50)
 }
 function closeModal() {
-  addTodoModal.classList.add("hidden")
+  /* ... */ addTodoModal.classList.add("hidden")
   modalTodoInput.value = ""
 }
 function handleModalSubmit(event) {
-  event.preventDefault()
+  /* ... */ event.preventDefault()
   const text = modalTodoInput.value
   if (addTodo(text)) {
     renderTodoList()
@@ -1386,7 +1426,7 @@ function handleModalSubmit(event) {
   }
 }
 function openEditModal(id) {
-  const todo = state.todos.find((t) => t.id === id)
+  /* ... */ const todo = state.todos.find((t) => t.id === id)
   if (!todo) {
     console.error("Could not find todo to edit with ID:", id)
     utils.showToast(toastContainer, "Error finding task to edit.", "error")
@@ -1398,12 +1438,12 @@ function openEditModal(id) {
   setTimeout(() => modalEditInput.focus(), 50)
 }
 function closeEditModal() {
-  editTodoModal.classList.add("hidden")
+  /* ... */ editTodoModal.classList.add("hidden")
   modalEditInput.value = ""
   editTodoIdInput.value = ""
 }
 function handleEditModalSubmit(event) {
-  event.preventDefault()
+  /* ... */ event.preventDefault()
   const newText = modalEditInput.value.trim()
   const id = parseInt(editTodoIdInput.value, 10)
   if (!newText) {
@@ -1436,7 +1476,7 @@ function handleEditModalSubmit(event) {
   closeEditModal()
 }
 function openRecordShortcutModal() {
-  isRecordingShortcut = true
+  /* ... */ isRecordingShortcut = true
   pressedKeys.clear()
   lastMainKeyPressed = null
   currentRecordedString = ""
@@ -1447,27 +1487,26 @@ function openRecordShortcutModal() {
   document.addEventListener("keyup", handleShortcutKeyUp, true)
 }
 function closeRecordShortcutModal() {
-  // MODIFIED
+  // MODIFIED - Unhide App Settings Modal
   isRecordingShortcut = false
   recordShortcutModal.classList.add("hidden")
   document.removeEventListener("keydown", handleShortcutKeyDown, true)
   document.removeEventListener("keyup", handleShortcutKeyUp, true)
-  // Ensure App Settings modal becomes visible again if it was hidden
   if (appSettingsModal) {
-    appSettingsModal.classList.remove("modal-temporarily-hidden")
+    appSettingsModal.classList.remove("modal-temporarily-hidden") // Make settings visible again
   }
 }
 function openAppSettingsModal() {
-  applyStateToUI()
+  /* ... */ applyStateToUI()
   updateShortcutInputVisibility()
   appSettingsModal.classList.remove("hidden")
 }
 function closeAppSettingsModal() {
-  appSettingsModal.classList.add("hidden")
+  /* ... */ appSettingsModal.classList.add("hidden")
 }
 // --- Clear Completed Tasks ---
 function handleClearCompleted() {
-  const completedCount = state.todos.filter((t) => t.done).length
+  /* ... */ const completedCount = state.todos.filter((t) => t.done).length
   if (completedCount === 0) {
     utils.showToast(toastContainer, "No completed tasks to clear.", "info")
     return
@@ -1484,7 +1523,7 @@ function handleClearCompleted() {
 }
 // --- Shortcut Recording ---
 function handleShortcutKeyDown(event) {
-  if (!isRecordingShortcut) return
+  /* ... */ if (!isRecordingShortcut) return
   event.preventDefault()
   event.stopPropagation()
   const key = event.key
@@ -1533,7 +1572,7 @@ function handleShortcutKeyDown(event) {
   }
 }
 function handleShortcutKeyUp(event) {
-  if (!isRecordingShortcut) return
+  /* ... */ if (!isRecordingShortcut) return
   const key = event.key
   if (["Control", "Shift", "Alt", "Meta"].includes(key)) {
     pressedKeys.delete(key)
@@ -1546,7 +1585,7 @@ function handleShortcutKeyUp(event) {
   }
 }
 function updateRecordShortcutDisplay(message = null, parts = []) {
-  shortcutDisplayArea.innerHTML = ""
+  /* ... */ shortcutDisplayArea.innerHTML = ""
   if (message) {
     const messageSpan = document.createElement("span")
     messageSpan.textContent = message
@@ -1577,7 +1616,7 @@ function updateRecordShortcutDisplay(message = null, parts = []) {
   }
 }
 function handleSaveShortcut() {
-  if (
+  /* ... */ if (
     !currentRecordedString ||
     !utils.isValidAccelerator(currentRecordedString)
   ) {
@@ -1613,12 +1652,12 @@ function handleSaveShortcut() {
 }
 // --- Background Image Handling ---
 function updateBackgroundControlsVisibility() {
-  const isImage = state.backgroundType === "image"
+  /* ... */ const isImage = state.backgroundType === "image"
   settingsInputs.bgColorControls.classList.toggle("hidden", isImage)
   settingsInputs.bgImageControls.classList.toggle("hidden", !isImage)
 }
 function handleImageFileSelect(e) {
-  const file = e.target.files[0]
+  /* ... */ const file = e.target.files[0]
   if (!file) return
   if (!file.type.startsWith("image/")) {
     alert("Invalid image file type. Please select a PNG, JPG, or WEBP image.")
@@ -1643,7 +1682,7 @@ function handleImageFileSelect(e) {
   reader.readAsDataURL(file)
 }
 function handleClearImage() {
-  state.backgroundImageDataUrl = null
+  /* ... */ state.backgroundImageDataUrl = null
   state.backgroundImageName = null
   settingsInputs.imageFilenameSpan.textContent = "No file chosen"
   settingsInputs.imageFileInput.value = ""
@@ -1655,13 +1694,13 @@ function handleClearImage() {
   maybeAutoApplyWallpaper()
 }
 function handleImageReadError(err) {
-  console.error("FileReader error:", err)
+  /* ... */ console.error("FileReader error:", err)
   alert("Error reading the selected image file.")
   handleClearImage()
 }
 // --- Wallpaper Application ---
 async function handleApplyWallpaper() {
-  if (!state.lastGeneratedImageDataUrl) {
+  /* ... */ if (!state.lastGeneratedImageDataUrl) {
     console.warn("Apply Wallpaper: No image data generated yet. Generating...")
     try {
       await generateTodoImageAndUpdatePreview()
@@ -1721,7 +1760,7 @@ async function handleApplyWallpaper() {
 }
 // --- IPC Event Handlers ---
 async function handleQuickAddTaskAndApply(taskText) {
-  console.log("Renderer received task and apply trigger:", taskText)
+  /* ... */ console.log("Renderer received task and apply trigger:", taskText)
   if (addTodo(taskText)) {
     renderTodoList()
     saveState()
@@ -1770,7 +1809,10 @@ async function handleQuickAddTaskAndApply(taskText) {
   }
 }
 function handleShortcutError(errorMessage) {
-  console.error("Renderer received Shortcut Error from main:", errorMessage)
+  /* ... */ console.error(
+    "Renderer received Shortcut Error from main:",
+    errorMessage
+  )
   alert(
     `Shortcut Error:\n${errorMessage}\n\nPlease choose different keys or close the conflicting application.`
   )
@@ -1782,7 +1824,7 @@ function handleShortcutError(errorMessage) {
   saveState()
 }
 function handleForcedSettingUpdate(settingsToUpdate) {
-  console.log(
+  /* ... */ console.log(
     "Renderer received forced setting update from main:",
     settingsToUpdate
   )
@@ -1819,7 +1861,10 @@ function handleForcedSettingUpdate(settingsToUpdate) {
   }
 }
 function handleWindowStateChange({ isMaximized }) {
-  console.log("Renderer received window state change - Maximized:", isMaximized)
+  /* ... */ console.log(
+    "Renderer received window state change - Maximized:",
+    isMaximized
+  )
   document.body.classList.toggle("maximized", isMaximized)
   if (maximizeRestoreBtn && maximizeIcon && restoreIcon) {
     maximizeRestoreBtn.title = isMaximized ? "Restore" : "Maximize"
@@ -1837,7 +1882,9 @@ function handleWindowStateChange({ isMaximized }) {
 }
 // --- Collapsible Settings Sections ---
 function initializeCollapsibleSections() {
-  const tBtns = settingsColumn.querySelectorAll(".setting-section-toggle")
+  /* ... */ const tBtns = settingsColumn.querySelectorAll(
+    ".setting-section-toggle"
+  )
   tBtns.forEach((button) => {
     const section = button.closest(".setting-section")
     const content = section.querySelector(".setting-section-content")
@@ -1868,7 +1915,7 @@ function initializeCollapsibleSections() {
   })
 }
 function handleSettingToggleClick(button) {
-  const section = button.closest(".setting-section")
+  /* ... */ const section = button.closest(".setting-section")
   const content = section.querySelector(".setting-section-content")
   if (!section || !content) return
   section.classList.toggle("collapsed")

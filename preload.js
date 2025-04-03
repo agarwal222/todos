@@ -9,6 +9,10 @@ ipcRenderer.on("screen-dimensions", (event, dimensions) => {
 })
 
 contextBridge.exposeInMainWorld("electronAPI", {
+  // --- State Persistence ---
+  loadState: () => ipcRenderer.invoke("load-state"), // Request state from main
+  saveState: (stateData) => ipcRenderer.send("save-state", stateData), // Send state to main
+
   // == APIs for Main Window Renderer ==
   updateWallpaper: (imageDataUrl) =>
     ipcRenderer.invoke("update-wallpaper", imageDataUrl),
@@ -63,7 +67,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on(channel, listener)
     return () => ipcRenderer.removeListener(channel, listener)
   },
-  // ** NEW: Listeners for main window to perform actions **
   onPerformTaskToggle: (callback) => {
     const channel = "perform-task-toggle"
     const listener = (event, taskId) => callback(taskId)
@@ -94,7 +97,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return () => ipcRenderer.removeListener(channel, listener)
   },
   resizeQuickAdd: (height) => ipcRenderer.send("resize-quick-add", { height }),
-  // ** NEW: Functions for Quick Add to send actions **
   sendQuickAddToggleTask: (taskId) =>
     ipcRenderer.send("quick-add-toggle-task", taskId),
   sendQuickAddDeleteTask: (taskId) =>

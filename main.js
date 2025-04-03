@@ -12,9 +12,9 @@ const {
   nativeImage,
 } = require("electron")
 const path = require("node:path")
-const fs = require("node:fs")
+const fs = require("node:fs").promises // Use promises version of fs
 const os = require("node:os")
-const https = require("node:https")
+const https = require("node:https") // Ensure https is required
 const fontList = require("font-list")
 const log = require("electron-log")
 const { autoUpdater } = require("electron-updater")
@@ -25,9 +25,12 @@ log.transports.console.level = "info"
 autoUpdater.logger = log
 log.info("App starting...")
 
+// --- State File Path ---
+const STATE_FILE_NAME = "visidoState.json"
+let stateFilePath = "" // Will be set in whenReady
+
 // --- Single Instance Lock ---
 const gotTheLock = app.requestSingleInstanceLock()
-
 if (!gotTheLock) {
   log.warn("Another instance is already running. Quitting this instance.")
   app.quit()
@@ -73,18 +76,93 @@ if (!gotTheLock) {
   const QUICK_ADD_MAX_HEIGHT_FACTOR = 1.5
   const INITIAL_SETUP_DELAY = 300
 
-  // Helper function to get the correct asset path
+  // --- Helper Functions ---
   function getAssetPath(assetName) {
     if (app.isPackaged) {
-      // Packaged app: Look inside resources/app directory
-      // Note: Your 'assets' folder content seems to be placed directly here
-      // based on your description and build config.
       return path.join(process.resourcesPath, "app", assetName)
     } else {
-      // Development: Look inside the project's assets folder
       return path.join(__dirname, "assets", assetName)
     }
   }
+
+  // *** Google Font Helper Functions (Defined at Top Level) ***
+  function fetchGoogleFontCSS(url) {
+    return new Promise((resolve, reject) => {
+      const options = {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
+        },
+      }
+      https
+        .get(url, options, (res) => {
+          log.info(`Google Font CSS request status: ${res.statusCode}`)
+          if (
+            res.statusCode >= 300 &&
+            res.statusCode < 400 &&
+            res.headers.location
+          ) {
+            log.info(`Following redirect to: ${res.headers.location}`)
+            return fetchGoogleFontCSS(res.headers.location)
+              .then(resolve)
+              .catch(reject)
+          }
+          if (res.statusCode !== 200) {
+            res.resume()
+            return reject(
+              new Error(
+                `Failed to fetch Google Font CSS. Status Code: ${res.statusCode}`
+              )
+            )
+          }
+          let data = ""
+          res.setEncoding("utf8")
+          res.on("data", (c) => (data += c))
+          res.on("end", () => resolve(data))
+        })
+        .on("error", (e) => {
+          log.error(`Google Font CSS request error: ${e.message}`)
+          reject(new Error(`Network error fetching font CSS: ${e.message}`))
+        })
+    })
+  }
+
+  function fetchFontData(url) {
+    return new Promise((resolve, reject) => {
+      https
+        .get(url, (res) => {
+          log.info(
+            `Google Font data request status: ${res.statusCode} for ${url}`
+          )
+          if (
+            res.statusCode >= 300 &&
+            res.statusCode < 400 &&
+            res.headers.location
+          ) {
+            log.info(`Following font data redirect to: ${res.headers.location}`)
+            return fetchFontData(res.headers.location)
+              .then(resolve)
+              .catch(reject)
+          }
+          if (res.statusCode !== 200) {
+            res.resume()
+            return reject(
+              new Error(
+                `Failed to fetch font data. Status Code: ${res.statusCode}`
+              )
+            )
+          }
+          const data = []
+          res.on("data", (c) => data.push(c))
+          res.on("end", () => resolve(Buffer.concat(data).toString("base64")))
+        })
+        .on("error", (e) => {
+          log.error(`Google Font data request error: ${e.message}`)
+          reject(new Error(`Network error fetching font data: ${e.message}`))
+        })
+    })
+  }
+  // *** End Google Font Helper Functions ***
 
   // --- Main Window Creation ---
   function createWindow() {
@@ -98,35 +176,29 @@ if (!gotTheLock) {
     log.info("Creating main browser window...")
     const primaryDisplay = screen.getPrimaryDisplay()
     const screenDimensions = primaryDisplay.size
-
-    // Determine main window icon path
     const mainIconName = process.platform === "win32" ? "icon.ico" : "icon.png"
     const mainIconPath = getAssetPath(mainIconName)
     log.info(`Using main window icon path: ${mainIconPath}`)
-
     mainWindow = new BrowserWindow({
       width: 1280,
       height: 800,
       minWidth: 900,
       minHeight: 600,
       webPreferences: {
-        preload: path.join(__dirname, "preload.js"), // Preload is relative to __dirname
+        preload: path.join(__dirname, "preload.js"),
         contextIsolation: true,
         nodeIntegration: false,
       },
       show: false,
       frame: false,
       backgroundColor: "#111827",
-      icon: fs.existsSync(mainIconPath) ? mainIconPath : undefined, // Use icon only if it exists
+      icon: require("fs").existsSync(mainIconPath) ? mainIconPath : undefined,
     })
-
-    // Verify icon existence if needed for debugging
-    if (!fs.existsSync(mainIconPath)) {
+    if (!require("fs").existsSync(mainIconPath)) {
       log.warn(
         `Main window icon file not found at expected location: ${mainIconPath}`
       )
     }
-
     mainWindow.loadFile("index.html")
     mainWindow.webContents.on("did-finish-load", () => {
       log.info("Main window finished loading.")
@@ -201,21 +273,17 @@ if (!gotTheLock) {
       return true
     }
     log.info("Creating system tray icon...")
-
-    // Use the helper function to get platform/packaging specific paths
     const iconName =
       process.platform === "win32" ? "icon.ico" : "iconTemplate.png"
     const iconPath = getAssetPath(iconName)
-    const fallbackIconPath = getAssetPath("icon.png") // Fallback uses .png
+    const fallbackIconPath = getAssetPath("icon.png")
     let finalIconPath = iconPath
-
     log.info(`Attempting to load tray icon from primary path: ${iconPath}`)
-
-    if (!fs.existsSync(iconPath)) {
+    if (!require("fs").existsSync(iconPath)) {
       log.warn(
         `Primary icon (${iconName}) not found at ${iconPath}. Attempting fallback: ${fallbackIconPath}`
       )
-      if (fs.existsSync(fallbackIconPath)) {
+      if (require("fs").existsSync(fallbackIconPath)) {
         finalIconPath = fallbackIconPath
         log.info(`Using fallback tray icon: ${finalIconPath}`)
       } else {
@@ -231,7 +299,6 @@ if (!gotTheLock) {
     } else {
       log.info(`Found primary tray icon: ${finalIconPath}`)
     }
-
     try {
       const image = nativeImage.createFromPath(finalIconPath)
       if (image.isEmpty()) {
@@ -240,12 +307,9 @@ if (!gotTheLock) {
         )
       }
       log.info(`Successfully created nativeImage from ${finalIconPath}`)
-
       tray = new Tray(image)
       log.info(`Tray object successfully created.`)
-
       if (process.platform === "darwin") tray.setIgnoreDoubleClickEvents(true)
-
       const contextMenu = Menu.buildFromTemplate([
         { label: "Show Visido", click: () => showMainWindow() },
         { type: "separator" },
@@ -273,7 +337,6 @@ if (!gotTheLock) {
       return false
     }
   }
-
   function destroyTray() {
     if (tray) {
       if (!tray.isDestroyed()) {
@@ -301,7 +364,6 @@ if (!gotTheLock) {
   }
 
   // --- Global Shortcut ---
-  // registerGlobalShortcut and unregisterCurrentShortcut remain the same
   function registerGlobalShortcut(shortcutToRegister) {
     unregisterCurrentShortcut()
     if (!shortcutToRegister) {
@@ -427,11 +489,8 @@ if (!gotTheLock) {
     } else {
       log.info("Using solid background for Quick Add window.")
     }
-
-    // Get icon path for quick add window
-    const quickAddIconPath = getAssetPath("icon.png") // Usually .png is fine here
+    const quickAddIconPath = getAssetPath("icon.png")
     log.info(`Using Quick Add window icon path: ${quickAddIconPath}`)
-
     let windowOptions = {
       width: winWidth,
       height: initialHeight,
@@ -447,7 +506,7 @@ if (!gotTheLock) {
       alwaysOnTop: true,
       show: false,
       webPreferences: {
-        preload: path.join(__dirname, "preload.js"), // Preload is relative to __dirname
+        preload: path.join(__dirname, "preload.js"),
         contextIsolation: true,
         nodeIntegration: false,
         devTools: !app.isPackaged,
@@ -456,18 +515,17 @@ if (!gotTheLock) {
       backgroundColor: bgColor,
       ...(vibrancyType && { vibrancy: vibrancyType }),
       useContentSize: true,
-      icon: fs.existsSync(quickAddIconPath) ? quickAddIconPath : undefined, // Set icon if found
+      icon: require("fs").existsSync(quickAddIconPath)
+        ? quickAddIconPath
+        : undefined,
     }
     quickAddWindow = new BrowserWindow(windowOptions)
-
-    // Verify icon existence if needed for debugging
-    if (!fs.existsSync(quickAddIconPath)) {
+    if (!require("fs").existsSync(quickAddIconPath)) {
       log.warn(
         `Quick Add window icon file not found at expected location: ${quickAddIconPath}`
       )
     }
-
-    quickAddWindow.loadFile(path.join(__dirname, "quick-add.html")) // HTML is relative to __dirname
+    quickAddWindow.loadFile(path.join(__dirname, "quick-add.html"))
     let todosForQuickAdd = null
     let quickAddWindowReady = false
     const responseListener = (event, todos) => {
@@ -534,12 +592,39 @@ if (!gotTheLock) {
   }
 
   // --- IPC Handlers ---
-  // renderer-settings-loaded, get-screen-dimensions, get-system-fonts,
-  // load-google-font-by-name, update-wallpaper, update-settings, setting-update-error,
-  // add-task-from-overlay, close-quick-add, window-minimize, window-maximize-restore,
-  // window-close, resize-quick-add, restart_app, quick-add-toggle-task,
-  // quick-add-delete-task handlers remain the same as previous version
-
+  ipcMain.handle("load-state", async () => {
+    log.info(`Attempting to load state from: ${stateFilePath}`)
+    try {
+      const data = await fs.readFile(stateFilePath, "utf-8")
+      const parsedState = JSON.parse(data)
+      log.info("State loaded successfully from file.")
+      return parsedState
+    } catch (error) {
+      if (error.code === "ENOENT") {
+        log.warn(`State file not found at ${stateFilePath}. Will use defaults.`)
+      } else {
+        log.error(
+          `Error reading or parsing state file at ${stateFilePath}:`,
+          error
+        )
+      }
+      return null
+    }
+  })
+  ipcMain.on("save-state", async (event, stateData) => {
+    if (!stateFilePath) {
+      log.error("Cannot save state: stateFilePath not initialized.")
+      return
+    }
+    log.info(`Attempting to save state to: ${stateFilePath}`)
+    try {
+      const stateString = JSON.stringify(stateData, null, 2)
+      await fs.writeFile(stateFilePath, stateString, "utf-8")
+      log.info("State saved successfully.")
+    } catch (error) {
+      log.error(`Error writing state file to ${stateFilePath}:`, error)
+    }
+  })
   ipcMain.once("renderer-settings-loaded", (event, loadedSettings) => {
     log.info("Received initial settings from renderer:", loadedSettings)
     rendererSettingsLoaded = true
@@ -570,7 +655,6 @@ if (!gotTheLock) {
           )
           if (shortcutRegistered) {
             if (process.platform === "darwin") {
-              // app.dock?.hide(); // Decide if needed immediately
             }
             log.info("Tray and shortcut setup complete (initial).")
           } else {
@@ -631,6 +715,7 @@ if (!gotTheLock) {
   ipcMain.handle(
     "load-google-font-by-name",
     async (event, { fontName, fontWeight }) => {
+      // Now calls the top-level helper functions
       if (!fontName) {
         log.warn("Attempted to load Google Font with no name.")
         return { success: false, error: "Font name is required." }
@@ -722,16 +807,16 @@ if (!gotTheLock) {
       tempFilePath = path.join(tempDir, `visido-wallpaper-${Date.now()}.png`)
       const base64Data = imageDataUrl.replace(/^data:image\/png;base64,/, "")
       const imageBuffer = Buffer.from(base64Data, "base64")
-      await fs.promises.mkdir(tempDir, { recursive: true })
+      await require("fs").promises.mkdir(tempDir, { recursive: true })
       log.info("Main: Writing temp wallpaper file to:", tempFilePath)
-      await fs.promises.writeFile(tempFilePath, imageBuffer)
+      await require("fs").promises.writeFile(tempFilePath, imageBuffer)
       log.info(`Main: Temp file size: ${imageBuffer.length} bytes`)
       log.info("Main: Calling setWallpaper with path:", tempFilePath)
       await setWallpaper(tempFilePath, { scale: "auto" })
       log.info("Main: Wallpaper set command issued successfully.")
       setTimeout(() => {
-        if (tempFilePath && fs.existsSync(tempFilePath)) {
-          fs.unlink(tempFilePath, (err) => {
+        if (tempFilePath && require("fs").existsSync(tempFilePath)) {
+          require("fs").unlink(tempFilePath, (err) => {
             if (err) log.error("Error deleting temp wallpaper file:", err)
             else log.info("Main: Deleted temp wallpaper file:", tempFilePath)
           })
@@ -1080,9 +1165,10 @@ if (!gotTheLock) {
   })
 
   // --- App Lifecycle ---
-  // whenReady, activate, window-all-closed, before-quit, will-quit remain the same
   app.whenReady().then(() => {
     log.info("App is ready.")
+    stateFilePath = path.join(app.getPath("userData"), STATE_FILE_NAME)
+    log.info(`State file path set to: ${stateFilePath}`)
     createWindow()
     app.on("activate", () => {
       log.info("App activated.")
@@ -1130,8 +1216,6 @@ if (!gotTheLock) {
   })
 
   // --- Auto Updater Event Listeners ---
-  // checking-for-update, update-available, update-not-available, error,
-  // download-progress, update-downloaded handlers remain the same
   autoUpdater.on("checking-for-update", () => {
     log.info("Checking for update...")
     if (mainWindow && !mainWindow.isDestroyed())
@@ -1168,15 +1252,12 @@ if (!gotTheLock) {
     log.info("Update downloaded.", info)
     if (mainWindow && !mainWindow.isDestroyed())
       mainWindow.webContents.send("update_downloaded", info)
-
-    // Get icon path for notification
     const notificationIconPath = getAssetPath("icon.png")
     log.info(`Using notification icon path: ${notificationIconPath}`)
-
     new Notification({
       title: "Visido Update Ready",
       body: "A new version has been downloaded. Restart the application to apply the update.",
-      icon: fs.existsSync(notificationIconPath)
+      icon: require("fs").existsSync(notificationIconPath)
         ? notificationIconPath
         : undefined,
     }).show()
