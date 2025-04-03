@@ -45,10 +45,13 @@ const initialState = {
   textBackgroundBorderColor: DEFAULT_TEXT_BORDER_COLOR,
   textPanelOpacity: DEFAULT_PANEL_OPACITY,
   textBackgroundBorderRadius: 5,
-  settingsCollapsed: false,
+  settingsCollapsed: false, // Visual settings panel state
+  // App Behavior Settings
   runInTray: false,
   quickAddShortcut: DEFAULT_SHORTCUT,
   quickAddTranslucent: false, // Platform default set in loadState
+  autoApplyWallpaper: false, // <<< NEW SETTING
+  // Transient State
   lastGeneratedImageDataUrl: null,
   screenWidth: 1920, // Default, updated on init
   screenHeight: 1080, // Default, updated on init

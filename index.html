@@ -46,11 +46,33 @@
             </svg>
             <span>Apply Wallpaper</span>
           </button>
+          <!-- NEW App Settings Button -->
+          <button
+            id="open-app-settings-modal-btn"
+            class="button button-secondary button-icon"
+            title="App Settings (Global)"
+            aria-label="Open Application Settings"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              width="16"
+              height="16"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M4.203 3.06a.75.75 0 0 1 .894-.53L6.5 3.018a4.5 4.5 0 0 1 3 0l1.403-.488a.75.75 0 0 1 .894.53l.865 1.988a.75.75 0 0 1-.334.904l-1.364.682a4.53 4.53 0 0 1 0 2.632l1.364.682a.75.75 0 0 1 .334.904l-.865 1.988a.75.75 0 0 1-.894.53L9.5 12.982a4.5 4.5 0 0 1-3 0l-1.403.488a.75.75 0 0 1-.894-.53L3.338 11a.75.75 0 0 1 .334-.904l1.364-.682a4.53 4.53 0 0 1 0-2.632L3.672 6.098a.75.75 0 0 1-.334-.904L4.203 3.06Zm1.188.998L4.78 5.46a6.03 6.03 0 0 0 0 5.08l.611 1.403 1.115-.388a6 6 0 0 0 3.988 0l1.115.388.612-1.402a6.03 6.03 0 0 0 0-5.08l-.612-1.403-1.115.388a6 6 0 0 0-3.988 0L5.39 4.058Z M8 6.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </button>
+          <!-- Toggle VISUAL Settings Button -->
           <button
             id="toggle-settings-btn"
             class="button button-secondary button-icon"
-            title="Toggle Settings Panel (Alt+S)"
-            aria-label="Toggle Settings Panel"
+            title="Toggle Visual Settings Panel (Alt+S)"
+            aria-label="Toggle Visual Settings Panel"
             aria-expanded="true"
           >
             <svg
@@ -207,7 +229,7 @@
           data-collapsed="false"
         >
           <div class="column-header">
-            <h2 class="column-title">Settings</h2>
+            <h2 class="column-title">Visual Settings</h2>
           </div>
           <div class="scrollable-content">
             <!-- Text & Layout Section -->
@@ -733,73 +755,6 @@
                 </div>
               </div>
             </div>
-            <!-- App Behavior Section -->
-            <div class="setting-section" data-section-id="app-behavior">
-              <button
-                class="setting-section-toggle"
-                aria-expanded="true"
-                aria-controls="section-content-app-behavior"
-              >
-                <h3>App Behavior</h3>
-                <svg
-                  class="toggle-icon"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  width="16"
-                  height="16"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-              </button>
-              <div
-                class="setting-section-content"
-                id="section-content-app-behavior"
-              >
-                <div class="input-group">
-                  <label for="run-in-tray-checkbox">Run in Tray</label
-                  ><input
-                    type="checkbox"
-                    id="run-in-tray-checkbox"
-                    class="checkbox-input"
-                  /><span class="checkbox-hint"
-                    >Hide window on close, enable Quick Add.</span
-                  >
-                </div>
-                <div class="input-group shortcut-display-group hidden">
-                  <label>Quick Add Key</label
-                  ><span
-                    id="current-shortcut-display"
-                    class="shortcut-display"
-                  ></span
-                  ><button
-                    id="change-shortcut-btn"
-                    class="button button-secondary"
-                  >
-                    Change
-                  </button>
-                </div>
-                <div
-                  class="input-group hidden"
-                  id="quick-add-translucent-group"
-                >
-                  <label for="quick-add-translucent-checkbox"
-                    >Translucent UI</label
-                  ><input
-                    type="checkbox"
-                    id="quick-add-translucent-checkbox"
-                    class="checkbox-input"
-                  /><span class="checkbox-hint"
-                    >Enable background blur (macOS) or transparency
-                    (Win/Linux).</span
-                  >
-                </div>
-              </div>
-            </div>
           </div>
         </aside>
       </main>
@@ -862,7 +817,7 @@
         </div>
       </div>
 
-      <!-- *** NEW: Edit Task Modal *** -->
+      <!-- Edit Task Modal -->
       <div id="edit-todo-modal" class="modal-overlay hidden">
         <div class="modal-content">
           <button
@@ -895,7 +850,6 @@
               />
             </div>
             <input type="hidden" id="edit-todo-id" />
-            <!-- Hidden field to store the ID -->
             <div class="modal-actions">
               <button
                 type="button"
@@ -959,9 +913,107 @@
         </div>
       </div>
 
+      <!-- *** NEW: App Settings Modal *** -->
+      <div id="app-settings-modal" class="modal-overlay hidden">
+        <div class="modal-content app-settings-content">
+          <button
+            id="app-settings-modal-close-btn"
+            class="modal-close-button button button-ghost button-icon"
+            title="Close (Esc)"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              width="16"
+              height="16"
+            >
+              <path
+                d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
+              />
+            </svg>
+          </button>
+          <h2>App Settings</h2>
+          <form id="app-settings-form">
+            <div class="input-group modal-input-group">
+              <label for="modal-run-in-tray-checkbox">Run in Tray</label>
+              <input
+                type="checkbox"
+                id="modal-run-in-tray-checkbox"
+                class="checkbox-input"
+              />
+              <span class="checkbox-hint"
+                >Keep app running in tray on close, enable Quick Add.</span
+              >
+            </div>
+
+            <div
+              class="input-group modal-input-group shortcut-display-group hidden"
+              id="modal-shortcut-group"
+            >
+              <label>Quick Add Key</label>
+              <span
+                id="modal-current-shortcut-display"
+                class="shortcut-display"
+              ></span>
+              <button
+                type="button"
+                id="modal-change-shortcut-btn"
+                class="button button-secondary"
+              >
+                Change
+              </button>
+            </div>
+
+            <div
+              class="input-group modal-input-group hidden"
+              id="modal-quick-add-translucent-group"
+            >
+              <label for="modal-quick-add-translucent-checkbox"
+                >Translucent Quick Add</label
+              >
+              <input
+                type="checkbox"
+                id="modal-quick-add-translucent-checkbox"
+                class="checkbox-input"
+              />
+              <span class="checkbox-hint"
+                >Use background blur/transparency for Quick Add UI.</span
+              >
+            </div>
+
+            <div class="input-group modal-input-group">
+              <label for="modal-auto-apply-checkbox"
+                >Auto-Apply Wallpaper</label
+              >
+              <input
+                type="checkbox"
+                id="modal-auto-apply-checkbox"
+                class="checkbox-input"
+              />
+              <span class="checkbox-hint"
+                >Automatically update wallpaper after changes (tasks, visual
+                settings).</span
+              >
+            </div>
+
+            <div class="modal-actions">
+              <button
+                type="button"
+                id="app-settings-modal-done-btn"
+                class="button button-primary"
+              >
+                Done
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
       <div id="toast-container" class="toast-container"></div>
     </div>
     <script src="node_modules/@simonwep/pickr/dist/pickr.min.js"></script>
+    <!-- ES Module Scripts -->
     <script type="module" src="./state.js"></script>
     <script type="module" src="./utils.js"></script>
     <script type="module" src="./renderer.js"></script>
