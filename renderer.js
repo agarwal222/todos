@@ -6,14 +6,13 @@ const DEFAULT_FONT = "Inter"
 const DEFAULT_WEIGHT = "400"
 const DEFAULT_TEXT_COLOR = "#f3f4f6"
 const DEFAULT_BG_COLOR = "#111827"
-// ** UPDATED DEFAULT SHORTCUT **
-const DEFAULT_SHORTCUT = "CommandOrControl+Shift+Q"
+const DEFAULT_SHORTCUT = "CommandOrControl+Shift+Q" // Updated default
 const DEFAULT_TEXT_BG_COLOR = "rgba(0, 0, 0, 0.5)"
 const DEFAULT_TEXT_BORDER_COLOR = "rgba(255, 255, 255, 0.1)"
 const DEFAULT_OVERALL_OPACITY = 1.0
 const DEFAULT_PANEL_OPACITY = 0.5
 const CONTEXT_MAX_LENGTH = 100
-const TOAST_DURATION = 3000
+const TOAST_DURATION = 3000 // Default duration in ms
 
 // --- DOM Elements ---
 const applyWallpaperBtn = document.getElementById("apply-wallpaper-btn")
@@ -110,7 +109,7 @@ const recordInstructions = recordShortcutModal.querySelector(
 )
 const canvas = document.getElementById("image-canvas")
 const ctx = canvas.getContext("2d")
-const toastContainer = document.getElementById("toast-container")
+const toastContainer = document.getElementById("toast-container") // Added
 
 // --- Application State ---
 let state = {
@@ -149,7 +148,7 @@ let state = {
   textBackgroundBorderRadius: 5,
   settingsCollapsed: false,
   runInTray: false,
-  quickAddShortcut: DEFAULT_SHORTCUT,
+  quickAddShortcut: DEFAULT_SHORTCUT, // Use updated default
   quickAddTranslucent: false,
   lastGeneratedImageDataUrl: null,
   screenWidth: 1920,
@@ -171,17 +170,22 @@ function showToast(message, type = "info", duration = TOAST_DURATION) {
     console.error("Toast container not found!")
     return
   }
+
   const toast = document.createElement("div")
   toast.className = `toast toast--${type}`
   toast.setAttribute("role", "status")
   toast.setAttribute("aria-live", "polite")
+
   const messageSpan = document.createElement("span")
   messageSpan.textContent = message
   toast.appendChild(messageSpan)
+
   toastContainer.prepend(toast)
+
   requestAnimationFrame(() => {
     toast.classList.add("toast-visible")
   })
+
   const timerId = setTimeout(() => {
     toast.classList.remove("toast-visible")
     toast.classList.add("toast-exiting")
@@ -201,6 +205,7 @@ function showToast(message, type = "info", duration = TOAST_DURATION) {
       }
     }, 500)
   }, duration)
+
   toast.addEventListener(
     "click",
     () => {
@@ -825,167 +830,141 @@ function handleSettingChange(event) {
     needsIpcUpdate = false
   const id = target.id
   let value = target.type === "checkbox" ? target.checked : target.value
-  const key = target.name || id
-  if (id.endsWith("-hex") || id.endsWith("-picker")) return
-  if (
-    state.hasOwnProperty(key) &&
-    state[key] === value &&
-    key !== "font-source" &&
-    key !== "bg-type"
-  ) {
-    /* return; */
-  }
-  switch (key) {
-    case "font-source":
-      if (target.checked) {
-        value = target.value
-        if (state.fontSource !== value) {
-          state.fontSource = value
-          settingChanged = true
-          updateFontControlsVisibility()
-          if (value === "default") {
-            state.activeFontFamily = DEFAULT_FONT
-            updateFontStatus("idle", DEFAULT_FONT)
-            state.systemFontFamily = ""
-            state.googleFontName = ""
-          } else if (value === "system") {
-            const selectedSystemFont = settingsInputs.systemFontSelect.value
-            if (selectedSystemFont) {
-              state.activeFontFamily = selectedSystemFont
-              state.systemFontFamily = selectedSystemFont
-              updateFontStatus("loaded", selectedSystemFont)
-            } else {
-              state.activeFontFamily = DEFAULT_FONT
-              state.systemFontFamily = ""
-              updateFontStatus("idle", DEFAULT_FONT)
-              requiresRegeneration = false
-            }
-            state.googleFontName = ""
-          } else if (value === "google") {
-            state.systemFontFamily = ""
-            requiresRegeneration = false
-            if (state.googleFontName && state.customFontStatus === "loaded") {
-              updateFontStatus("loaded", state.activeFontFamily)
-            } else {
-              updateFontStatus("idle", state.googleFontName || DEFAULT_FONT)
-              state.customFontStatus = "idle"
-            }
-          }
+  const key = target.name || id // Use name for radio groups
+
+  // Early exit for elements we handle differently or don't handle
+  if (id.endsWith("-hex") || id.endsWith("-picker") || !key) return
+
+  // --- Specific Handling for Radio Groups ---
+  if (key === "font-source") {
+    value = target.value // Get the value of the selected radio
+    if (target.checked && state.fontSource !== value) {
+      state.fontSource = value
+      settingChanged = true
+      requiresSave = true
+      // Handle font activation/deactivation logic
+      if (value === "default") {
+        state.activeFontFamily = DEFAULT_FONT
+        updateFontStatus("idle", DEFAULT_FONT)
+        state.systemFontFamily = ""
+        state.googleFontName = ""
+      } else if (value === "system") {
+        const selectedSystemFont = settingsInputs.systemFontSelect.value
+        if (selectedSystemFont) {
+          state.activeFontFamily = selectedSystemFont
+          state.systemFontFamily = selectedSystemFont
+          updateFontStatus("loaded", selectedSystemFont)
         } else {
-          settingChanged = false
+          state.activeFontFamily = DEFAULT_FONT
+          state.systemFontFamily = ""
+          updateFontStatus("idle", DEFAULT_FONT)
           requiresRegeneration = false
-          requiresSave = false
         }
-      } else {
-        settingChanged = false
+        state.googleFontName = ""
+      } else if (value === "google") {
+        state.systemFontFamily = ""
         requiresRegeneration = false
-        requiresSave = false
-      }
-      break
-    case "bg-type":
-      if (target.checked) {
-        value = target.value
-        if (state.backgroundType !== value) {
-          state.backgroundType = value
-          settingChanged = true
-          updateBackgroundControlsVisibility()
+        if (state.googleFontName && state.customFontStatus === "loaded") {
+          updateFontStatus("loaded", state.activeFontFamily)
         } else {
-          settingChanged = false
-          requiresRegeneration = false
-          requiresSave = false
+          updateFontStatus("idle", state.googleFontName || DEFAULT_FONT)
+          state.customFontStatus = "idle"
         }
-      } else {
-        settingChanged = false
-        requiresRegeneration = false
-        requiresSave = false
       }
-      break
-    case "run-in-tray-checkbox":
-      if (id === "run-in-tray-checkbox") {
-        if (state.runInTray !== value) {
-          state.runInTray = value
-          settingChanged = true
-          requiresRegeneration = false
+    } else if (!target.checked) {
+      // If a radio is unchecked, another was checked, the change handler on the *newly checked* one handles it.
+      settingChanged = false
+      requiresRegeneration = false
+      requiresSave = false
+    }
+    // ** Always update UI visibility for font source **
+    updateFontControlsVisibility()
+  } else if (key === "bg-type") {
+    value = target.value // Get the value of the selected radio
+    if (target.checked && state.backgroundType !== value) {
+      state.backgroundType = value
+      settingChanged = true
+      requiresSave = true
+    } else if (!target.checked) {
+      settingChanged = false
+      requiresRegeneration = false
+      requiresSave = false
+    }
+    // ** Always update UI visibility for background type **
+    updateBackgroundControlsVisibility()
+  } else {
+    // Handle other inputs (checkboxes, text, numbers, selects)
+    let hasPropertyChanged = false
+    let propertyName = id // Assume id is the state property name
+    const idToStateMap = {
+      "wallpaper-title-input": "title",
+      "font-size": "fontSize",
+      "font-weight-select": "fontWeight",
+      "list-style-select": "listStyle",
+      "overall-opacity": "overallOpacity",
+      "text-position": "textPosition",
+      "text-align-select": "textAlign",
+      "offset-x": "offsetX",
+      "offset-y": "offsetY",
+      "title-spacing-input": "titleBottomMargin",
+      "item-spacing-input": "itemSpacing",
+      "max-items-input": "maxItemsPerColumn",
+      "column-gap-input": "columnGap",
+      "text-background-enable": "textBackgroundEnabled",
+      "text-panel-opacity": "textPanelOpacity",
+      "text-bg-padding-inline": "textBackgroundPaddingInline",
+      "text-bg-padding-block": "textBackgroundPaddingBlock",
+      "text-bg-border-radius": "textBackgroundBorderRadius",
+      "text-bg-border-width": "textBackgroundBorderWidth",
+      "system-font-select": "systemFontFamily",
+      "google-font-name": "googleFontName",
+      "run-in-tray-checkbox": "runInTray",
+      "quick-add-translucent-checkbox": "quickAddTranslucent",
+    }
+    propertyName = idToStateMap[id] || id
+
+    if (state.hasOwnProperty(propertyName)) {
+      const oldValue = state[propertyName]
+      let newValue = value
+      if (target.type === "number") {
+        newValue = parseFloat(value) || 0
+        if (target.min !== "" && newValue < parseFloat(target.min))
+          newValue = parseFloat(target.min)
+        if (target.max !== "" && newValue > parseFloat(target.max))
+          newValue = parseFloat(target.max)
+        const step = target.getAttribute("step")
+        if (!step || step === "1") {
+          newValue = Math.round(newValue)
+        }
+      } else if (target.type === "checkbox") {
+        newValue = target.checked
+      } // Ensure boolean
+
+      if (oldValue !== newValue) {
+        state[propertyName] = newValue
+        hasPropertyChanged = true
+        settingChanged = true // Mark setting as changed if property updated
+        requiresSave = true // Always save if property updated
+
+        // Check for specific side effects / UI updates
+        if (propertyName === "runInTray") {
           needsIpcUpdate = true
           updateShortcutInputVisibility()
-        } else {
-          settingChanged = false
-          requiresRegeneration = false
-          requiresSave = false
         }
-      }
-      break
-    case "quick-add-translucent-checkbox":
-      if (id === "quick-add-translucent-checkbox") {
-        if (state.quickAddTranslucent !== value) {
-          state.quickAddTranslucent = value
-          settingChanged = true
-          requiresRegeneration = false
+        if (propertyName === "quickAddTranslucent") {
           needsIpcUpdate = true
-        } else {
-          settingChanged = false
-          requiresRegeneration = false
-          requiresSave = false
         }
-      }
-      break
-    default:
-      let hasPropertyChanged = false
-      let propertyName = id
-      const idToStateMap = {
-        "wallpaper-title-input": "title",
-        "font-size": "fontSize",
-        "font-weight-select": "fontWeight",
-        "list-style-select": "listStyle",
-        "overall-opacity": "overallOpacity",
-        "text-position": "textPosition",
-        "text-align-select": "textAlign",
-        "offset-x": "offsetX",
-        "offset-y": "offsetY",
-        "title-spacing-input": "titleBottomMargin",
-        "item-spacing-input": "itemSpacing",
-        "max-items-input": "maxItemsPerColumn",
-        "column-gap-input": "columnGap",
-        "text-background-enable": "textBackgroundEnabled",
-        "text-panel-opacity": "textPanelOpacity",
-        "text-bg-padding-inline": "textBackgroundPaddingInline",
-        "text-bg-padding-block": "textBackgroundPaddingBlock",
-        "text-bg-border-radius": "textBackgroundBorderRadius",
-        "text-bg-border-width": "textBackgroundBorderWidth",
-        "system-font-select": "systemFontFamily",
-        "google-font-name": "googleFontName",
-      }
-      propertyName = idToStateMap[id] || id
-      if (state.hasOwnProperty(propertyName)) {
-        const oldValue = state[propertyName]
-        let newValue = value
-        if (target.type === "number") {
-          newValue = parseFloat(value) || 0
-          if (target.min !== "" && newValue < parseFloat(target.min))
-            newValue = parseFloat(target.min)
-          if (target.max !== "" && newValue > parseFloat(target.max))
-            newValue = parseFloat(target.max)
-          const step = target.getAttribute("step")
-          if (!step || step === "1") {
-            newValue = Math.round(newValue)
-          }
+        if (propertyName === "textBackgroundEnabled") {
+          updateTextBackgroundControlsVisibility()
         }
-        if (oldValue !== newValue) {
-          state[propertyName] = newValue
-          hasPropertyChanged = true
-        }
-      } else {
-        console.warn(
-          `Unhandled setting change for element with ID: ${id} (mapped to: ${propertyName})`
-        )
-        requiresRegeneration = false
-        settingChanged = false
-        requiresSave = false
-        break
-      }
-      if (hasPropertyChanged) {
-        settingChanged = true
-        const nonRegenProps = ["systemFontFamily", "googleFontName"]
+
+        // Determine if regeneration is needed
+        const nonRegenProps = [
+          "systemFontFamily",
+          "googleFontName",
+          "runInTray",
+          "quickAddTranslucent",
+        ]
         if (nonRegenProps.includes(propertyName)) {
           requiresRegeneration = false
           if (
@@ -1009,17 +988,27 @@ function handleSettingChange(event) {
               state.customFontStatus = "idle"
             }
           }
-        }
-        if (propertyName === "textBackgroundEnabled") {
-          updateTextBackgroundControlsVisibility()
+        } else {
+          requiresRegeneration = true // Default to regenerating for other changes
         }
       } else {
+        // Value didn't change, no action needed for this property
         settingChanged = false
         requiresRegeneration = false
         requiresSave = false
+        needsIpcUpdate = false
       }
-      break
-  }
+    } else {
+      console.warn(
+        `State property not found for element ID: ${id} (mapped to: ${propertyName})`
+      )
+      settingChanged = false
+      requiresRegeneration = false
+      requiresSave = false
+    }
+  } // End handling for non-radio inputs
+
+  // Perform actions based on flags
   if (settingChanged) {
     if (requiresRegeneration) {
       generateTodoImageAndUpdatePreview()
@@ -1041,6 +1030,7 @@ function handleSettingChange(event) {
     }
   }
 }
+
 function setupEventListeners() {
   console.log("Setting up event listeners...")
   applyWallpaperBtn.addEventListener("click", handleApplyWallpaper)
@@ -1057,7 +1047,7 @@ function setupEventListeners() {
     closeBtn.addEventListener("click", () => window.electronAPI.closeWindow())
   const inputsToListen = [
     ...settingsColumn.querySelectorAll(
-      'input[type="text"], input[type="number"], input[type="checkbox"], select'
+      'input[type="text"], input[type="number"], input[type="checkbox"], select, input[type="radio"]'
     ),
   ]
   inputsToListen.forEach((input) => {
@@ -2236,7 +2226,7 @@ function mapKeyToAccelerator(k) {
       return "."
     case "SLASH":
       return "Slash"
-    /* Kept as Slash for consistency, but default changed */ case "F1":
+    case "F1":
     case "F2":
     case "F3":
     case "F4":

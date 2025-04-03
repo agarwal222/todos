@@ -30,14 +30,17 @@ const gotTheLock = app.requestSingleInstanceLock()
 
 if (!gotTheLock) {
   log.warn("Another instance is already running. Quitting this instance.")
+  // Optional: You could show a dialog here, but focusing the existing window is standard.
+  // dialog.showErrorBox('Visido Already Running', 'Another instance of Visido is already running.');
   app.quit()
 } else {
   app.on("second-instance", (event, commandLine, workingDirectory) => {
+    // Someone tried to run a second instance, we should focus our window.
     log.info("Second instance detected. Focusing main window.")
     if (mainWindow) {
       if (!mainWindow.isVisible()) {
         log.info("Main window was hidden, showing...")
-        showMainWindow()
+        showMainWindow() // Use our function to handle showing/recreating if needed
       } else if (mainWindow.isMinimized()) {
         log.info("Main window was minimized, restoring...")
         mainWindow.restore()
@@ -45,6 +48,7 @@ if (!gotTheLock) {
       log.info("Focusing main window.")
       mainWindow.focus()
     } else {
+      // If mainWindow is somehow null, try creating it again.
       log.warn(
         "Main window was null when second instance detected. Recreating..."
       )
@@ -73,10 +77,11 @@ if (!gotTheLock) {
   const QUICK_ADD_VIBRANCY_FALLBACK_BG = "rgba(46, 46, 48, 0.9)"
   const QUICK_ADD_MIN_HEIGHT = 100
   const QUICK_ADD_MAX_HEIGHT_FACTOR = 1.5
-  const INITIAL_SETUP_DELAY = 300
+  const INITIAL_SETUP_DELAY = 300 // ms delay before initial tray/shortcut setup
 
   // --- Main Window Creation ---
   function createWindow() {
+    // Prevent creating multiple main windows if called again unnecessarily
     if (mainWindow && !mainWindow.isDestroyed()) {
       log.warn(
         "createWindow called but mainWindow already exists. Focusing existing."
@@ -85,6 +90,7 @@ if (!gotTheLock) {
       return
     }
     log.info("Creating main browser window...")
+
     const primaryDisplay = screen.getPrimaryDisplay()
     const screenDimensions = primaryDisplay.size
     mainWindow = new BrowserWindow({
@@ -102,6 +108,7 @@ if (!gotTheLock) {
       backgroundColor: "#111827",
     })
     mainWindow.loadFile("index.html")
+
     mainWindow.webContents.on("did-finish-load", () => {
       log.info("Main window finished loading.")
       mainWindow.webContents.send("screen-dimensions", screenDimensions)
@@ -109,10 +116,12 @@ if (!gotTheLock) {
         isMaximized: mainWindow.isMaximized(),
         isFullScreen: mainWindow.isFullScreen(),
       })
-      mainWindow.show()
+      mainWindow.show() // Show the window regardless of tray settings initially
       log.info("Checking for updates...")
       autoUpdater.checkForUpdatesAndNotify()
     })
+
+    // Window state change listeners
     mainWindow.on("maximize", () => {
       if (mainWindow && !mainWindow.isDestroyed())
         mainWindow.webContents.send("window-state-changed", {
@@ -141,6 +150,8 @@ if (!gotTheLock) {
           isFullScreen: false,
         })
     })
+
+    // Close/Minimize handlers - These contain the logic to hide when tray mode is ON
     mainWindow.on("close", (event) => {
       log.info(
         `Main window close requested. RunInTray: ${appSettings.runInTray}, IsQuitting: ${isQuitting}`
@@ -152,9 +163,10 @@ if (!gotTheLock) {
         log.info("Main window hidden to tray on close.")
       } else {
         log.info("Main window closing normally (or quitting).")
-        mainWindow = null
+        mainWindow = null // Allow app to quit if not running in tray or explicitly quitting
       }
     })
+
     mainWindow.on("minimize", (event) => {
       if (appSettings.runInTray && process.platform !== "darwin") {
         event.preventDefault()
@@ -162,10 +174,12 @@ if (!gotTheLock) {
         log.info("Main window hidden to tray on minimize (non-macOS).")
       }
     })
+
     mainWindow.on("closed", () => {
       log.info("Main window instance closed event fired.")
-      mainWindow = null
+      mainWindow = null // Important to allow app to quit correctly
     })
+    // mainWindow.webContents.openDevTools();
   }
 
   // --- Tray Icon Creation (Improved Path Handling) ---
@@ -177,13 +191,10 @@ if (!gotTheLock) {
     log.info("Creating system tray icon...")
 
     // Determine base path depending on packaged status
-    const basePath = app.isPackaged
-      ? path.dirname(app.getPath("exe"))
-      : __dirname
-    const assetsPath = path.join(
-      basePath,
-      app.isPackaged ? "resources/app/assets" : "assets"
-    ) // Adjust path for packaged app
+    // Corrected path logic for assets within packaged app
+    const assetsPath = app.isPackaged
+      ? path.join(process.resourcesPath, "app/assets") // Standard location for extra resources
+      : path.join(__dirname, "assets")
 
     const iconName =
       process.platform === "win32" ? "icon.ico" : "iconTemplate.png"
@@ -193,20 +204,22 @@ if (!gotTheLock) {
     let finalIconPath = null
     let usedFallback = false
 
+    log.info(`Attempting to find tray icon at primary: ${primaryIconPath}`)
     if (fs.existsSync(primaryIconPath)) {
       finalIconPath = primaryIconPath
       log.info(`Using primary tray icon path: ${finalIconPath}`)
-    } else if (fs.existsSync(fallbackIconPath)) {
-      finalIconPath = fallbackIconPath
-      usedFallback = true
-      log.warn(
-        `Primary icon not found at ${primaryIconPath}, using fallback: ${finalIconPath}`
-      )
     } else {
-      log.error(
-        `Neither primary (${primaryIconPath}) nor fallback (${fallbackIconPath}) tray icons found.`
+      log.warn(
+        `Primary icon not found. Attempting fallback: ${fallbackIconPath}`
       )
-      return false // Cannot create tray
+      if (fs.existsSync(fallbackIconPath)) {
+        finalIconPath = fallbackIconPath
+        usedFallback = true
+        log.info(`Using fallback tray icon path: ${finalIconPath}`)
+      } else {
+        log.error(`Neither primary nor fallback tray icons found.`)
+        return false // Cannot create tray
+      }
     }
 
     try {
@@ -257,6 +270,7 @@ if (!gotTheLock) {
       log.info("System tray icon destroyed.")
     }
   }
+
   // --- Show Main Window ---
   function showMainWindow() {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -361,7 +375,7 @@ if (!gotTheLock) {
     const primaryDisplay = screen.getPrimaryDisplay()
     const { width: screenWidth } = primaryDisplay.size
     const winWidth = 600
-    const winHeight = 480
+    const initialHeight = QUICK_ADD_MIN_HEIGHT
     const isMac = process.platform === "darwin"
     const useTranslucency = appSettings.quickAddTranslucent
     let bgColor = QUICK_ADD_SOLID_BG
@@ -378,7 +392,8 @@ if (!gotTheLock) {
     }
     let windowOptions = {
       width: winWidth,
-      height: winHeight,
+      height: initialHeight,
+      minHeight: QUICK_ADD_MIN_HEIGHT,
       x: Math.round(screenWidth / 2 - winWidth / 2),
       y: Math.round(
         primaryDisplay.workArea.y + primaryDisplay.workArea.height * 0.15
@@ -672,8 +687,18 @@ if (!gotTheLock) {
     } catch (error) {
       log.error("Main: Failed to set wallpaper. Full Error:", error)
       let errorMessage = "Unknown error setting wallpaper"
-      if (error && error.message) {
+      if (error instanceof Error && error.message) {
         errorMessage = error.message
+        if (
+          errorMessage.includes("EPERM") ||
+          errorMessage.includes("access denied")
+        ) {
+          errorMessage = "Permission denied. Try running as administrator?"
+        } else if (errorMessage.includes("screen")) {
+          errorMessage = "Could not detect screen or set wallpaper for it."
+        }
+      } else if (typeof error === "string") {
+        errorMessage = error
       }
       return { success: false, error: errorMessage }
     }
