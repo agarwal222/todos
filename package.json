@@ -33,7 +33,6 @@
   "build": {
     "appId": "com.utkarshdev.visido",
     "productName": "Visido",
-    "asar": false,
     "files": [
       "!node_modules/.cache",
       "!dist/",
@@ -44,11 +43,20 @@
       "buildResources": "assets",
       "output": "dist"
     },
+    "extraResources": [
+      {
+        "from": "assets",
+        "to": ".",  
+        "filter": [
+          "**/*" 
+        ]
+      }
+    ],
     "asarUnpack": [
       "**/node_modules/wallpaper/source/windows-wallpaper.exe",
       "**/node_modules/wallpaper/vendor/**",
       "**/node_modules/wallpaper/source/**",
-      "**/node_modules/font-list/**" 
+      "**/node_modules/font-list/**"
     ],
     "publish": {
       "provider": "github",
@@ -57,11 +65,11 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "assets/icon.png" 
+      "icon": "assets/icon.png"
     },
     "mac": {
       "target": "dmg",
-      "icon": "assets/icon.icns",
+      "icon": "assets/icon.icns", 
       "category": "public.app-category.productivity"
     },
     "linux": {

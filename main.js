@@ -13,6 +13,7 @@ const {
 } = require("electron")
 const path = require("node:path")
 const fs = require("node:fs").promises // Use promises version of fs
+const fsSync = require("node:fs") // Use synchronous version for existsSync check
 const os = require("node:os")
 const https = require("node:https") // Ensure https is required
 const fontList = require("font-list")
@@ -27,7 +28,9 @@ log.info("App starting...")
 
 // --- State File Path ---
 const STATE_FILE_NAME = "visidoState.json"
-let stateFilePath = "" // Will be set in whenReady
+const BACKGROUND_IMAGE_FILE_NAME = "visidoBackground.png" // Fixed name for background
+let stateFilePath = ""
+let backgroundImagePath = "" // Will be set in whenReady
 
 // --- Single Instance Lock ---
 const gotTheLock = app.requestSingleInstanceLock()
@@ -79,13 +82,13 @@ if (!gotTheLock) {
   // --- Helper Functions ---
   function getAssetPath(assetName) {
     if (app.isPackaged) {
-      return path.join(process.resourcesPath, "app", assetName)
+      return path.join(process.resourcesPath, assetName)
     } else {
       return path.join(__dirname, "assets", assetName)
     }
   }
 
-  // *** Google Font Helper Functions (Defined at Top Level) ***
+  // *** Google Font Helper Functions (Defined at Top Level - CORRECTED PLACEMENT) ***
   function fetchGoogleFontCSS(url) {
     return new Promise((resolve, reject) => {
       const options = {
@@ -192,9 +195,9 @@ if (!gotTheLock) {
       show: false,
       frame: false,
       backgroundColor: "#111827",
-      icon: require("fs").existsSync(mainIconPath) ? mainIconPath : undefined,
+      icon: fsSync.existsSync(mainIconPath) ? mainIconPath : undefined,
     })
-    if (!require("fs").existsSync(mainIconPath)) {
+    if (!fsSync.existsSync(mainIconPath)) {
       log.warn(
         `Main window icon file not found at expected location: ${mainIconPath}`
       )
@@ -279,11 +282,11 @@ if (!gotTheLock) {
     const fallbackIconPath = getAssetPath("icon.png")
     let finalIconPath = iconPath
     log.info(`Attempting to load tray icon from primary path: ${iconPath}`)
-    if (!require("fs").existsSync(iconPath)) {
+    if (!fsSync.existsSync(iconPath)) {
       log.warn(
         `Primary icon (${iconName}) not found at ${iconPath}. Attempting fallback: ${fallbackIconPath}`
       )
-      if (require("fs").existsSync(fallbackIconPath)) {
+      if (fsSync.existsSync(fallbackIconPath)) {
         finalIconPath = fallbackIconPath
         log.info(`Using fallback tray icon: ${finalIconPath}`)
       } else {
@@ -515,12 +518,10 @@ if (!gotTheLock) {
       backgroundColor: bgColor,
       ...(vibrancyType && { vibrancy: vibrancyType }),
       useContentSize: true,
-      icon: require("fs").existsSync(quickAddIconPath)
-        ? quickAddIconPath
-        : undefined,
+      icon: fsSync.existsSync(quickAddIconPath) ? quickAddIconPath : undefined,
     }
     quickAddWindow = new BrowserWindow(windowOptions)
-    if (!require("fs").existsSync(quickAddIconPath)) {
+    if (!fsSync.existsSync(quickAddIconPath)) {
       log.warn(
         `Quick Add window icon file not found at expected location: ${quickAddIconPath}`
       )
@@ -625,6 +626,66 @@ if (!gotTheLock) {
       log.error(`Error writing state file to ${stateFilePath}:`, error)
     }
   })
+  ipcMain.handle("save-background-image", async (event, imageDataUrl) => {
+    if (!backgroundImagePath) {
+      log.error("Cannot save background: path not initialized.")
+      return { success: false, error: "Background image path not set." }
+    }
+    log.info("Saving background image to:", backgroundImagePath)
+    try {
+      const base64Data = imageDataUrl.replace(/^data:image\/png;base64,/, "")
+      await fs.writeFile(backgroundImagePath, base64Data, "base64")
+      log.info("Background image saved successfully.")
+      return { success: true }
+    } catch (error) {
+      log.error("Error saving background image:", error)
+      return { success: false, error: error.message }
+    }
+  })
+  ipcMain.handle("load-background-image", async () => {
+    if (!backgroundImagePath) {
+      log.error("Cannot load background: path not initialized.")
+      return null
+    }
+    log.info("Loading background image from:", backgroundImagePath)
+    try {
+      const imageBuffer = await fs.readFile(backgroundImagePath)
+      const mimeType = "image/png"
+      const base64 = imageBuffer.toString("base64")
+      log.info("Background image loaded successfully.")
+      return `data:${mimeType};base64,${base64}`
+    } catch (error) {
+      if (error.code === "ENOENT") {
+        log.warn("Background image file not found:", backgroundImagePath)
+      } else {
+        log.error("Error loading background image:", error)
+      }
+      return null
+    }
+  })
+  ipcMain.handle("clear-background-image", async () => {
+    if (!backgroundImagePath) {
+      log.error("Cannot clear background: path not initialized.")
+      return { success: false, error: "Background image path not set." }
+    }
+    log.info("Clearing background image:", backgroundImagePath)
+    try {
+      await fs.unlink(backgroundImagePath)
+      log.info("Background image cleared successfully.")
+      return { success: true }
+    } catch (error) {
+      if (error.code === "ENOENT") {
+        log.warn(
+          "Attempted to clear background image, but file already gone:",
+          backgroundImagePath
+        )
+        return { success: true }
+      } else {
+        log.error("Error clearing background image:", error)
+        return { success: false, error: error.message }
+      }
+    }
+  })
   ipcMain.once("renderer-settings-loaded", (event, loadedSettings) => {
     log.info("Received initial settings from renderer:", loadedSettings)
     rendererSettingsLoaded = true
@@ -715,7 +776,6 @@ if (!gotTheLock) {
   ipcMain.handle(
     "load-google-font-by-name",
     async (event, { fontName, fontWeight }) => {
-      // Now calls the top-level helper functions
       if (!fontName) {
         log.warn("Attempted to load Google Font with no name.")
         return { success: false, error: "Font name is required." }
@@ -807,16 +867,16 @@ if (!gotTheLock) {
       tempFilePath = path.join(tempDir, `visido-wallpaper-${Date.now()}.png`)
       const base64Data = imageDataUrl.replace(/^data:image\/png;base64,/, "")
       const imageBuffer = Buffer.from(base64Data, "base64")
-      await require("fs").promises.mkdir(tempDir, { recursive: true })
+      await fs.mkdir(tempDir, { recursive: true })
       log.info("Main: Writing temp wallpaper file to:", tempFilePath)
-      await require("fs").promises.writeFile(tempFilePath, imageBuffer)
+      await fs.writeFile(tempFilePath, imageBuffer)
       log.info(`Main: Temp file size: ${imageBuffer.length} bytes`)
       log.info("Main: Calling setWallpaper with path:", tempFilePath)
       await setWallpaper(tempFilePath, { scale: "auto" })
       log.info("Main: Wallpaper set command issued successfully.")
       setTimeout(() => {
-        if (tempFilePath && require("fs").existsSync(tempFilePath)) {
-          require("fs").unlink(tempFilePath, (err) => {
+        if (tempFilePath && fsSync.existsSync(tempFilePath)) {
+          fsSync.unlink(tempFilePath, (err) => {
             if (err) log.error("Error deleting temp wallpaper file:", err)
             else log.info("Main: Deleted temp wallpaper file:", tempFilePath)
           })
@@ -1167,8 +1227,12 @@ if (!gotTheLock) {
   // --- App Lifecycle ---
   app.whenReady().then(() => {
     log.info("App is ready.")
-    stateFilePath = path.join(app.getPath("userData"), STATE_FILE_NAME)
+    const userDataPath = app.getPath("userData")
+    stateFilePath = path.join(userDataPath, STATE_FILE_NAME)
+    backgroundImagePath = path.join(userDataPath, BACKGROUND_IMAGE_FILE_NAME)
+    log.info(`User data path: ${userDataPath}`)
     log.info(`State file path set to: ${stateFilePath}`)
+    log.info(`Background image path set to: ${backgroundImagePath}`)
     createWindow()
     app.on("activate", () => {
       log.info("App activated.")
@@ -1257,7 +1321,7 @@ if (!gotTheLock) {
     new Notification({
       title: "Visido Update Ready",
       body: "A new version has been downloaded. Restart the application to apply the update.",
-      icon: require("fs").existsSync(notificationIconPath)
+      icon: fsSync.existsSync(notificationIconPath)
         ? notificationIconPath
         : undefined,
     }).show()

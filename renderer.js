@@ -12,10 +12,10 @@ import {
   DEFAULT_OVERALL_OPACITY,
   DEFAULT_PANEL_OPACITY,
 } from "./state.js"
-import * as utils from "./utils.js" // Import all utils
+import * as utils from "./utils.js"
 
 // --- DOM Elements ---
-// ... (Keep all existing DOM element references) ...
+// ... (Keep all DOM element references) ...
 const applyWallpaperBtn = document.getElementById("apply-wallpaper-btn")
 const openAppSettingsModalBtn = document.getElementById(
   "open-app-settings-modal-btn"
@@ -168,7 +168,7 @@ async function initialize() {
   setCanvasAndPreviewSize(state.screenWidth, state.screenHeight)
 
   // Load state from main process first
-  await loadState() // Wait for state to be loaded
+  await loadState() // **MODIFIED: Wait for state to be loaded**
 
   // Continue with initialization
   await populateSystemFonts()
@@ -177,17 +177,51 @@ async function initialize() {
   applyStateToUI() // Apply the loaded or default state
   previewContainer.classList.remove("loaded")
 
-  console.log("Sending loaded settings to main process:", {
-    runInTray: state.runInTray,
-    quickAddShortcut: state.quickAddShortcut,
-    quickAddTranslucent: state.quickAddTranslucent,
-  })
-  window.electronAPI.sendRendererSettingsLoaded({
-    runInTray: state.runInTray,
-    quickAddShortcut: state.quickAddShortcut,
-    quickAddTranslucent: state.quickAddTranslucent,
-  })
+  // **MODIFIED: Load background image if necessary AFTER state is loaded**
+  let imageLoadPromise = Promise.resolve()
+  if (state.backgroundType === "image" && state.backgroundImageName) {
+    console.log(
+      "Attempting to load persistent background image:",
+      state.backgroundImageName
+    )
+    imageLoadPromise = window.electronAPI
+      .loadBackgroundImage()
+      .then((dataUrl) => {
+        if (dataUrl) {
+          console.log("Successfully loaded background image data.")
+          state.backgroundImageDataUrl = dataUrl // Restore data URL for preview/generation
+        } else {
+          console.warn(
+            "Failed to load background image data from main process. Resetting to color background."
+          )
+          utils.showToast(
+            toastContainer,
+            `Could not load image "${state.backgroundImageName}". Resetting background.`,
+            "warning"
+          )
+          state.backgroundType = "color"
+          state.backgroundImageName = null
+          state.backgroundImageDataUrl = null
+          applyStateToUI() // Update UI to reflect reset
+          saveState() // Save the reset state
+        }
+      })
+      .catch((err) => {
+        console.error("Error loading background image via IPC:", err)
+        utils.showToast(
+          toastContainer,
+          "Error loading background image.",
+          "error"
+        )
+        state.backgroundType = "color"
+        state.backgroundImageName = null
+        state.backgroundImageDataUrl = null
+        applyStateToUI()
+        saveState()
+      })
+  }
 
+  // Load fonts
   let fontLoadPromise = Promise.resolve()
   try {
     if (state.fontSource === "google" && state.googleFontName) {
@@ -211,11 +245,25 @@ async function initialize() {
   }
 
   renderTodoList()
-  fontLoadPromise
-    .catch((err) => console.warn("Font loading promise rejected:", err))
+
+  // Generate initial preview *after* attempting to load image and font
+  Promise.all([imageLoadPromise, fontLoadPromise])
+    .catch((err) => console.warn("Font/Image loading promise rejected:", err))
     .finally(() => {
       generateTodoImageAndUpdatePreview()
-    }) // Generate initial preview
+    })
+
+  // Send loaded settings (app behavior) to main process
+  console.log("Sending loaded settings to main process:", {
+    runInTray: state.runInTray,
+    quickAddShortcut: state.quickAddShortcut,
+    quickAddTranslucent: state.quickAddTranslucent,
+  })
+  window.electronAPI.sendRendererSettingsLoaded({
+    runInTray: state.runInTray,
+    quickAddShortcut: state.quickAddShortcut,
+    quickAddTranslucent: state.quickAddTranslucent,
+  })
 
   setupEventListeners()
   initializeCollapsibleSections()
@@ -254,7 +302,6 @@ async function initialize() {
   document.body.dataset.platform = platform
   console.log("Renderer initialized on platform:", platform)
 }
-
 // --- Set Canvas & Preview Size ---
 function setCanvasAndPreviewSize(width, height) {
   /* ... */ canvas.width = width
@@ -469,12 +516,15 @@ function applyStateToUI() {
 function saveState() {
   try {
     const stateToSave = { ...state }
-    // Don't save potentially large image data in the state file
+    // Remove transient or large data before saving
     delete stateToSave.backgroundImageDataUrl
     delete stateToSave.lastGeneratedImageDataUrl
+    delete stateToSave.customFontStatus // Status is runtime only
+    delete stateToSave.customFontError // Error is runtime only
+
     // Send state to main process for saving
     window.electronAPI.saveState(stateToSave)
-    // console.log("Renderer: Sent state to main for saving."); // Optional log
+    // console.log("Renderer: Sent state to main for saving.");
   } catch (e) {
     console.error("Save State Error (preparing state):", e)
     utils.showToast(
@@ -486,10 +536,9 @@ function saveState() {
 }
 
 async function loadState() {
-  // Make loadState async
+  // Made async
   try {
-    // Request state from main process
-    const loadedStateFromFile = await window.electronAPI.loadState()
+    const loadedStateFromFile = await window.electronAPI.loadState() // Await state from main
     const platform = window.electronAPI?.getPlatform() || "win32"
     const platformDefaultTranslucent = platform === "darwin"
 
@@ -500,26 +549,24 @@ async function loadState() {
         screenHeight: state.screenHeight,
       }
 
-      // Merge loaded state with defaults, ensuring all keys exist
       state = {
-        ...initialState,
-        ...loadedStateFromFile,
-        // Ensure platform default for translucency if not explicitly saved
-        quickAddTranslucent:
-          typeof loadedStateFromFile.quickAddTranslucent === "boolean"
-            ? loadedStateFromFile.quickAddTranslucent
-            : platformDefaultTranslucent,
-        // Ensure boolean type for autoApply
+        ...initialState, // Start with defaults
+        ...loadedStateFromFile, // Overwrite with saved values
+        // Ensure specific defaults/types are handled
         autoApplyWallpaper:
           typeof loadedStateFromFile.autoApplyWallpaper === "boolean"
             ? loadedStateFromFile.autoApplyWallpaper
             : false,
+        quickAddTranslucent:
+          typeof loadedStateFromFile.quickAddTranslucent === "boolean"
+            ? loadedStateFromFile.quickAddTranslucent
+            : platformDefaultTranslucent,
         // Restore current screen dims and reset transient state
         ...currentScreenDims,
         customFontStatus: "idle",
         customFontError: null,
-        lastGeneratedImageDataUrl: null,
-        // Ensure todos have context
+        lastGeneratedImageDataUrl: null, // Don't load image data from state
+        backgroundImageDataUrl: null, // Don't load image data from state
         todos: Array.isArray(loadedStateFromFile.todos)
           ? loadedStateFromFile.todos.map((t) => ({
               ...t,
@@ -528,11 +575,11 @@ async function loadState() {
           : [],
       }
 
-      // Logic to set active font based on loaded source
+      // Set active font based on loaded source (font data itself loaded later in init)
       if (state.fontSource === "system" && state.systemFontFamily) {
         state.activeFontFamily = state.systemFontFamily
       } else if (state.fontSource === "google" && state.googleFontName) {
-        state.activeFontFamily = state.googleFontName // Font loaded in initialize
+        state.activeFontFamily = state.googleFontName // Use name, actual font loaded later
       } else {
         state.fontSource = "default"
         state.activeFontFamily = DEFAULT_FONT
@@ -541,7 +588,7 @@ async function loadState() {
       }
       console.log("Final state after loading and merging:", state)
     } else {
-      // No state file found or error reading it, use defaults
+      // No state file found or error reading it, use defaults + platform specifics
       state = {
         ...initialState,
         autoApplyWallpaper: false,
@@ -554,7 +601,7 @@ async function loadState() {
   } catch (e) {
     console.error("Load State Error (requesting state):", e)
     utils.showToast(toastContainer, "Error loading settings.", "error")
-    // Fallback to initial state
+    // Fallback to initial state in case of error
     const platform = window.electronAPI?.getPlatform() || "win32"
     state = {
       ...initialState,
@@ -565,9 +612,8 @@ async function loadState() {
 }
 
 // --- Event Handlers ---
-// ... (handleGlobalKeyDown, handleHexInputChange, handleVisualSettingChange, handleAppSettingChange, setupEventListeners remain the same) ...
 function handleGlobalKeyDown(event) {
-  if (!addTodoModal.classList.contains("hidden")) {
+  /* ... */ if (!addTodoModal.classList.contains("hidden")) {
     if (event.key === "Escape") closeModal()
   } else if (!editTodoModal.classList.contains("hidden")) {
     if (event.key === "Escape") closeEditModal()
@@ -587,7 +633,7 @@ function handleGlobalKeyDown(event) {
   }
 }
 function handleHexInputChange(event) {
-  const input = event.target
+  /* ... */ const input = event.target
   const value = input.value.trim()
   let pickrInstance = null
   let stateProp = null
@@ -625,7 +671,7 @@ function handleHexInputChange(event) {
   }
 }
 function handleVisualSettingChange(event) {
-  const target = event.target
+  /* ... */ const target = event.target
   let requiresRegeneration = true
   const id = target.id
   const value = target.type === "checkbox" ? target.checked : target.value
@@ -906,10 +952,10 @@ async function maybeAutoApplyWallpaper() {
     state.autoApplyWallpaper
   )
   try {
-    await generateTodoImageAndUpdatePreview() // Generate/update preview first
+    await generateTodoImageAndUpdatePreview()
     if (state.autoApplyWallpaper) {
       console.log("Auto-applying wallpaper...")
-      await handleApplyWallpaper() // Apply the generated wallpaper
+      await handleApplyWallpaper()
     } else {
       console.log("Auto-apply disabled, preview updated.")
     }
@@ -1086,7 +1132,7 @@ function addContextInputListeners() {
 }
 // --- Wallpaper Generation ---
 async function generateTodoImageAndUpdatePreview() {
-  /* ... (Use utils. functions) ... */ const {
+  /* ... */ const {
     title,
     listStyle,
     activeFontFamily,
@@ -1140,9 +1186,9 @@ async function generateTodoImageAndUpdatePreview() {
   previewContainer.classList.remove("loaded")
   try {
     ctx.clearRect(0, 0, screenWidth, screenHeight)
-    if (backgroundType === "image" && backgroundImageDataUrl) {
+    if (backgroundType === "image" && state.backgroundImageDataUrl) {
       try {
-        const img = await utils.loadImage(backgroundImageDataUrl)
+        const img = await utils.loadImage(state.backgroundImageDataUrl)
         utils.drawBackgroundImage(ctx, img, screenWidth, screenHeight)
       } catch (e) {
         console.error("Background Image Error:", e)
@@ -1226,7 +1272,7 @@ async function generateTodoImageAndUpdatePreview() {
     updatePreviewImage()
     throw err
   }
-}
+} // Modified check for backgroundImageDataUrl
 function updatePreviewImage() {
   /* ... */ try {
     state.lastGeneratedImageDataUrl = canvas.toDataURL("image/png")
@@ -1487,13 +1533,12 @@ function openRecordShortcutModal() {
   document.addEventListener("keyup", handleShortcutKeyUp, true)
 }
 function closeRecordShortcutModal() {
-  // MODIFIED - Unhide App Settings Modal
-  isRecordingShortcut = false
+  /* ... (Includes unhiding app settings) ... */ isRecordingShortcut = false
   recordShortcutModal.classList.add("hidden")
   document.removeEventListener("keydown", handleShortcutKeyDown, true)
   document.removeEventListener("keyup", handleShortcutKeyUp, true)
   if (appSettingsModal) {
-    appSettingsModal.classList.remove("modal-temporarily-hidden") // Make settings visible again
+    appSettingsModal.classList.remove("modal-temporarily-hidden")
   }
 }
 function openAppSettingsModal() {
@@ -1650,15 +1695,19 @@ function handleSaveShortcut() {
   }
   closeRecordShortcutModal()
 }
-// --- Background Image Handling ---
+
+// --- Background Image Handling (MODIFIED) ---
 function updateBackgroundControlsVisibility() {
-  /* ... */ const isImage = state.backgroundType === "image"
+  const isImage = state.backgroundType === "image"
   settingsInputs.bgColorControls.classList.toggle("hidden", isImage)
   settingsInputs.bgImageControls.classList.toggle("hidden", !isImage)
 }
-function handleImageFileSelect(e) {
-  /* ... */ const file = e.target.files[0]
+
+async function handleImageFileSelect(e) {
+  // Made async
+  const file = e.target.files[0]
   if (!file) return
+
   if (!file.type.startsWith("image/")) {
     alert("Invalid image file type. Please select a PNG, JPG, or WEBP image.")
     e.target.value = ""
@@ -1669,38 +1718,88 @@ function handleImageFileSelect(e) {
     e.target.value = ""
     return
   }
+
   const reader = new FileReader()
-  reader.onload = (event) => {
-    state.backgroundImageDataUrl = event.target.result
+  reader.onload = async (event) => {
+    // Made reader onload async
+    const imageDataUrl = event.target.result
+    state.backgroundImageDataUrl = imageDataUrl // Update runtime state for immediate preview
     state.backgroundImageName = file.name
+    state.backgroundType = "image" // Ensure type is image
     settingsInputs.imageFilenameSpan.textContent = file.name
-    generateTodoImageAndUpdatePreview()
-    saveState()
-    maybeAutoApplyWallpaper()
+    applyStateToUI() // Update UI elements (like radio button)
+
+    try {
+      console.log("Saving selected background image...")
+      const saveResult = await window.electronAPI.saveBackgroundImage(
+        imageDataUrl
+      ) // Send data URL to main to save
+      if (!saveResult.success) {
+        throw new Error(
+          saveResult.error || "Failed to save background image file."
+        )
+      }
+      console.log("Background image saved by main process.")
+      generateTodoImageAndUpdatePreview() // Generate preview with new image
+      saveState() // Save the state (which now includes bgType='image' and imageName)
+      maybeAutoApplyWallpaper() // Potentially apply it
+    } catch (error) {
+      console.error("Error saving background image:", error)
+      utils.showToast(
+        toastContainer,
+        `Error saving image: ${error.message}`,
+        "error"
+      )
+      // Optionally revert state if saving fails?
+      handleClearImage() // Revert to color background on save error
+    }
   }
   reader.onerror = handleImageReadError
   reader.readAsDataURL(file)
 }
-function handleClearImage() {
-  /* ... */ state.backgroundImageDataUrl = null
+
+async function handleClearImage() {
+  // Made async
+  const oldImageName = state.backgroundImageName // Store name before clearing state
+
+  // Update state first
+  state.backgroundImageDataUrl = null
   state.backgroundImageName = null
+  state.backgroundType = "color"
   settingsInputs.imageFilenameSpan.textContent = "No file chosen"
   settingsInputs.imageFileInput.value = ""
-  state.backgroundType = "color"
   settingsInputs.bgTypeColor.checked = true
   updateBackgroundControlsVisibility()
-  generateTodoImageAndUpdatePreview()
-  saveState()
-  maybeAutoApplyWallpaper()
+  generateTodoImageAndUpdatePreview() // Update preview immediately
+  saveState() // Save the cleared state
+
+  // Tell main process to delete the saved file (if one existed)
+  if (oldImageName) {
+    // Only try to clear if there was a name saved
+    try {
+      console.log("Requesting main process to clear saved background image...")
+      await window.electronAPI.clearBackgroundImage()
+      console.log("Cleared background image acknowledged by main process.")
+    } catch (error) {
+      console.error(
+        "Error telling main process to clear background image:",
+        error
+      )
+      // Non-critical error, state is already cleared locally
+    }
+  }
+  maybeAutoApplyWallpaper() // Apply the color background if auto-apply is on
 }
+
 function handleImageReadError(err) {
-  /* ... */ console.error("FileReader error:", err)
+  console.error("FileReader error:", err)
   alert("Error reading the selected image file.")
   handleClearImage()
-}
+} // Reset state on read error
+
 // --- Wallpaper Application ---
 async function handleApplyWallpaper() {
-  /* ... */ if (!state.lastGeneratedImageDataUrl) {
+  /* ... (keep existing) ... */ if (!state.lastGeneratedImageDataUrl) {
     console.warn("Apply Wallpaper: No image data generated yet. Generating...")
     try {
       await generateTodoImageAndUpdatePreview()

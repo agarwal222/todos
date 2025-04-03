@@ -4,14 +4,19 @@ const { contextBridge, ipcRenderer } = require("electron")
 let screenDimensions = null
 
 ipcRenderer.on("screen-dimensions", (event, dimensions) => {
-  console.log("Preload received screen dimensions:", dimensions)
+  // console.log("Preload received screen dimensions:", dimensions) // Less verbose log
   screenDimensions = dimensions
 })
 
 contextBridge.exposeInMainWorld("electronAPI", {
   // --- State Persistence ---
-  loadState: () => ipcRenderer.invoke("load-state"), // Request state from main
-  saveState: (stateData) => ipcRenderer.send("save-state", stateData), // Send state to main
+  loadState: () => ipcRenderer.invoke("load-state"),
+  saveState: (stateData) => ipcRenderer.send("save-state", stateData),
+  // --- Background Image Persistence ---
+  saveBackgroundImage: (imageDataUrl) =>
+    ipcRenderer.invoke("save-background-image", imageDataUrl),
+  loadBackgroundImage: () => ipcRenderer.invoke("load-background-image"),
+  clearBackgroundImage: () => ipcRenderer.invoke("clear-background-image"),
 
   // == APIs for Main Window Renderer ==
   updateWallpaper: (imageDataUrl) =>
