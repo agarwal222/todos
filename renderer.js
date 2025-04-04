@@ -16,6 +16,18 @@ import * as utils from "./utils.js" // Import all utils
 
 // --- DOM Elements ---
 const applyWallpaperBtn = document.getElementById("apply-wallpaper-btn")
+// Get references to the new spans inside the apply button
+const applyBtnIconDefault = applyWallpaperBtn?.querySelector(".icon-default")
+const applyBtnTextDefault = applyWallpaperBtn?.querySelector(
+  ".button-text-default"
+)
+const applyBtnTextLoading = applyWallpaperBtn?.querySelector(
+  ".button-text-loading"
+)
+const applyBtnTextSuccess = applyWallpaperBtn?.querySelector(
+  ".button-text-success"
+)
+
 const toggleTodosVisibilityBtn = document.getElementById(
   "toggle-todos-visibility-btn"
 )
@@ -61,7 +73,7 @@ const settingsInputs = {
   itemSpacing: document.getElementById("item-spacing-input"),
   maxItems: document.getElementById("max-items-input"),
   columnGap: document.getElementById("column-gap-input"),
-  textBackgroundEnable: document.getElementById("text-background-enable"), // Checkbox
+  textBackgroundEnable: document.getElementById("text-background-enable"),
   textBackgroundControls: document.getElementById("text-background-controls"),
   textBgColorPickerEl: document.getElementById("text-bg-color-picker"),
   textBgColorHex: document.getElementById("text-bg-color-hex"),
@@ -95,7 +107,6 @@ const settingsInputs = {
   clearImageBtn: document.getElementById("clear-image-btn"),
   imageFileInput: document.getElementById("image-file-input"),
   imageFilenameSpan: document.getElementById("image-filename"),
-  // <<< Preview Quality Radios >>>
   previewQualityLow: document.getElementById("preview-quality-low"),
   previewQualityMedium: document.getElementById("preview-quality-medium"),
   previewQualityHigh: document.getElementById("preview-quality-high"),
@@ -160,9 +171,9 @@ const checkForUpdatesBtn = document.getElementById("check-for-updates-btn")
 
 // --- Application State ---
 let state = JSON.parse(JSON.stringify(initialState))
-let currentAppVersion = "?.?.?" // Placeholder
+let currentAppVersion = "?.?.?"
 
-// Transient state not saved to file
+// Transient state
 let isRecordingShortcut = false
 let pressedKeys = new Set()
 let currentRecordedString = ""
@@ -172,13 +183,14 @@ let textColorPickr = null
 let bgColorPickr = null
 let textBgColorPickr = null
 let textBorderColorPickr = null
+let applyButtonTimeout = null // Timeout for resetting "Applied!" text
 
-// *** Debounced function for preview generation + auto-apply ***
-const DEBOUNCE_DELAY = 300 // Milliseconds to wait after user stops interacting
+// *** Debounced function ***
+const DEBOUNCE_DELAY = 300
 const debouncedGenerateAndApply = utils.debounce(() => {
   console.log("Debounced action triggered")
-  generateTodoImageAndUpdatePreview() // Generate the preview
-  maybeAutoApplyWallpaper() // Check if wallpaper should be applied
+  generateTodoImageAndUpdatePreview()
+  maybeAutoApplyWallpaper()
 }, DEBOUNCE_DELAY)
 
 // --- Initialization ---
@@ -2025,13 +2037,21 @@ function handleImageReadError(err) {
   handleClearImage()
 }
 // --- Wallpaper Application ---
+// <<< MODIFIED Function >>>
 async function handleApplyWallpaper() {
+  // Clear any existing reset timeout
+  if (applyButtonTimeout) {
+    clearTimeout(applyButtonTimeout)
+    applyButtonTimeout = null
+  }
+
+  // Ensure image is generated if needed
   if (!state.lastGeneratedImageDataUrl) {
     console.warn(
       "Apply Wallpaper: High-quality image data not available. Generating first..."
     )
     try {
-      await generateTodoImageAndUpdatePreview()
+      await generateTodoImageAndUpdatePreview() // This generates and stores high-quality PNG
       if (!state.lastGeneratedImageDataUrl) {
         utils.showToast(
           toastContainer,
@@ -2049,29 +2069,42 @@ async function handleApplyWallpaper() {
       return
     }
   }
-  if (applyWallpaperBtn.disabled) return
+
+  if (applyWallpaperBtn.disabled) return // Prevent double clicks
+
   applyWallpaperBtn.disabled = true
-  const span = applyWallpaperBtn.querySelector("span")
-  const originalText = span ? span.textContent : "Apply Wallpaper"
-  if (span) span.textContent = "Applying..."
+  // Hide default icon and text, show loading text
+  applyBtnIconDefault?.classList.add("hidden")
+  applyBtnTextDefault?.classList.add("hidden")
+  applyBtnTextSuccess?.classList.add("hidden")
+  applyBtnTextLoading?.classList.remove("hidden")
+
   console.log("Applying high-quality wallpaper...")
+
   try {
-    const dataUrl = state.lastGeneratedImageDataUrl
+    const dataUrl = state.lastGeneratedImageDataUrl // Use the stored high-quality PNG
     const result = await window.electronAPI.updateWallpaper(dataUrl)
+
     if (result?.success) {
       console.log("Wallpaper update successful.")
-      if (span) span.textContent = "Applied!"
+      // Hide loading, show success text
+      applyBtnTextLoading?.classList.add("hidden")
+      applyBtnTextSuccess?.classList.remove("hidden")
       utils.showToast(
         toastContainer,
         "Wallpaper applied successfully!",
         "success"
       )
-      setTimeout(() => {
-        if (applyWallpaperBtn.disabled && span?.textContent === "Applied!") {
-          if (span) span.textContent = originalText
-          applyWallpaperBtn.disabled = false
-        }
-      }, 2000)
+
+      // Set a timeout to revert the button text
+      applyButtonTimeout = setTimeout(() => {
+        // Hide success, show default icon and text
+        applyBtnTextSuccess?.classList.add("hidden")
+        applyBtnIconDefault?.classList.remove("hidden")
+        applyBtnTextDefault?.classList.remove("hidden")
+        applyWallpaperBtn.disabled = false
+        applyButtonTimeout = null // Clear the timeout reference
+      }, 2000) // Revert after 2 seconds
     } else {
       throw new Error(result?.error || "Unknown error setting wallpaper")
     }
@@ -2082,7 +2115,11 @@ async function handleApplyWallpaper() {
       `Failed to apply wallpaper: ${err.message}`,
       "error"
     )
-    if (span) span.textContent = originalText
+    // Hide loading, show default icon and text immediately on error
+    applyBtnTextLoading?.classList.add("hidden")
+    applyBtnTextSuccess?.classList.add("hidden")
+    applyBtnIconDefault?.classList.remove("hidden")
+    applyBtnTextDefault?.classList.remove("hidden")
     applyWallpaperBtn.disabled = false
   }
 }

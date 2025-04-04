@@ -2,30 +2,23 @@
 <html>
   <head>
     <meta charset="UTF-8" />
+    <!-- UPDATE Content-Security-Policy to allow fonts.gstatic.com -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;"
     />
     <title>Quick Add Task</title>
     <link rel="stylesheet" href="quick-add-style.css" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+    />
   </head>
   <body>
     <div class="quick-add-container">
       <form id="quick-add-form">
         <div class="input-wrapper">
-          <!-- Search/Add Icon -->
-          <svg
-            class="input-icon"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 16 16"
-            fill="currentColor"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"
-              clip-rule="evenodd"
-            />
-          </svg>
+          <span class="input-icon material-symbols-outlined">search</span>
           <input
             type="text"
             id="quick-add-input"

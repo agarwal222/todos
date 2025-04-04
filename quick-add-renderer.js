@@ -6,9 +6,10 @@ const quickAddFooter = document.querySelector(".quick-add-footer")
 
 let allTodos = []
 
-const circleIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="checkbox-icon"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-1.5A5.5 5.5 0 1 1 8 2.5a5.5 5.5 0 0 1 0 11Z"></path></svg>`
-const checkCircleIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="checkbox-icon"><path fill-rule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14Zm3.84-9.12a.75.75 0 0 0-1.18-.94l-2.97 2.97-1.22-1.22a.75.75 0 0 0-1.06 1.06l1.75 1.75a.75.75 0 0 0 1.06 0l3.62-3.62Z" clip-rule="evenodd"></path></svg>`
-const deleteIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z" clip-rule="evenodd"></path></svg>`
+// Replace SVG strings with Material Symbols HTML
+const circleIconHTML = `<span class="material-symbols-outlined checkbox-icon">radio_button_unchecked</span>`
+const checkCircleIconHTML = `<span class="material-symbols-outlined checkbox-icon">check_circle</span>`
+const deleteIconHTML = `<span class="material-symbols-outlined">delete</span>`
 
 const MAX_VISIBLE_TASKS = 7
 const ITEM_HEIGHT_ESTIMATE = 38
@@ -35,9 +36,6 @@ window.electronAPI.onQuickAddSettings((settings) => {
 
 // Calculate desired height
 function calculateDesiredHeight() {
-  /* ... remains the same ... */
-}
-function calculateDesiredHeight() {
   const activeCount = allTodos.filter((t) => !t.done).length
   const completedCount = allTodos.filter((t) => t.done).length
   const totalTasks = activeCount + completedCount
@@ -52,7 +50,7 @@ function calculateDesiredHeight() {
     listHeight += completedCount * ITEM_HEIGHT_ESTIMATE
   }
   if (totalTasks === 0) {
-    listHeight = 60
+    listHeight = 60 // Placeholder height when empty
   }
   listHeight += headerCount * HEADER_HEIGHT_ESTIMATE
   const totalNeededHeight =
@@ -68,7 +66,7 @@ function calculateDesiredHeight() {
       Math.min(totalTasks, MAX_VISIBLE_TASKS) * ITEM_HEIGHT_ESTIMATE +
       maxHeaderCount * HEADER_HEIGHT_ESTIMATE
   } else {
-    maxListHeight = 60
+    maxListHeight = 60 // Placeholder height when empty
   }
   const maxHeightBasedOnLimit =
     FORM_HEIGHT_ESTIMATE +
@@ -76,7 +74,7 @@ function calculateDesiredHeight() {
     CONTAINER_PADDING_ESTIMATE +
     FOOTER_HEIGHT_ESTIMATE
   const desiredHeight = Math.max(
-    100,
+    100, // Minimum height
     Math.min(totalNeededHeight, maxHeightBasedOnLimit) + FINAL_BUFFER
   )
   console.log(
@@ -93,9 +91,10 @@ function requestWindowResize() {
 
 // 3. Render todos
 function renderQuickAddTodos() {
-  taskListsContainer.innerHTML = ""
+  taskListsContainer.innerHTML = "" // Clear previous content
   const activeTodos = allTodos.filter((t) => !t.done)
   const completedTodos = allTodos.filter((t) => t.done)
+
   if (activeTodos.length > 0) {
     const activeSection = document.createElement("section")
     activeSection.className = "task-section"
@@ -107,6 +106,7 @@ function renderQuickAddTodos() {
     activeSection.appendChild(activeUl)
     taskListsContainer.appendChild(activeSection)
   }
+
   if (completedTodos.length > 0) {
     const completedSection = document.createElement("section")
     completedSection.className = "task-section"
@@ -118,13 +118,14 @@ function renderQuickAddTodos() {
     completedSection.appendChild(completedUl)
     taskListsContainer.appendChild(completedSection)
   }
+
   if (activeTodos.length === 0 && completedTodos.length === 0) {
     taskListsContainer.innerHTML =
       '<div class="empty-message">No tasks yet!</div>'
   }
 }
 
-// Helper to create list item HTML (UPDATED)
+// Helper to create list item HTML (UPDATED with HTML strings)
 function createQuickTodoElement(todo) {
   const li = document.createElement("li")
   li.className = "quick-task-item"
@@ -137,7 +138,7 @@ function createQuickTodoElement(todo) {
   const checkboxArea = document.createElement("div")
   checkboxArea.className = "checkbox-area"
   checkboxArea.dataset.action = "toggle" // Action identifier
-  checkboxArea.innerHTML = todo.done ? checkCircleIconSVG : circleIconSVG
+  checkboxArea.innerHTML = todo.done ? checkCircleIconHTML : circleIconHTML // Use HTML strings
   checkboxArea.setAttribute("role", "button")
   checkboxArea.setAttribute(
     "aria-label",
@@ -154,7 +155,7 @@ function createQuickTodoElement(todo) {
   const deleteButton = document.createElement("button")
   deleteButton.className = "delete-button"
   deleteButton.dataset.action = "delete" // Action identifier
-  deleteButton.innerHTML = deleteIconSVG
+  deleteButton.innerHTML = deleteIconHTML // Use HTML string
   deleteButton.setAttribute("aria-label", "Delete task")
   deleteButton.setAttribute("title", "Delete task")
 
@@ -185,7 +186,7 @@ quickAddForm.addEventListener("submit", (event) => {
   }
 })
 
-// *** NEW: Handle clicks on task items for toggle/delete ***
+// Handle clicks on task items for toggle/delete
 taskListsContainer.addEventListener("click", (event) => {
   const target = event.target
   const actionElement = target.closest("[data-action]") // Find the element with data-action
@@ -203,26 +204,18 @@ taskListsContainer.addEventListener("click", (event) => {
   if (action === "toggle") {
     if (window.electronAPI?.sendQuickAddToggleTask) {
       window.electronAPI.sendQuickAddToggleTask(taskId)
-      // Optionally provide visual feedback immediately, though window will close
-      // listItem.classList.toggle('done'); // Might cause flicker
-      if (window.electronAPI?.closeQuickAddWindow) {
-        setTimeout(() => window.electronAPI.closeQuickAddWindow(), 50) // Close after a tiny delay
-      }
+      // Window will close via main process after task toggle & apply
     } else {
       console.error("QuickAdd: Toggle Task API not available.")
     }
   } else if (action === "delete") {
     if (window.electronAPI?.sendQuickAddDeleteTask) {
       window.electronAPI.sendQuickAddDeleteTask(taskId)
-      // Optionally provide visual feedback immediately
+      // Animate removal locally before window closes
       listItem.style.opacity = "0"
       listItem.style.transform = "translateX(-20px)"
       listItem.style.transition = "opacity 0.2s ease, transform 0.2s ease"
-
-      if (window.electronAPI?.closeQuickAddWindow) {
-        // Close after animation could finish (adjust timing if needed)
-        setTimeout(() => window.electronAPI.closeQuickAddWindow(), 250)
-      }
+      // Window will close via main process after task delete & apply
     } else {
       console.error("QuickAdd: Delete Task API not available.")
     }

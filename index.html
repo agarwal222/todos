@@ -18,8 +18,11 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+    />
   </head>
-
   <body data-platform="">
     <div class="app-shell">
       <!-- App Header -->
@@ -34,77 +37,34 @@
             title="Toggle Todos Visibility on Wallpaper"
             aria-label="Toggle Todos Visibility"
           >
-            <svg
-              id="todos-visible-icon"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              width="16"
-              height="16"
+            <span id="todos-visible-icon" class="material-symbols-outlined"
+              >visibility</span
             >
-              <path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" />
-              <path
-                fill-rule="evenodd"
-                d="M1.38 8.28a.87.87 0 0 1 0-.566 7.003 7.003 0 0 1 13.238.006.87.87 0 0 1 0 .566A7.003 7.003 0 0 1 1.379 8.28ZM11 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
-                clip-rule="evenodd"
-              />
-            </svg>
-            <svg
+            <span
               id="todos-hidden-icon"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              width="16"
-              height="16"
-              class="hidden"
+              class="material-symbols-outlined hidden"
+              >visibility_off</span
             >
-              <path
-                fill-rule="evenodd"
-                d="M3.28 2.22a.75.75 0 0 0-1.06 1.06l10.5 10.5a.75.75 0 1 0 1.06-1.06l-1.744-1.744a7.003 7.003 0 0 0 2.184-3.196.87.87 0 0 0 0-.566 7.002 7.002 0 0 0-5.78-4.406L6.81 4.19l-3.53-3.53Zm9.6 6.066a5.57 5.57 0 0 1-1.131 1.767l.706.707a.75.75 0 0 1-1.06 1.06l-.858-.857A3.002 3.002 0 0 1 8 11a2.99 2.99 0 0 1-1.48-.384l-.936-.936A1.5 1.5 0 0 0 8 9.5a1.5 1.5 0 0 0-1.01-.409l-.397-.397a1.5 1.5 0 0 0-.084-.084l-1.274-1.274A5.55 5.55 0 0 1 8 5.5a5.506 5.506 0 0 1 4.88 2.846ZM4.13 6.557 2.78 5.206a7.003 7.003 0 0 0-1.4 2.518.87.87 0 0 0 0 .566 7.003 7.003 0 0 0 10.753 3.875l-1.17-1.17A5.506 5.506 0 0 1 8 12.5a5.5 5.5 0 0 1-3.87-1.587Z"
-                clip-rule="evenodd"
-              />
-            </svg>
           </button>
+          <!-- Modified Apply Button Structure -->
           <button
             id="apply-wallpaper-btn"
             class="button button-primary"
             title="Apply current settings as wallpaper"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              width="16"
-              height="16"
-            >
-              <path
-                d="M8.75 2.75a.75.75 0 0 0-1.5 0v7.14L4.53 7.119a.75.75 0 0 0-1.06 1.06l3.25 3.25a.75.75 0 0 0 1.06 0l3.25-3.25a.75.75 0 1 0-1.06-1.06L8.75 9.889V2.75Z"
-              />
-              <path
-                d="M3.5 12.75a.75.75 0 0 0-1.5 0v.5A2.75 2.75 0 0 0 4.75 16h6.5A2.75 2.75 0 0 0 14 13.25v-.5a.75.75 0 0 0-1.5 0v.5c0 .69-.56 1.25-1.25 1.25h-6.5c-.69 0-1.25-.56-1.25-1.25v-.5Z"
-              />
-            </svg>
-            <span>Apply Wallpaper</span>
+            <span class="material-symbols-outlined icon-default">download</span>
+            <span class="button-text-default">Apply Wallpaper</span>
+            <span class="button-text-loading hidden">Applying...</span>
+            <span class="button-text-success hidden">Applied!</span>
           </button>
+          <!-- End Modified Apply Button Structure -->
           <button
             id="open-app-settings-modal-btn"
             class="button button-secondary button-icon"
             title="App Settings (Global)"
             aria-label="Open Application Settings"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              width="16"
-              height="16"
-            >
-              <path
-                fill-rule="evenodd"
-                d="M4.203 3.06a.75.75 0 0 1 .894-.53L6.5 3.018a4.5 4.5 0 0 1 3 0l1.403-.488a.75.75 0 0 1 .894.53l.865 1.988a.75.75 0 0 1-.334.904l-1.364.682a4.53 4.53 0 0 1 0 2.632l1.364.682a.75.75 0 0 1 .334.904l-.865 1.988a.75.75 0 0 1-.894.53L9.5 12.982a4.5 4.5 0 0 1-3 0l-1.403.488a.75.75 0 0 1-.894-.53L3.338 11a.75.75 0 0 1 .334-.904l1.364-.682a4.53 4.53 0 0 1 0-2.632L3.672 6.098a.75.75 0 0 1-.334-.904L4.203 3.06Zm1.188.998L4.78 5.46a6.03 6.03 0 0 0 0 5.08l.611 1.403 1.115-.388a6 6 0 0 0 3.988 0l1.115.388.612-1.402a6.03 6.03 0 0 0 0-5.08l-.612-1.403-1.115.388a6 6 0 0 0-3.988 0L5.39 4.058Z M8 6.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"
-                clip-rule="evenodd"
-              />
-            </svg>
+            <span class="material-symbols-outlined">settings</span>
           </button>
           <button
             id="toggle-settings-btn"
@@ -113,33 +73,14 @@
             aria-label="Toggle Visual Settings Panel"
             aria-expanded="true"
           >
-            <svg
-              id="settings-icon-open"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              width="16"
-              height="16"
+            <span id="settings-icon-open" class="material-symbols-outlined"
+              >tune</span
             >
-              <path
-                fill-rule="evenodd"
-                d="M6.94 4.036c.276 0 .524.105.71.291l.355.355A4.001 4.001 0 0 1 10.25 4a.75.75 0 0 1 .75.75V6h.944c.39 0 .74.21.92.533l.247.433a.75.75 0 0 1 0 .798l-.247.433a1.23 1.23 0 0 1-.92.533H11v1.207a4.013 4.013 0 0 1-2.24 3.453l-.355.355a.999.999 0 0 1-.71.291H7.5a1 1 0 0 1-1-1V4.536a.5.5 0 0 1 .44-.499Zm1.06 1.464v7.25h.25a.75.75 0 0 1 .75-.75 2.5 2.5 0 0 0 0-5 .75.75 0 0 1-.75-.75h-.25Z"
-                clip-rule="evenodd"
-              />
-            </svg>
-            <svg
+            <span
               id="settings-icon-close"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              width="16"
-              height="16"
-              class="hidden"
+              class="material-symbols-outlined hidden"
+              >close</span
             >
-              <path
-                d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
-              />
-            </svg>
           </button>
           <div class="window-controls">
             <button
@@ -148,13 +89,7 @@
               aria-label="Minimize"
               title="Minimize"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 10 1"
-                fill="currentColor"
-              >
-                <rect width="10" height="1" />
-              </svg>
+              <span class="material-symbols-outlined">remove</span>
             </button>
             <button
               id="maximize-restore-btn"
@@ -162,29 +97,12 @@
               aria-label="Maximize"
               title="Maximize"
             >
-              <svg
-                class="icon-maximize"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 10 10"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
+              <span class="icon-maximize material-symbols-outlined"
+                >crop_square</span
               >
-                <rect x="0.75" y="0.75" width="8.5" height="8.5" rx="1" />
-              </svg>
-              <svg
-                class="icon-restore hidden"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 10 10"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
+              <span class="icon-restore material-symbols-outlined hidden"
+                >filter_none</span
               >
-                <rect x="2.75" y="0.75" width="6.5" height="6.5" rx="1" />
-                <path
-                  d="M0.75 2.75C0.75 1.92157 1.42157 1.25 2.25 1.25H6.25 M2.75 9.25V 6.25C2.75 5.42157 3.42157 4.75 4.25 4.75H7.25"
-                />
-              </svg>
             </button>
             <button
               id="close-btn"
@@ -192,19 +110,12 @@
               aria-label="Close"
               title="Close"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 10 10"
-                fill="currentColor"
-              >
-                <path
-                  d="M1.06066 0L0 1.06066L3.93934 5L0 8.93934L1.06066 10L5 6.06066L8.93934 10L10 8.93934L6.06066 5L10 1.06066L8.93934 0L5 3.93934L1.06066 0Z"
-                />
-              </svg>
+              <span class="material-symbols-outlined">close</span>
             </button>
           </div>
         </div>
       </header>
+      <!-- Rest of the HTML remains the same -->
       <main class="app-main">
         <aside class="column column-todos">
           <div class="column-header">
@@ -223,17 +134,7 @@
                 class="button button-secondary button-icon"
                 title="Add New Task (Ctrl+N)"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  width="16"
-                  height="16"
-                >
-                  <path
-                    d="M8.75 3.75a.75.75 0 0 0-1.5 0v3.5h-3.5a.75.75 0 0 0 0 1.5h3.5v3.5a.75.75 0 0 0 1.5 0v-3.5h3.5a.75.75 0 0 0 0-1.5h-3.5v-3.5Z"
-                  />
-                </svg>
+                <span class="material-symbols-outlined">add</span>
               </button>
             </div>
           </div>
@@ -279,8 +180,6 @@
             <h2 class="column-title">Visual Settings</h2>
           </div>
           <div class="scrollable-content">
-            <!-- Existing Sections (Text & Layout, Text Background, Font, Wallpaper Background) -->
-            <!-- ... keep these sections ... -->
             <div class="setting-section" data-section-id="text-layout">
               <button
                 class="setting-section-toggle"
@@ -288,20 +187,9 @@
                 aria-controls="section-content-text-layout"
               >
                 <h3>Text & Layout</h3>
-                <svg
-                  class="toggle-icon"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  width="16"
-                  height="16"
+                <span class="toggle-icon material-symbols-outlined"
+                  >expand_more</span
                 >
-                  <path
-                    fill-rule="evenodd"
-                    d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
               </button>
               <div
                 class="setting-section-content"
@@ -363,8 +251,8 @@
                     </select>
                   </div>
                   <div class="input-group slider-group">
-                    <label for="overall-opacity">Overall Opacity</label>
-                    <input
+                    <label for="overall-opacity">Overall Opacity</label
+                    ><input
                       type="range"
                       id="overall-opacity"
                       class="slider-input"
@@ -373,11 +261,9 @@
                       max="1"
                       step="0.05"
                       title="Overall opacity for text and background panel"
-                    />
-                    <span class="slider-value" id="overall-opacity-value"
+                    /><span class="slider-value" id="overall-opacity-value"
                       >1.00</span
-                    >
-                    <span class="checkbox-hint"
+                    ><span class="checkbox-hint"
                       >Affects text & panel if enabled.</span
                     >
                   </div>
@@ -500,20 +386,9 @@
                 aria-controls="section-content-text-background"
               >
                 <h3>Text Background</h3>
-                <svg
-                  class="toggle-icon"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  width="16"
-                  height="16"
+                <span class="toggle-icon material-symbols-outlined"
+                  >expand_more</span
                 >
-                  <path
-                    fill-rule="evenodd"
-                    d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
               </button>
               <div
                 class="setting-section-content"
@@ -544,8 +419,8 @@
                     />
                   </div>
                   <div class="input-group slider-group">
-                    <label for="text-panel-opacity">Panel Opacity</label>
-                    <input
+                    <label for="text-panel-opacity">Panel Opacity</label
+                    ><input
                       type="range"
                       id="text-panel-opacity"
                       class="slider-input"
@@ -554,8 +429,7 @@
                       max="1"
                       step="0.05"
                       title="Opacity of the panel itself"
-                    />
-                    <span class="slider-value" id="text-panel-opacity-value"
+                    /><span class="slider-value" id="text-panel-opacity-value"
                       >0.50</span
                     >
                   </div>
@@ -582,8 +456,8 @@
                     />
                   </div>
                   <div class="input-group slider-group">
-                    <label for="text-bg-border-radius">Radius</label>
-                    <input
+                    <label for="text-bg-border-radius">Radius</label
+                    ><input
                       type="range"
                       id="text-bg-border-radius"
                       class="slider-input"
@@ -592,8 +466,9 @@
                       max="50"
                       step="1"
                       title="Corner roundness"
-                    />
-                    <span class="slider-value" id="text-bg-border-radius-value"
+                    /><span
+                      class="slider-value"
+                      id="text-bg-border-radius-value"
                       >5</span
                     >
                   </div>
@@ -632,20 +507,9 @@
                 aria-controls="section-content-font"
               >
                 <h3>Font</h3>
-                <svg
-                  class="toggle-icon"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  width="16"
-                  height="16"
+                <span class="toggle-icon material-symbols-outlined"
+                  >expand_more</span
                 >
-                  <path
-                    fill-rule="evenodd"
-                    d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
               </button>
               <div class="setting-section-content" id="section-content-font">
                 <div class="input-group">
@@ -717,20 +581,9 @@
                 aria-controls="section-content-background"
               >
                 <h3>Wallpaper Background</h3>
-                <svg
-                  class="toggle-icon"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  width="16"
-                  height="16"
+                <span class="toggle-icon material-symbols-outlined"
+                  >expand_more</span
                 >
-                  <path
-                    fill-rule="evenodd"
-                    d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
               </button>
               <div
                 class="setting-section-content"
@@ -789,17 +642,7 @@
                       class="button button-danger button-icon"
                       title="Clear selected image"
                     >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 16 16"
-                        fill="currentColor"
-                        width="16"
-                        height="16"
-                      >
-                        <path
-                          d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
-                        />
-                      </svg>
+                      <span class="material-symbols-outlined">delete</span>
                     </button>
                   </div>
                   <input
@@ -811,8 +654,6 @@
                 </div>
               </div>
             </div>
-
-            <!-- NEW Preview Settings Section -->
             <div class="setting-section" data-section-id="preview-settings">
               <button
                 class="setting-section-toggle"
@@ -820,20 +661,9 @@
                 aria-controls="section-content-preview-settings"
               >
                 <h3>Preview</h3>
-                <svg
-                  class="toggle-icon"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  width="16"
-                  height="16"
+                <span class="toggle-icon material-symbols-outlined"
+                  >expand_more</span
                 >
-                  <path
-                    fill-rule="evenodd"
-                    d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
               </button>
               <div
                 class="setting-section-content"
@@ -850,8 +680,7 @@
                         id="preview-quality-low"
                       />
                       Low</label
-                    >
-                    <label
+                    ><label
                       ><input
                         type="radio"
                         name="preview-quality"
@@ -860,8 +689,7 @@
                         checked
                       />
                       Medium</label
-                    >
-                    <label
+                    ><label
                       ><input
                         type="radio"
                         name="preview-quality"
@@ -877,7 +705,6 @@
                 </div>
               </div>
             </div>
-            <!-- End NEW Section -->
           </div>
         </aside>
       </main>
@@ -900,17 +727,7 @@
             class="modal-close-button button button-ghost button-icon"
             title="Close (Esc)"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              width="16"
-              height="16"
-            >
-              <path
-                d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
-              />
-            </svg>
+            <span class="material-symbols-outlined">close</span>
           </button>
           <h2>Add New Task</h2>
           <form id="add-todo-form">
@@ -945,17 +762,7 @@
             class="modal-close-button button button-ghost button-icon"
             title="Close (Esc)"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              width="16"
-              height="16"
-            >
-              <path
-                d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
-              />
-            </svg>
+            <span class="material-symbols-outlined">close</span>
           </button>
           <h2>Edit Task</h2>
           <form id="edit-todo-form">
@@ -991,17 +798,7 @@
             class="modal-close-button button button-ghost button-icon"
             title="Cancel (Esc)"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              width="16"
-              height="16"
-            >
-              <path
-                d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
-              />
-            </svg>
+            <span class="material-symbols-outlined">close</span>
           </button>
           <h2>Record Shortcut</h2>
           <p class="record-instructions">Press the desired key combination.</p>
@@ -1037,17 +834,7 @@
             class="modal-close-button button button-ghost button-icon"
             title="Close (Esc)"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              width="16"
-              height="16"
-            >
-              <path
-                d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
-              />
-            </svg>
+            <span class="material-symbols-outlined">close</span>
           </button>
           <h2>App Settings</h2>
           <form id="app-settings-form">
@@ -1109,8 +896,6 @@
                 settings).</span
               >
             </div>
-
-            <!-- Update Section -->
             <hr class="modal-divider" />
             <div class="input-group modal-input-group update-status-group">
               <label>App Updates</label>
@@ -1125,8 +910,6 @@
                 Check Now
               </button>
             </div>
-            <!-- END Update Section -->
-
             <hr class="modal-divider" />
             <div class="modal-actions">
               <button

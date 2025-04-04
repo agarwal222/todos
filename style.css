@@ -101,6 +101,30 @@ select {
     -ms-user-select: text;
 }
 
+/* --- Material Symbols Base Style --- */
+.material-symbols-outlined {
+    font-variation-settings:
+        'FILL' 0,
+        'wght' 400,
+        'GRAD' 0,
+        'opsz' 20;
+    /* Use 20 size, adjust font-size below */
+    font-size: 18px;
+    /* Base size */
+    line-height: 1;
+    /* Important for alignment */
+    vertical-align: middle;
+    /* Align with text */
+    display: inline-block;
+    /* Needed for vertical-align */
+    /* Prevent selection */
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+
 /* --- Toast Notification Styles --- */
 .toast-container {
     position: fixed;
@@ -230,6 +254,7 @@ select {
 .header-left,
 .header-right,
 .header-right>button,
+/* Make buttons non-draggable */
 .app-title,
 .window-controls button {
     -webkit-app-region: no-drag;
@@ -254,12 +279,27 @@ select {
     height: 100%;
 }
 
-/* Adjust order if needed based on where you placed the new button */
-.header-right #toggle-todos-visibility-btn { order: 1; }
-.header-right #apply-wallpaper-btn { order: 2; }
-.header-right #open-app-settings-modal-btn { order: 3; margin-left: auto; }
-.header-right #toggle-settings-btn { order: 4; }
-.header-right .window-controls { order: 5; }
+/* Adjust order to match HTML */
+.header-right #toggle-todos-visibility-btn {
+    order: 1;
+}
+
+.header-right #apply-wallpaper-btn {
+    order: 2;
+}
+
+.header-right #open-app-settings-modal-btn {
+    order: 3;
+    margin-left: auto;
+}
+
+.header-right #toggle-settings-btn {
+    order: 4;
+}
+
+.header-right .window-controls {
+    order: 5;
+}
 
 
 /* --- Custom Window Controls --- */
@@ -285,10 +325,20 @@ select {
     outline: none;
 }
 
-.window-control-btn svg {
-    width: 10px;
-    height: 10px;
+.window-control-btn .material-symbols-outlined {
+    font-size: 18px;
+    /* Adjust icon size for controls */
+    width: auto;
+    /* Remove fixed width/height */
+    height: auto;
 }
+
+/* Specific icon adjustments if needed */
+.minimize-btn .material-symbols-outlined {
+    font-size: 20px;
+    font-weight: 600;
+}
+
 
 .window-control-btn:hover {
     background-color: hsl(var(--muted) / 0.5);
@@ -308,16 +358,17 @@ select {
     background-color: hsl(var(--destructive) / 0.9);
 }
 
+/* Maximize/Restore uses spans now */
 body.maximized .maximize-restore-btn .icon-maximize {
     display: none;
 }
 
 body.maximized .maximize-restore-btn .icon-restore {
-    display: inline;
+    display: inline-block;
 }
 
 body:not(.maximized) .maximize-restore-btn .icon-maximize {
-    display: inline;
+    display: inline-block;
 }
 
 body:not(.maximized) .maximize-restore-btn .icon-restore {
@@ -524,8 +575,8 @@ body:not(.maximized) .maximize-restore-btn .icon-restore {
 .setting-section-toggle .toggle-icon {
     transition: transform var(--transition-speed) var(--transition-curve);
     color: hsl(var(--muted-foreground));
-    width: 16px;
-    height: 16px;
+    font-size: 20px;
+    /* Adjust size for expand_more */
     pointer-events: none;
 }
 
@@ -601,12 +652,10 @@ body:not(.maximized) .maximize-restore-btn .icon-restore {
     align-self: center;
 }
 
-/* Default span for controls without suffix */
 .input-group>*:nth-child(2):not(label):not(.button-group):not(.color-picker-widget):not(.stepper-buttons):not(.slider-value) {
     grid-column: 2 / 4;
 }
 
-/* Input followed by button group */
 .input-group>*:nth-child(2):not(label):not(.color-picker-widget):not(.stepper-buttons):not(.slider-value)+.button-group {
     grid-column: 2 / 3;
 }
@@ -616,7 +665,6 @@ body:not(.maximized) .maximize-restore-btn .icon-restore {
     justify-self: end;
 }
 
-/* Slider Group Layout */
 .slider-group {
     grid-template-columns: 90px 1fr 50px;
     gap: var(--spacing-sm) var(--spacing-md);
@@ -647,7 +695,6 @@ body:not(.maximized) .maximize-restore-btn .icon-restore {
     font-variant-numeric: tabular-nums;
 }
 
-
 .input-group>.checkbox-hint {
     grid-column: 2 / 4;
     grid-row: 2 / 3;
@@ -657,7 +704,6 @@ body:not(.maximized) .maximize-restore-btn .icon-restore {
     color: hsl(var(--muted-foreground));
     line-height: 1.2;
 }
-
 
 /* Improved Input Styles */
 .input,
@@ -718,7 +764,7 @@ body:not(.maximized) .maximize-restore-btn .icon-restore {
     border-radius: 3px;
     cursor: pointer;
     border: 1px solid hsl(var(--border));
-    vertical-align: middle; /* Align slider track better */
+    vertical-align: middle;
 }
 
 .slider-input:hover {
@@ -953,6 +999,7 @@ input.invalid {
 
 /* Buttons */
 .button {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -965,19 +1012,34 @@ input.invalid {
     outline: none;
     white-space: nowrap;
     height: var(--input-height);
+    overflow: hidden;
 }
 
-.button svg {
+/* Ensure only one text span is visible at a time */
+#apply-wallpaper-btn .button-text-default,
+#apply-wallpaper-btn .button-text-loading,
+#apply-wallpaper-btn .button-text-success {
+    display: inline-block; /* Or block, depending on layout needs */
+    vertical-align: middle; /* Align with icon */
+}
+
+#apply-wallpaper-btn .icon-default {
+     vertical-align: middle; /* Align icon too */
+     margin-right: var(--spacing-sm); /* Keep margin */
+}
+
+.button .material-symbols-outlined {
+    font-size: 18px;
     margin-right: var(--spacing-sm);
-    width: 14px;
-    height: 14px;
+    /* Keep margin */
 }
 
-.button span+svg {
+.button span+.material-symbols-outlined {
     margin-left: var(--spacing-sm);
     margin-right: 0;
 }
 
+/* Icon after text */
 .button:focus-visible {
     box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring));
 }
@@ -1031,8 +1093,10 @@ input.invalid {
     width: var(--input-height);
 }
 
-.button-icon svg {
+.button-icon .material-symbols-outlined {
     margin: 0;
+    font-size: 20px;
+    /* Slightly larger for icon-only */
 }
 
 #apply-wallpaper-btn {
@@ -1040,16 +1104,16 @@ input.invalid {
 }
 
 #apply-wallpaper-btn span {
-    margin-left: var(--spacing-sm);
+    margin-left: 0;
+    /* Remove margin if icon is first */
 }
 
 #toggle-settings-btn {
     padding: calc(var(--spacing-sm) + 1px);
 }
 
-#toggle-settings-btn svg {
-    width: 16px;
-    height: 16px;
+#toggle-settings-btn .material-symbols-outlined {
+    font-size: 20px;
 }
 
 /* Pickr Customization */
@@ -1217,9 +1281,9 @@ input.invalid {
     color: hsl(var(--muted-foreground));
 }
 
-.task-actions .button-icon svg {
-    width: 14px;
-    height: 14px;
+.task-actions .button-icon .material-symbols-outlined {
+    font-size: 16px;
+    /* Adjust task action icon size */
 }
 
 .task-actions .button-icon:hover {
@@ -1367,6 +1431,10 @@ input.invalid {
     color: hsl(var(--muted-foreground));
     width: 28px;
     height: 28px;
+}
+
+.modal-close-button .material-symbols-outlined {
+    font-size: 20px;
 }
 
 .modal-close-button:hover {
@@ -1546,13 +1614,12 @@ span.key-display.modifier {
     justify-self: start;
 }
 
-/* NEW: Update Status Group Styles */
-.app-settings-content .update-status-group > label {
+.app-settings-content .update-status-group>label {
     grid-column: 1 / 2;
     align-self: center;
 }
 
-.app-settings-content .update-status-group > .update-status-display {
+.app-settings-content .update-status-group>.update-status-display {
     grid-column: 2 / 3;
     justify-self: start;
     font-size: 0.85rem;
@@ -1564,19 +1631,19 @@ span.key-display.modifier {
     font-style: italic;
 }
 
-.app-settings-content .update-status-group > .update-status-display.update-available {
+.app-settings-content .update-status-group>.update-status-display.update-available {
     color: hsl(var(--success));
     font-weight: 500;
     font-style: normal;
 }
-.app-settings-content .update-status-group > .update-status-display.update-error {
+
+.app-settings-content .update-status-group>.update-status-display.update-error {
     color: hsl(var(--destructive));
     font-weight: 500;
-     font-style: normal;
+    font-style: normal;
 }
 
-
-.app-settings-content .update-status-group > button {
+.app-settings-content .update-status-group>button {
     grid-column: 3 / 4;
     justify-self: end;
     height: 30px;
@@ -1588,7 +1655,6 @@ span.key-display.modifier {
     border-top: 1px solid hsl(var(--border));
     margin: var(--spacing-lg) 0;
 }
-
 
 /* --- Utility Classes --- */
 .hidden {
