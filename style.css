@@ -254,22 +254,13 @@ select {
     height: 100%;
 }
 
-.header-right #apply-wallpaper-btn {
-    order: 1;
-}
+/* Adjust order if needed based on where you placed the new button */
+.header-right #toggle-todos-visibility-btn { order: 1; }
+.header-right #apply-wallpaper-btn { order: 2; }
+.header-right #open-app-settings-modal-btn { order: 3; margin-left: auto; }
+.header-right #toggle-settings-btn { order: 4; }
+.header-right .window-controls { order: 5; }
 
-.header-right #open-app-settings-modal-btn {
-    order: 2;
-    margin-left: auto;
-}
-
-.header-right #toggle-settings-btn {
-    order: 3;
-}
-
-.header-right .window-controls {
-    order: 4;
-}
 
 /* --- Custom Window Controls --- */
 .window-controls {
@@ -489,10 +480,6 @@ body:not(.maximized) .maximize-restore-btn .icon-restore {
 }
 
 /* --- Settings Sidebar Styling --- */
-.column-settings .column-header h2 {
-    /* Renamed title */
-}
-
 .setting-section {
     margin-bottom: var(--spacing-xl);
     padding-bottom: 0;
@@ -631,36 +618,33 @@ body:not(.maximized) .maximize-restore-btn .icon-restore {
 
 /* Slider Group Layout */
 .slider-group {
-    /* Label | Slider | Value */
-    /* Adjust grid: Label (90px), Slider (flexible), Value (fixed) */
     grid-template-columns: 90px 1fr 50px;
-    gap: var(--spacing-sm) var(--spacing-md); /* Keep column gap */
-    align-items: center; /* Vertically center all items in the row */
+    gap: var(--spacing-sm) var(--spacing-md);
+    align-items: center;
 }
 
 .slider-group>label {
     grid-column: 1 / 2;
-    grid-row: 1 / 2; /* Explicitly set row */
-    align-self: center; /* Already centered by group, but good practice */
+    grid-row: 1 / 2;
+    align-self: center;
 }
 
 .slider-group>.slider-input {
     grid-column: 2 / 3;
-    grid-row: 1 / 2; /* Explicitly set row */
-    align-self: center; /* Already centered */
-    width: 100%; /* Ensure slider takes available space */
+    grid-row: 1 / 2;
+    align-self: center;
+    width: 100%;
 }
 
 .slider-group>.slider-value {
     grid-column: 3 / 4;
-    grid-row: 1 / 2; /* Explicitly set row */
-    align-self: center; /* Already centered */
+    grid-row: 1 / 2;
+    align-self: center;
     font-size: 0.8rem;
     color: hsl(var(--muted-foreground));
     text-align: right;
-    /* min-width: 40px; */ /* Replaced by fixed column width */
-    padding-left: var(--spacing-xs); /* Add a little space before the number */
-    font-variant-numeric: tabular-nums; /* Keeps numbers aligned */
+    padding-left: var(--spacing-xs);
+    font-variant-numeric: tabular-nums;
 }
 
 
@@ -1561,6 +1545,50 @@ span.key-display.modifier {
     grid-column: 2 / 3;
     justify-self: start;
 }
+
+/* NEW: Update Status Group Styles */
+.app-settings-content .update-status-group > label {
+    grid-column: 1 / 2;
+    align-self: center;
+}
+
+.app-settings-content .update-status-group > .update-status-display {
+    grid-column: 2 / 3;
+    justify-self: start;
+    font-size: 0.85rem;
+    color: hsl(var(--muted-foreground));
+    line-height: 1.4;
+    min-height: 30px;
+    display: inline-flex;
+    align-items: center;
+    font-style: italic;
+}
+
+.app-settings-content .update-status-group > .update-status-display.update-available {
+    color: hsl(var(--success));
+    font-weight: 500;
+    font-style: normal;
+}
+.app-settings-content .update-status-group > .update-status-display.update-error {
+    color: hsl(var(--destructive));
+    font-weight: 500;
+     font-style: normal;
+}
+
+
+.app-settings-content .update-status-group > button {
+    grid-column: 3 / 4;
+    justify-self: end;
+    height: 30px;
+    padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+.modal-divider {
+    border: none;
+    border-top: 1px solid hsl(var(--border));
+    margin: var(--spacing-lg) 0;
+}
+
 
 /* --- Utility Classes --- */
 .hidden {

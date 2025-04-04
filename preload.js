@@ -4,7 +4,6 @@ const { contextBridge, ipcRenderer } = require("electron")
 let screenDimensions = null
 
 ipcRenderer.on("screen-dimensions", (event, dimensions) => {
-  // console.log("Preload received screen dimensions:", dimensions) // Less verbose log
   screenDimensions = dimensions
 })
 
@@ -84,6 +83,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on(channel, listener)
     return () => ipcRenderer.removeListener(channel, listener)
   },
+  getAppVersion: () => ipcRenderer.invoke("get-app-version"), // <<< NEW
 
   // == APIs for Quick Add Renderer ==
   sendTaskToMain: (taskText) =>
@@ -108,6 +108,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.send("quick-add-delete-task", taskId),
 
   // == Auto Updater APIs ==
+  checkForUpdates: () => ipcRenderer.send("check-for-updates"), // <<< NEW
+  onUpdateStatusMessage: (callback) => {
+    // <<< NEW listener for status
+    const channel = "update-status-message"
+    ipcRenderer.on(
+      channel,
+      (event, message, isChecking, isError, isAvailable) =>
+        callback(message, isChecking, isError, isAvailable)
+    )
+    return () => ipcRenderer.removeAllListeners(channel)
+  },
   onUpdateAvailable: (callback) => {
     const channel = "update_available"
     ipcRenderer.on(channel, (event, ...args) => callback(...args))
@@ -119,11 +130,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return () => ipcRenderer.removeAllListeners(channel)
   },
   onUpdateError: (callback) => {
+    // Still keep this for the main bottom bar notification
     const channel = "update_error"
     ipcRenderer.on(channel, (event, ...args) => callback(...args))
     return () => ipcRenderer.removeAllListeners(channel)
   },
   onDownloadProgress: (callback) => {
+    // Keep for bottom bar
     const channel = "download_progress"
     ipcRenderer.on(channel, (event, ...args) => callback(...args))
     return () => ipcRenderer.removeAllListeners(channel)

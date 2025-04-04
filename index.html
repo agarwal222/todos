@@ -28,7 +28,6 @@
           <h1 class="app-title">Visido</h1>
         </div>
         <div class="header-right">
-          <!-- NEW: Toggle Todos Visibility Button -->
           <button
             id="toggle-todos-visibility-btn"
             class="button button-secondary button-icon"
@@ -66,7 +65,6 @@
               />
             </svg>
           </button>
-          <!-- END NEW BUTTON -->
           <button
             id="apply-wallpaper-btn"
             class="button button-primary"
@@ -362,7 +360,6 @@
                       <option value="number">Number (1.)</option>
                     </select>
                   </div>
-                  <!-- *** Overall Opacity Slider *** -->
                   <div class="input-group slider-group">
                     <label for="overall-opacity">Overall Opacity</label>
                     <input
@@ -544,7 +541,6 @@
                       aria-label="Text background color hex code"
                     />
                   </div>
-                  <!-- *** Panel Opacity Slider *** -->
                   <div class="input-group slider-group">
                     <label for="text-panel-opacity">Panel Opacity</label>
                     <input
@@ -583,7 +579,6 @@
                       title="Block (Top/Bottom) Padding"
                     />
                   </div>
-                  <!-- *** Border Radius Slider *** -->
                   <div class="input-group slider-group">
                     <label for="text-bg-border-radius">Radius</label>
                     <input
@@ -818,7 +813,7 @@
         </aside>
       </main>
 
-      <!-- Modals (keep existing structures) -->
+      <!-- Modals -->
       <div id="update-notification-area" class="update-notification hidden">
         <span id="update-message">Update message goes here</span>
         <button
@@ -1045,6 +1040,25 @@
                 settings).</span
               >
             </div>
+
+            <!-- NEW: Update Section -->
+            <hr class="modal-divider" />
+            <div class="input-group modal-input-group update-status-group">
+              <label>App Updates</label>
+              <span id="update-status-display" class="update-status-display"
+                >Checking...</span
+              >
+              <button
+                type="button"
+                id="check-for-updates-btn"
+                class="button button-secondary"
+              >
+                Check Now
+              </button>
+            </div>
+            <!-- END NEW Section -->
+
+            <hr class="modal-divider" />
             <div class="modal-actions">
               <button
                 type="button"

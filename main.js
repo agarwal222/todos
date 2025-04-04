@@ -34,6 +34,84 @@ let backgroundImagePath = "" // Will be set in whenReady
 
 // --- Single Instance Lock ---
 const gotTheLock = app.requestSingleInstanceLock()
+
+// *** Google Font Helper Functions (Defined at Top Level) ***
+function fetchGoogleFontCSS(url) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
+      },
+    }
+    https
+      .get(url, options, (res) => {
+        log.info(`Google Font CSS request status: ${res.statusCode}`)
+        if (
+          res.statusCode >= 300 &&
+          res.statusCode < 400 &&
+          res.headers.location
+        ) {
+          log.info(`Following redirect to: ${res.headers.location}`)
+          return fetchGoogleFontCSS(res.headers.location)
+            .then(resolve)
+            .catch(reject)
+        }
+        if (res.statusCode !== 200) {
+          res.resume()
+          return reject(
+            new Error(
+              `Failed to fetch Google Font CSS. Status Code: ${res.statusCode}`
+            )
+          )
+        }
+        let data = ""
+        res.setEncoding("utf8")
+        res.on("data", (c) => (data += c))
+        res.on("end", () => resolve(data))
+      })
+      .on("error", (e) => {
+        log.error(`Google Font CSS request error: ${e.message}`)
+        reject(new Error(`Network error fetching font CSS: ${e.message}`))
+      })
+  })
+}
+
+function fetchFontData(url) {
+  return new Promise((resolve, reject) => {
+    https
+      .get(url, (res) => {
+        log.info(
+          `Google Font data request status: ${res.statusCode} for ${url}`
+        )
+        if (
+          res.statusCode >= 300 &&
+          res.statusCode < 400 &&
+          res.headers.location
+        ) {
+          log.info(`Following font data redirect to: ${res.headers.location}`)
+          return fetchFontData(res.headers.location).then(resolve).catch(reject)
+        }
+        if (res.statusCode !== 200) {
+          res.resume()
+          return reject(
+            new Error(
+              `Failed to fetch font data. Status Code: ${res.statusCode}`
+            )
+          )
+        }
+        const data = []
+        res.on("data", (c) => data.push(c))
+        res.on("end", () => resolve(Buffer.concat(data).toString("base64")))
+      })
+      .on("error", (e) => {
+        log.error(`Google Font data request error: ${e.message}`)
+        reject(new Error(`Network error fetching font data: ${e.message}`))
+      })
+  })
+}
+// *** End Google Font Helper Functions ***
+
 if (!gotTheLock) {
   log.warn("Another instance is already running. Quitting this instance.")
   app.quit()
@@ -84,88 +162,10 @@ if (!gotTheLock) {
     if (app.isPackaged) {
       return path.join(process.resourcesPath, assetName)
     } else {
+      // Adjust path for development to look in the 'assets' folder sibling to main.js
       return path.join(__dirname, "assets", assetName)
     }
   }
-
-  // *** Google Font Helper Functions (Defined at Top Level - CORRECTED PLACEMENT) ***
-  function fetchGoogleFontCSS(url) {
-    return new Promise((resolve, reject) => {
-      const options = {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
-        },
-      }
-      https
-        .get(url, options, (res) => {
-          log.info(`Google Font CSS request status: ${res.statusCode}`)
-          if (
-            res.statusCode >= 300 &&
-            res.statusCode < 400 &&
-            res.headers.location
-          ) {
-            log.info(`Following redirect to: ${res.headers.location}`)
-            return fetchGoogleFontCSS(res.headers.location)
-              .then(resolve)
-              .catch(reject)
-          }
-          if (res.statusCode !== 200) {
-            res.resume()
-            return reject(
-              new Error(
-                `Failed to fetch Google Font CSS. Status Code: ${res.statusCode}`
-              )
-            )
-          }
-          let data = ""
-          res.setEncoding("utf8")
-          res.on("data", (c) => (data += c))
-          res.on("end", () => resolve(data))
-        })
-        .on("error", (e) => {
-          log.error(`Google Font CSS request error: ${e.message}`)
-          reject(new Error(`Network error fetching font CSS: ${e.message}`))
-        })
-    })
-  }
-
-  function fetchFontData(url) {
-    return new Promise((resolve, reject) => {
-      https
-        .get(url, (res) => {
-          log.info(
-            `Google Font data request status: ${res.statusCode} for ${url}`
-          )
-          if (
-            res.statusCode >= 300 &&
-            res.statusCode < 400 &&
-            res.headers.location
-          ) {
-            log.info(`Following font data redirect to: ${res.headers.location}`)
-            return fetchFontData(res.headers.location)
-              .then(resolve)
-              .catch(reject)
-          }
-          if (res.statusCode !== 200) {
-            res.resume()
-            return reject(
-              new Error(
-                `Failed to fetch font data. Status Code: ${res.statusCode}`
-              )
-            )
-          }
-          const data = []
-          res.on("data", (c) => data.push(c))
-          res.on("end", () => resolve(Buffer.concat(data).toString("base64")))
-        })
-        .on("error", (e) => {
-          log.error(`Google Font data request error: ${e.message}`)
-          reject(new Error(`Network error fetching font data: ${e.message}`))
-        })
-    })
-  }
-  // *** End Google Font Helper Functions ***
 
   // --- Main Window Creation ---
   function createWindow() {
@@ -211,8 +211,9 @@ if (!gotTheLock) {
         isFullScreen: mainWindow.isFullScreen(),
       })
       mainWindow.show()
-      log.info("Checking for updates...")
-      autoUpdater.checkForUpdatesAndNotify()
+      log.info("Checking for updates (initial check)...")
+      // Initial check for updates (can be silent or notify)
+      autoUpdater.checkForUpdatesAndNotify() // Or just checkForUpdates() if you handle notifications yourself
     })
     mainWindow.on("maximize", () => {
       if (mainWindow && !mainWindow.isDestroyed())
@@ -253,7 +254,7 @@ if (!gotTheLock) {
         log.info("Main window hidden to tray on close.")
       } else {
         log.info("Main window closing normally (or quitting).")
-        mainWindow = null
+        mainWindow = null // Ensure it's nullified so activate works correctly
       }
     })
     mainWindow.on("minimize", (event) => {
@@ -265,7 +266,7 @@ if (!gotTheLock) {
     })
     mainWindow.on("closed", () => {
       log.info("Main window instance closed event fired.")
-      mainWindow = null
+      mainWindow = null // Important for activate event logic
     })
   }
 
@@ -386,6 +387,7 @@ if (!gotTheLock) {
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send("shortcut-error", errorMsg)
         }
+        // Force tray mode off if shortcut fails
         appSettings.runInTray = false
         currentShortcut = null
         destroyTray()
@@ -414,6 +416,7 @@ if (!gotTheLock) {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("shortcut-error", errorMsg)
       }
+      // Force tray mode off on error
       appSettings.runInTray = false
       currentShortcut = null
       destroyTray()
@@ -457,8 +460,9 @@ if (!gotTheLock) {
       log.error(
         "Cannot open Quick Add: Main application window is not available to provide tasks."
       )
-      showMainWindow()
+      showMainWindow() // Attempt to show/create main window first
       if (!mainWindow || mainWindow.isDestroyed()) {
+        // Check again
         dialog.showErrorBox(
           "Error",
           "Visido main window is not running. Please start the main application first."
@@ -478,12 +482,13 @@ if (!gotTheLock) {
     let vibrancyType = null
     if (useTranslucency) {
       if (isMac) {
-        bgColor = "#00000000"
-        vibrancyType = "hud"
+        bgColor = "#00000000" // Fully transparent for vibrancy
+        vibrancyType = "hud" // Or other macOS vibrancy types
         transparent = true
         log.info("Using macOS vibrancy for Quick Add window.")
       } else {
-        bgColor = QUICK_ADD_VIBRANCY_FALLBACK_BG
+        // Windows/Linux fallback
+        bgColor = QUICK_ADD_VIBRANCY_FALLBACK_BG // Semi-transparent
         transparent = true
         log.info(
           "Using fallback transparency for Quick Add window (Win/Linux)."
@@ -496,18 +501,18 @@ if (!gotTheLock) {
     log.info(`Using Quick Add window icon path: ${quickAddIconPath}`)
     let windowOptions = {
       width: winWidth,
-      height: initialHeight,
+      height: initialHeight, // Start small, resize later
       minHeight: QUICK_ADD_MIN_HEIGHT,
       x: Math.round(screenWidth / 2 - winWidth / 2),
       y: Math.round(
         primaryDisplay.workArea.y + primaryDisplay.workArea.height * 0.15
-      ),
+      ), // Position near top-center
       frame: false,
       resizable: false,
       movable: true,
-      skipTaskbar: true,
+      skipTaskbar: true, // Doesn't appear in taskbar
       alwaysOnTop: true,
-      show: false,
+      show: false, // Show after content is ready or resized
       webPreferences: {
         preload: path.join(__dirname, "preload.js"),
         contextIsolation: true,
@@ -516,8 +521,8 @@ if (!gotTheLock) {
       },
       transparent: transparent,
       backgroundColor: bgColor,
-      ...(vibrancyType && { vibrancy: vibrancyType }),
-      useContentSize: true,
+      ...(vibrancyType && { vibrancy: vibrancyType }), // Apply vibrancy if defined
+      useContentSize: true, // Width/height applies to content area
       icon: fsSync.existsSync(quickAddIconPath) ? quickAddIconPath : undefined,
     }
     quickAddWindow = new BrowserWindow(windowOptions)
@@ -527,8 +532,11 @@ if (!gotTheLock) {
       )
     }
     quickAddWindow.loadFile(path.join(__dirname, "quick-add.html"))
+
     let todosForQuickAdd = null
     let quickAddWindowReady = false
+
+    // Listener for response from main window
     const responseListener = (event, todos) => {
       log.info("Received current todos response from main window.")
       todosForQuickAdd = todos
@@ -544,9 +552,13 @@ if (!gotTheLock) {
           "Quick Add window received todos but wasn't ready or was destroyed."
         )
       }
+      // Clean up listener immediately after receiving response
       ipcMain.removeListener("current-todos-response", responseListener)
     }
+
     ipcMain.once("current-todos-response", responseListener)
+
+    // Timeout if main window doesn't respond quickly
     const requestTimeout = setTimeout(() => {
       if (
         ipcMain.listeners("current-todos-response").includes(responseListener)
@@ -558,12 +570,14 @@ if (!gotTheLock) {
           !quickAddWindow.isDestroyed() &&
           quickAddWindowReady
         ) {
-          quickAddWindow.webContents.send("initial-todos", [])
+          quickAddWindow.webContents.send("initial-todos", []) // Send empty list on timeout
         }
       }
-    }, 3000)
+    }, 3000) // 3 second timeout
+
     log.info("Requesting current todos from main window for Quick Add.")
-    mainWindow.webContents.send("get-todos-request")
+    mainWindow.webContents.send("get-todos-request") // Ask main window for current todos
+
     quickAddWindow.webContents.on("did-finish-load", () => {
       log.info("Quick Add window finished loading content.")
       quickAddWindowReady = true
@@ -575,6 +589,7 @@ if (!gotTheLock) {
         log.info("Quick Add window loaded, sending pre-received todos.")
         quickAddWindow.webContents.send("initial-todos", todosForQuickAdd)
       }
+      // Send quick add specific settings
       quickAddWindow.webContents.send("quickadd-settings", {
         translucent: appSettings.quickAddTranslucent,
       })
@@ -586,8 +601,8 @@ if (!gotTheLock) {
     })
     quickAddWindow.on("closed", () => {
       log.info("Quick Add window closed event.")
-      clearTimeout(requestTimeout)
-      ipcMain.removeListener("current-todos-response", responseListener)
+      clearTimeout(requestTimeout) // Clear timeout on close
+      ipcMain.removeListener("current-todos-response", responseListener) // Ensure listener removed
       quickAddWindow = null
     })
   }
@@ -609,7 +624,7 @@ if (!gotTheLock) {
           error
         )
       }
-      return null
+      return null // Return null if file not found or error
     }
   })
   ipcMain.on("save-state", async (event, stateData) => {
@@ -619,7 +634,7 @@ if (!gotTheLock) {
     }
     log.info(`Attempting to save state to: ${stateFilePath}`)
     try {
-      const stateString = JSON.stringify(stateData, null, 2)
+      const stateString = JSON.stringify(stateData, null, 2) // Pretty print JSON
       await fs.writeFile(stateFilePath, stateString, "utf-8")
       log.info("State saved successfully.")
     } catch (error) {
@@ -650,7 +665,7 @@ if (!gotTheLock) {
     log.info("Loading background image from:", backgroundImagePath)
     try {
       const imageBuffer = await fs.readFile(backgroundImagePath)
-      const mimeType = "image/png"
+      const mimeType = "image/png" // Assuming PNG for now
       const base64 = imageBuffer.toString("base64")
       log.info("Background image loaded successfully.")
       return `data:${mimeType};base64,${base64}`
@@ -679,7 +694,7 @@ if (!gotTheLock) {
           "Attempted to clear background image, but file already gone:",
           backgroundImagePath
         )
-        return { success: true }
+        return { success: true } // Still success as the end result is the same
       } else {
         log.error("Error clearing background image:", error)
         return { success: false, error: error.message }
@@ -689,19 +704,24 @@ if (!gotTheLock) {
   ipcMain.once("renderer-settings-loaded", (event, loadedSettings) => {
     log.info("Received initial settings from renderer:", loadedSettings)
     rendererSettingsLoaded = true
+    // Merge loaded settings into main process appSettings
     appSettings = {
-      ...appSettings,
-      ...loadedSettings,
+      ...appSettings, // Keep existing defaults
+      ...loadedSettings, // Override with loaded values
+      // Ensure boolean values are correctly handled
       runInTray: !!loadedSettings.runInTray,
       quickAddTranslucent: !!loadedSettings.quickAddTranslucent,
-      quickAddShortcut: loadedSettings.quickAddShortcut || DEFAULT_SHORTCUT,
+      quickAddShortcut: loadedSettings.quickAddShortcut || DEFAULT_SHORTCUT, // Use default if missing
     }
     log.info("Main process appSettings updated from renderer:", appSettings)
+
+    // Setup Tray and Shortcut based on loaded settings (after a small delay)
     if (appSettings.runInTray) {
       log.info(
         "Initial settings: Run in Tray enabled. Setting up after delay..."
       )
       setTimeout(() => {
+        // Double-check if setting changed before delay completed
         if (!appSettings.runInTray) {
           log.info(
             "Initial setup: Tray mode was disabled before delay completed. Skipping setup."
@@ -715,15 +735,18 @@ if (!gotTheLock) {
             appSettings.quickAddShortcut
           )
           if (shortcutRegistered) {
+            // Hide dock icon on macOS when running in tray
             if (process.platform === "darwin") {
+              // app.dock?.hide(); // Potentially hide immediately or based on preference
             }
             log.info("Tray and shortcut setup complete (initial).")
           } else {
             log.error(
               "Failed to register shortcut during initial setup. Tray mode disabled."
             )
-            destroyTray()
-            appSettings.runInTray = false
+            destroyTray() // Clean up tray if shortcut failed
+            appSettings.runInTray = false // Update state
+            // Force renderer UI update if main window exists
             if (mainWindow && !mainWindow.isDestroyed()) {
               mainWindow.webContents.send("force-setting-update", {
                 runInTray: false,
@@ -734,16 +757,18 @@ if (!gotTheLock) {
           log.error(
             "Failed to create tray during initial setup. Tray mode disabled."
           )
-          appSettings.runInTray = false
+          appSettings.runInTray = false // Update state
+          // Force renderer UI update if main window exists
           if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send("force-setting-update", {
               runInTray: false,
             })
           }
         }
-      }, INITIAL_SETUP_DELAY)
+      }, INITIAL_SETUP_DELAY) // Delay to allow renderer to fully load
     } else {
       log.info("Initial settings: Run in Tray disabled.")
+      // Ensure dock icon is visible on macOS if not running in tray
       if (process.platform === "darwin") {
         app.dock?.show()
       }
@@ -755,14 +780,16 @@ if (!gotTheLock) {
       log.info("Fetching system fonts...")
       const fonts = await fontList.getFonts({ disableQuoting: true })
       log.info(`Found ${fonts.length} raw system fonts.`)
+      // Filter out common system/symbol/emoji fonts and hidden fonts
       const filteredFonts = fonts.filter(
         (font) =>
           !/System|UI|Display|Emoji|Icons|Symbols|Logo|Brands|Private|Wingdings|Webdings/i.test(
             font
           ) &&
-          !/^\./.test(font) &&
+          !/^\./.test(font) && // Starts with '.' (hidden fonts on Unix-like systems)
           font.trim() !== ""
       )
+      // Get unique font names and sort alphabetically
       const uniqueFonts = [...new Set(filteredFonts)].sort((a, b) =>
         a.localeCompare(b)
       )
@@ -770,7 +797,7 @@ if (!gotTheLock) {
       return uniqueFonts
     } catch (error) {
       log.error("Failed to get system fonts:", error)
-      return []
+      return [] // Return empty array on error
     }
   })
   ipcMain.handle(
@@ -786,6 +813,7 @@ if (!gotTheLock) {
         }`
       )
       const requestedWeight = fontWeight || "400"
+      // Request specific weight + 400/700 as fallbacks
       const weightsToRequest = [
         ...new Set([requestedWeight, "400", "700"]),
       ].join(";")
@@ -795,6 +823,8 @@ if (!gotTheLock) {
       try {
         const cssContent = await fetchGoogleFontCSS(fontUrl)
         log.info("Successfully fetched Google Font CSS content.")
+
+        // Regex to extract font-family, font-weight, and URL (woff/woff2)
         const fontFaceRegex =
           /@font-face\s*{[^{}]*?font-family:\s*['"]?([^;'"]+)['"]?[^{}]*?font-weight:\s*(\d+)[^{}]*?url\((https:\/\/fonts\.gstatic\.com\/s\/[^)]+\.(?:woff2|woff))\)[^{}]*?}/gs
         let match
@@ -807,6 +837,7 @@ if (!gotTheLock) {
             format: match[3].endsWith(".woff2") ? "woff2" : "woff",
           })
         }
+
         if (availableFonts.length === 0) {
           log.error(
             `Could not parse any font faces from CSS for ${fontName}. CSS Content: ${cssContent.substring(
@@ -820,6 +851,8 @@ if (!gotTheLock) {
           }
         }
         log.info(`Parsed ${availableFonts.length} font variations from CSS.`)
+
+        // Find the best match for the requested weight, fallback to 400, then first available
         let bestMatch = availableFonts.find((f) => f.weight === requestedWeight)
         if (!bestMatch) {
           log.warn(
@@ -833,19 +866,23 @@ if (!gotTheLock) {
           )
           bestMatch = availableFonts[0]
         }
+
         log.info(
           `Selected font variation: ${bestMatch.family} ${bestMatch.weight} (${bestMatch.format}) from ${bestMatch.url}`
         )
-        const fontData = await fetchFontData(bestMatch.url)
+
+        // Fetch the actual font data
+        const fontData = await fetchFontData(bestMatch.url) // Returns base64 string
         const mimeType =
           bestMatch.format === "woff" ? "font/woff" : "font/woff2"
         log.info(
           `Successfully fetched font data (${fontData.length} base64 chars).`
         )
+
         return {
           success: true,
           fontFamily: bestMatch.family,
-          fontWeight: bestMatch.weight,
+          fontWeight: bestMatch.weight, // Return the actual weight loaded
           fontDataUrl: `data:${mimeType};base64,${fontData}`,
         }
       } catch (error) {
@@ -861,19 +898,28 @@ if (!gotTheLock) {
     log.info("Main: Updating wallpaper...")
     let tempFilePath = null
     try {
+      // Dynamically import the 'wallpaper' module
       const { setWallpaper } = await import("wallpaper")
       log.info("Wallpaper module imported successfully.")
+
       const tempDir = os.tmpdir()
       tempFilePath = path.join(tempDir, `visido-wallpaper-${Date.now()}.png`)
+
+      // Convert Data URL to buffer
       const base64Data = imageDataUrl.replace(/^data:image\/png;base64,/, "")
       const imageBuffer = Buffer.from(base64Data, "base64")
+
+      // Ensure temp directory exists
       await fs.mkdir(tempDir, { recursive: true })
       log.info("Main: Writing temp wallpaper file to:", tempFilePath)
       await fs.writeFile(tempFilePath, imageBuffer)
       log.info(`Main: Temp file size: ${imageBuffer.length} bytes`)
+
       log.info("Main: Calling setWallpaper with path:", tempFilePath)
-      await setWallpaper(tempFilePath, { scale: "auto" })
+      await setWallpaper(tempFilePath, { scale: "auto" }) // Use 'auto' scaling
       log.info("Main: Wallpaper set command issued successfully.")
+
+      // Schedule deletion of the temp file after a delay
       setTimeout(() => {
         if (tempFilePath && fsSync.existsSync(tempFilePath)) {
           fsSync.unlink(tempFilePath, (err) => {
@@ -881,11 +927,14 @@ if (!gotTheLock) {
             else log.info("Main: Deleted temp wallpaper file:", tempFilePath)
           })
         }
-      }, 10000)
+      }, 10000) // Delay deletion (e.g., 10 seconds)
+
       return { success: true }
     } catch (error) {
       log.error("Main: Failed to set wallpaper. Full Error:", error)
       log.error(`Error details: ${error.message} \nStack: ${error.stack}`)
+
+      // Provide more specific error messages if possible
       let errorMessage = "Unknown error setting wallpaper"
       if (error instanceof Error && error.message) {
         errorMessage = error.message
@@ -902,11 +951,14 @@ if (!gotTheLock) {
         } else if (errorMessage.includes("wallpaper.node")) {
           errorMessage = "Internal wallpaper module error."
         }
+        // Add more specific checks based on observed errors
       } else if (typeof error === "string") {
         errorMessage = error
       }
+
       return { success: false, error: errorMessage }
     }
+    // No finally block needed for tempFilePath deletion as it's scheduled
   })
   ipcMain.on("update-settings", (event, settings) => {
     log.info("Main received settings update request from renderer:", settings)
@@ -916,11 +968,14 @@ if (!gotTheLock) {
       )
       return
     }
-    const previousSettings = { ...appSettings }
+
+    const previousSettings = { ...appSettings } // Copy before modification
     let stateChanged = false
     let trayModeChanged = false
     let shortcutChanged = false
     let translucencyChanged = false
+
+    // Update RunInTray setting
     if (
       typeof settings.runInTray === "boolean" &&
       appSettings.runInTray !== settings.runInTray
@@ -930,6 +985,8 @@ if (!gotTheLock) {
       trayModeChanged = true
       log.info(`RunInTray setting changed to: ${appSettings.runInTray}`)
     }
+
+    // Update QuickAddTranslucent setting
     if (
       typeof settings.quickAddTranslucent === "boolean" &&
       appSettings.quickAddTranslucent !== settings.quickAddTranslucent
@@ -941,9 +998,11 @@ if (!gotTheLock) {
         `QuickAddTranslucent setting changed to: ${appSettings.quickAddTranslucent}`
       )
     }
+
+    // Update QuickAddShortcut setting
     if (
       typeof settings.quickAddShortcut === "string" &&
-      settings.quickAddShortcut &&
+      settings.quickAddShortcut && // Ensure not empty string
       appSettings.quickAddShortcut !== settings.quickAddShortcut
     ) {
       appSettings.quickAddShortcut = settings.quickAddShortcut
@@ -956,6 +1015,7 @@ if (!gotTheLock) {
       settings.hasOwnProperty("quickAddShortcut") &&
       !settings.quickAddShortcut
     ) {
+      // Handle case where empty string is sent, revert to default
       if (appSettings.quickAddShortcut !== DEFAULT_SHORTCUT) {
         appSettings.quickAddShortcut = DEFAULT_SHORTCUT
         stateChanged = true
@@ -964,6 +1024,7 @@ if (!gotTheLock) {
           "Received empty shortcut, reverting to default:",
           DEFAULT_SHORTCUT
         )
+        // Force renderer update if window exists
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send("force-setting-update", {
             quickAddShortcut: DEFAULT_SHORTCUT,
@@ -971,13 +1032,17 @@ if (!gotTheLock) {
         }
       }
     }
+
     if (!stateChanged) {
       log.info(
         "No relevant settings changed, nothing to update in main process."
       )
       return
     }
+
     log.info("Applying updated app settings:", appSettings)
+
+    // Handle Tray Mode changes
     if (trayModeChanged) {
       if (appSettings.runInTray) {
         log.info("Enabling tray mode via settings update.")
@@ -987,18 +1052,21 @@ if (!gotTheLock) {
             appSettings.quickAddShortcut
           )
           if (shortcutRegistered) {
-            if (process.platform === "darwin") app.dock?.hide()
+            if (process.platform === "darwin") app.dock?.hide() // Hide dock on enable
             log.info("Tray mode enabled successfully.")
           } else {
+            // Shortcut failed, revert tray mode
             log.error(
               "Shortcut registration failed during tray enable. Reverting tray mode."
             )
+            // Revert state and UI is handled by registerGlobalShortcut failure path
           }
         } else {
+          // Tray creation failed, revert tray mode
           log.error(
             "Failed to create tray icon when enabling via settings. Reverting tray mode."
           )
-          appSettings.runInTray = false
+          appSettings.runInTray = false // Manually revert state here
           if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send("force-setting-update", {
               runInTray: false,
@@ -1006,10 +1074,12 @@ if (!gotTheLock) {
           }
         }
       } else {
+        // Disabling tray mode
         log.info("Disabling tray mode via settings update.")
         unregisterCurrentShortcut()
         destroyTray()
-        if (process.platform === "darwin") app.dock?.show()
+        if (process.platform === "darwin") app.dock?.show() // Show dock on disable
+        // Ensure main window is visible if it was hidden in tray
         if (
           mainWindow &&
           !mainWindow.isDestroyed() &&
@@ -1020,6 +1090,7 @@ if (!gotTheLock) {
         log.info("Tray mode disabled successfully.")
       }
     } else if (appSettings.runInTray && shortcutChanged) {
+      // Tray already enabled, only shortcut changed
       log.info(
         `Shortcut changed while tray enabled. Re-registering new shortcut: ${appSettings.quickAddShortcut}`
       )
@@ -1028,13 +1099,17 @@ if (!gotTheLock) {
       )
       if (!shortcutRegistered) {
         log.warn("Shortcut re-registration failed. Forcing tray mode off.")
+        // Revert state and UI is handled by registerGlobalShortcut failure path
       } else {
         log.info("Shortcut successfully re-registered.")
       }
     } else if (!appSettings.runInTray && currentShortcut) {
+      // Tray mode is off, ensure shortcut is unregistered if it was previously set
       log.info("Tray mode is off, ensuring shortcut is unregistered.")
       unregisterCurrentShortcut()
     }
+
+    // Handle translucency changes - close existing window if open
     if (
       translucencyChanged &&
       quickAddWindow &&
@@ -1052,23 +1127,29 @@ if (!gotTheLock) {
       log.warn(
         `Renderer reported setting update failed for '${setting}': ${error}. Falling back to ${fallbackValue}`
       )
+      // Force the renderer UI to update back to the fallback value
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("force-setting-update", {
           [setting]: fallbackValue,
         })
       }
+      // Update the main process state as well
       if (appSettings.hasOwnProperty(setting)) {
         log.info(
           `Updating main process setting '${setting}' to fallback value: ${fallbackValue}`
         )
         appSettings[setting] = fallbackValue
+
+        // Handle side-effects of forced fallbacks
         if (setting === "runInTray") {
           if (!fallbackValue) {
+            // Forced OFF
             unregisterCurrentShortcut()
             destroyTray()
             if (process.platform === "darwin") app.dock?.show()
             log.info("Tray mode forced off due to renderer setting error.")
           } else {
+            // Forced ON (unlikely, but handle defensively)
             log.warn(
               "Tray mode forced ON due to renderer error. Attempting to enable tray."
             )
@@ -1098,14 +1179,7 @@ if (!gotTheLock) {
             log.error(
               "Failed to register fallback shortcut. Forcing tray mode off."
             )
-            appSettings.runInTray = false
-            destroyTray()
-            if (process.platform === "darwin") app.dock?.show()
-            if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send("force-setting-update", {
-                runInTray: false,
-              })
-            }
+            // Failure path in registerGlobalShortcut handles UI/state update
           }
         } else if (setting === "quickAddTranslucent") {
           if (quickAddWindow && !quickAddWindow.isDestroyed()) {
@@ -1121,10 +1195,12 @@ if (!gotTheLock) {
   ipcMain.on("add-task-from-overlay", (event, taskText) => {
     log.info("Main received task from quick add overlay:", taskText)
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send("add-task-and-apply", taskText)
+      mainWindow.webContents.send("add-task-and-apply", taskText) // Tell main window to add and apply
     } else {
       log.warn("Main window not available to add task from overlay.")
+      // Potentially save to state file directly as a fallback? Or just log warning.
     }
+    // Close the overlay window after submitting
     if (quickAddWindow && !quickAddWindow.isDestroyed()) {
       log.info("Closing Quick Add window after task submission.")
       quickAddWindow.close()
@@ -1148,16 +1224,17 @@ if (!gotTheLock) {
   })
   ipcMain.on("window-close", (event) => {
     const win = BrowserWindow.fromWebContents(event.sender)
+    // Only act if it's the main window triggering this specific IPC message
     if (win && mainWindow && win.id === mainWindow.id) {
       log.info(
         `IPC 'window-close' received for main window (ID: ${win.id}). Initiating close sequence.`
       )
-      win.close()
+      win.close() // This will trigger the 'close' event handler on the window
     } else if (win) {
       log.warn(
         `IPC 'window-close' received for unexpected window (ID: ${win.id}), closing it directly.`
       )
-      win.close()
+      win.close() // Close other windows directly if they send this
     } else {
       log.warn("IPC 'window-close' received but sender window not found.")
     }
@@ -1167,17 +1244,22 @@ if (!gotTheLock) {
       try {
         const currentBounds = quickAddWindow.getBounds()
         const primaryDisplay = screen.getPrimaryDisplay()
+        // Set a reasonable max height (e.g., 60% of work area)
         const maxHeight = Math.round(primaryDisplay.workArea.height * 0.6)
         const newHeight = Math.max(
           QUICK_ADD_MIN_HEIGHT,
           Math.min(Math.round(height), maxHeight)
         )
+
         log.info(
           `Resizing Quick Add window to height: ${newHeight} (requested: ${height}, max: ${maxHeight})`
         )
+
         if (newHeight !== currentBounds.height) {
-          quickAddWindow.setSize(currentBounds.width, newHeight, false)
+          quickAddWindow.setSize(currentBounds.width, newHeight, false) // Animate = false for smoother resize
         }
+
+        // Ensure window is visible after size calculation (in case it was hidden initially)
         if (!quickAddWindow.isVisible()) {
           log.info(
             "Showing and focusing Quick Add window after resize calculation."
@@ -1196,7 +1278,7 @@ if (!gotTheLock) {
   })
   ipcMain.on("restart_app", () => {
     log.info("Restarting app to install update...")
-    isQuitting = true
+    isQuitting = true // Ensure app truly quits
     autoUpdater.quitAndInstall()
   })
   ipcMain.on("quick-add-toggle-task", (event, taskId) => {
@@ -1205,7 +1287,9 @@ if (!gotTheLock) {
       mainWindow.webContents.send("perform-task-toggle", taskId)
     } else {
       log.warn(`Main window not available to toggle task ID ${taskId}`)
+      // Potentially handle state update directly here if main window is gone?
     }
+    // Close Quick Add after action
     if (quickAddWindow && !quickAddWindow.isDestroyed()) {
       log.info("Closing Quick Add after toggle action.")
       quickAddWindow.close()
@@ -1217,12 +1301,38 @@ if (!gotTheLock) {
       mainWindow.webContents.send("perform-task-delete", taskId)
     } else {
       log.warn(`Main window not available to delete task ID ${taskId}`)
+      // Potentially handle state update directly here if main window is gone?
     }
+    // Close Quick Add after action
     if (quickAddWindow && !quickAddWindow.isDestroyed()) {
       log.info("Closing Quick Add after delete action.")
       quickAddWindow.close()
     }
   })
+
+  // <<< NEW IPC HANDLERS >>>
+  ipcMain.handle("get-app-version", () => {
+    log.info("Renderer requested app version.")
+    return app.getVersion()
+  })
+
+  ipcMain.on("check-for-updates", () => {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      log.warn("Check for updates requested, but main window is not available.")
+      return
+    }
+    log.info("Manual check for updates triggered by renderer.")
+    // Send 'checking' status immediately back to modal
+    mainWindow.webContents.send(
+      "update-status-message",
+      "Checking for updates...",
+      true,
+      false,
+      false
+    )
+    autoUpdater.checkForUpdates() // Start the check
+  })
+  // <<< END NEW IPC HANDLERS >>>
 
   // --- App Lifecycle ---
   app.whenReady().then(() => {
@@ -1236,12 +1346,14 @@ if (!gotTheLock) {
     createWindow()
     app.on("activate", () => {
       log.info("App activated.")
+      // On macOS it's common to re-create a window in the app when the
+      // dock icon is clicked and there are no other windows open.
       if (BrowserWindow.getAllWindows().length === 0) {
         log.info("App activated with no windows open, creating main window.")
         createWindow()
       } else if (mainWindow && !mainWindow.isDestroyed()) {
         log.info("App activated, ensuring main window is visible and focused.")
-        showMainWindow()
+        showMainWindow() // Ensure existing window is shown and focused
       } else if (mainWindow && mainWindow.isDestroyed()) {
         log.warn(
           "App activated, main window was destroyed, creating a new one."
@@ -1249,16 +1361,18 @@ if (!gotTheLock) {
         createWindow()
       } else {
         log.warn(
-          "App activated, mainWindow is null but other windows exist. Creating new main window."
+          "App activated, mainWindow is null but other windows exist?. Creating new main window."
         )
-        createWindow()
+        createWindow() // Fallback: create window if mainWindow is unexpectedly null
       }
     })
   })
   app.on("window-all-closed", () => {
     log.info("All windows closed event received.")
+    // Quit when all windows are closed, except on macOS unless specified or not in tray
     if (process.platform === "darwin" && appSettings.runInTray) {
       log.info("App running in tray (macOS), keeping alive.")
+      // Don't quit, keep running in background/tray
     } else {
       log.info(
         "Quitting app because all windows closed (or not macOS/not in tray)."
@@ -1268,39 +1382,79 @@ if (!gotTheLock) {
   })
   app.on("before-quit", () => {
     log.info("App before-quit event triggered.")
-    isQuitting = true
-    unregisterCurrentShortcut()
+    isQuitting = true // Signal that this is an intentional quit
+    unregisterCurrentShortcut() // Clean up global shortcuts
   })
   app.on("will-quit", () => {
     log.info("App will-quit event triggered. Final cleanup.")
+    // Unregister all shortcuts.
     unregisterCurrentShortcut()
     globalShortcut.unregisterAll()
+    // Destroy tray icon if it exists
     destroyTray()
     log.info("Exiting.")
   })
 
   // --- Auto Updater Event Listeners ---
+  // Modify these to primarily send structured status updates to the renderer modal
   autoUpdater.on("checking-for-update", () => {
     log.info("Checking for update...")
     if (mainWindow && !mainWindow.isDestroyed())
-      mainWindow.webContents.send("checking_for_update")
+      mainWindow.webContents.send(
+        "update-status-message",
+        "Checking for updates...",
+        true,
+        false,
+        false
+      )
+    // Keep sending to bottom bar too? Maybe not necessary if modal is primary.
+    // mainWindow.webContents.send("checking_for_update") // Optional: keep bottom bar message
   })
   autoUpdater.on("update-available", (info) => {
     log.info("Update available.", info)
-    if (mainWindow && !mainWindow.isDestroyed())
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(
+        "update-status-message",
+        `Update v${info.version} available. Downloading...`,
+        false,
+        false,
+        true
+      )
+      // Still send to bottom bar for download progress/notification
       mainWindow.webContents.send("update_available", info)
+    }
   })
   autoUpdater.on("update-not-available", (info) => {
     log.info("Update not available.", info)
-    if (mainWindow && !mainWindow.isDestroyed())
-      mainWindow.webContents.send("update_not_available", info)
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const currentVersion = app.getVersion()
+      mainWindow.webContents.send(
+        "update-status-message",
+        `App is up to date (v${currentVersion}).`,
+        false,
+        false,
+        false
+      )
+      // Maybe send to bottom bar too?
+      // mainWindow.webContents.send("update_not_available", info)
+    }
   })
   autoUpdater.on("error", (err) => {
     log.error("Error in auto-updater.", err)
-    if (mainWindow && !mainWindow.isDestroyed())
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(
+        "update-status-message",
+        `Error: ${err.message}`,
+        false,
+        true,
+        false
+      )
+      // Still send original error to bottom bar
       mainWindow.webContents.send("update_error", err.message)
+    }
   })
   autoUpdater.on("download-progress", (progressObj) => {
+    // Keep this for the bottom bar notification mainly
     let log_message = `Download speed: ${Math.round(
       progressObj.bytesPerSecond / 1024
     )} KB/s - Downloaded ${progressObj.percent.toFixed(2)}% (${(
@@ -1309,13 +1463,28 @@ if (!gotTheLock) {
       1024
     ).toFixed(2)}MB / ${(progressObj.total / 1024 / 1024).toFixed(2)}MB)`
     log.info(log_message)
-    if (mainWindow && !mainWindow.isDestroyed())
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      // Send progress to bottom bar
       mainWindow.webContents.send("download_progress", progressObj)
+      // Optionally update modal status too, e.g.:
+      // mainWindow.webContents.send('update-status-message', `Downloading: ${Math.round(progressObj.percent)}%`, true, false, true);
+    }
   })
   autoUpdater.on("update-downloaded", (info) => {
     log.info("Update downloaded.", info)
-    if (mainWindow && !mainWindow.isDestroyed())
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      // Update modal status
+      mainWindow.webContents.send(
+        "update-status-message",
+        `Update v${info.version} ready! Restart to install.`,
+        false,
+        false,
+        true
+      )
+      // Trigger bottom bar notification
       mainWindow.webContents.send("update_downloaded", info)
+    }
+    // Keep system notification
     const notificationIconPath = getAssetPath("icon.png")
     log.info(`Using notification icon path: ${notificationIconPath}`)
     new Notification({
