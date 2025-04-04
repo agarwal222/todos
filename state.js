@@ -24,8 +24,8 @@ const initialState = {
   customFontError: null,
   backgroundType: "color", // 'color' or 'image'
   bgColor: DEFAULT_BG_COLOR,
-  backgroundImageDataUrl: null,
-  backgroundImageName: null,
+  backgroundImageDataUrl: null, // Loaded image data for drawing
+  backgroundImageName: null, // Original filename for display
   textColor: DEFAULT_TEXT_COLOR,
   textPosition: "top-left",
   fontSize: 48,
@@ -46,14 +46,15 @@ const initialState = {
   textPanelOpacity: DEFAULT_PANEL_OPACITY,
   textBackgroundBorderRadius: 5,
   settingsCollapsed: false, // Visual settings panel state
-  showTodosOnWallpaper: true, // <<< NEW STATE
+  showTodosOnWallpaper: true,
+  previewQuality: "medium", // <<< NEW STATE ('low', 'medium', 'high')
   // App Behavior Settings
   runInTray: false,
   quickAddShortcut: DEFAULT_SHORTCUT,
   quickAddTranslucent: false, // Platform default set in loadState
   autoApplyWallpaper: false,
-  // Transient State
-  lastGeneratedImageDataUrl: null,
+  // Transient State (not saved to file)
+  lastGeneratedImageDataUrl: null, // Holds the last *high-quality PNG* data URL for applying
   screenWidth: 1920, // Default, updated on init
   screenHeight: 1080, // Default, updated on init
 }

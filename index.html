@@ -279,6 +279,8 @@
             <h2 class="column-title">Visual Settings</h2>
           </div>
           <div class="scrollable-content">
+            <!-- Existing Sections (Text & Layout, Text Background, Font, Wallpaper Background) -->
+            <!-- ... keep these sections ... -->
             <div class="setting-section" data-section-id="text-layout">
               <button
                 class="setting-section-toggle"
@@ -809,6 +811,73 @@
                 </div>
               </div>
             </div>
+
+            <!-- NEW Preview Settings Section -->
+            <div class="setting-section" data-section-id="preview-settings">
+              <button
+                class="setting-section-toggle"
+                aria-expanded="true"
+                aria-controls="section-content-preview-settings"
+              >
+                <h3>Preview</h3>
+                <svg
+                  class="toggle-icon"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                  width="16"
+                  height="16"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </button>
+              <div
+                class="setting-section-content"
+                id="section-content-preview-settings"
+              >
+                <div class="input-group">
+                  <label>Quality</label>
+                  <div class="radio-group">
+                    <label
+                      ><input
+                        type="radio"
+                        name="preview-quality"
+                        value="low"
+                        id="preview-quality-low"
+                      />
+                      Low</label
+                    >
+                    <label
+                      ><input
+                        type="radio"
+                        name="preview-quality"
+                        value="medium"
+                        id="preview-quality-medium"
+                        checked
+                      />
+                      Medium</label
+                    >
+                    <label
+                      ><input
+                        type="radio"
+                        name="preview-quality"
+                        value="high"
+                        id="preview-quality-high"
+                      />
+                      High</label
+                    >
+                  </div>
+                  <span class="checkbox-hint"
+                    >Affects preview performance, not final wallpaper.</span
+                  >
+                </div>
+              </div>
+            </div>
+            <!-- End NEW Section -->
           </div>
         </aside>
       </main>
@@ -1041,7 +1110,7 @@
               >
             </div>
 
-            <!-- NEW: Update Section -->
+            <!-- Update Section -->
             <hr class="modal-divider" />
             <div class="input-group modal-input-group update-status-group">
               <label>App Updates</label>
@@ -1056,7 +1125,7 @@
                 Check Now
               </button>
             </div>
-            <!-- END NEW Section -->
+            <!-- END Update Section -->
 
             <hr class="modal-divider" />
             <div class="modal-actions">

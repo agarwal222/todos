@@ -95,6 +95,10 @@ const settingsInputs = {
   clearImageBtn: document.getElementById("clear-image-btn"),
   imageFileInput: document.getElementById("image-file-input"),
   imageFilenameSpan: document.getElementById("image-filename"),
+  // <<< Preview Quality Radios >>>
+  previewQualityLow: document.getElementById("preview-quality-low"),
+  previewQualityMedium: document.getElementById("preview-quality-medium"),
+  previewQualityHigh: document.getElementById("preview-quality-high"),
 }
 const openAddTodoModalBtn = document.getElementById("open-add-todo-modal-btn")
 const addTodoModal = document.getElementById("add-todo-modal")
@@ -151,7 +155,6 @@ const recordInstructions = recordShortcutModal?.querySelector(
 const canvas = document.getElementById("image-canvas")
 const ctx = canvas.getContext("2d")
 const toastContainer = document.getElementById("toast-container")
-// <<< NEW DOM ELEMENTS >>>
 const updateStatusDisplay = document.getElementById("update-status-display")
 const checkForUpdatesBtn = document.getElementById("check-for-updates-btn")
 
@@ -159,7 +162,7 @@ const checkForUpdatesBtn = document.getElementById("check-for-updates-btn")
 let state = JSON.parse(JSON.stringify(initialState))
 let currentAppVersion = "?.?.?" // Placeholder
 
-// ... (Keep rest of state vars) ...
+// Transient state not saved to file
 let isRecordingShortcut = false
 let pressedKeys = new Set()
 let currentRecordedString = ""
@@ -268,7 +271,7 @@ async function initialize() {
   Promise.all([imageLoadPromise, fontLoadPromise])
     .catch((err) => console.warn("Font/Image loading promise rejected:", err))
     .finally(() => {
-      generateTodoImageAndUpdatePreview()
+      generateTodoImageAndUpdatePreview() // Generate initial preview
     })
   console.log("Sending loaded settings to main process:", {
     runInTray: state.runInTray,
@@ -469,14 +472,14 @@ function applyStateToUI() {
   settingsInputs.overallOpacity.value = state.overallOpacity
   settingsInputs.overallOpacityValue.textContent = parseFloat(
     state.overallOpacity
-  ).toFixed(2) // Update slider value
+  ).toFixed(2)
   settingsInputs.textPanelOpacity.value = state.textPanelOpacity
   settingsInputs.textPanelOpacityValue.textContent = parseFloat(
     state.textPanelOpacity
-  ).toFixed(2) // Update slider value
+  ).toFixed(2)
   settingsInputs.textBgBorderRadius.value = state.textBackgroundBorderRadius
   settingsInputs.textBgBorderRadiusValue.textContent =
-    state.textBackgroundBorderRadius // Update slider value
+    state.textBackgroundBorderRadius
   settingsInputs.textPosition.value = state.textPosition
   settingsInputs.textAlign.value = state.textAlign
   settingsInputs.offsetX.value = state.offsetX
@@ -502,6 +505,15 @@ function applyStateToUI() {
   settingsInputs.bgTypeImage.checked = state.backgroundType === "image"
   settingsInputs.imageFilenameSpan.textContent =
     state.backgroundImageName || "No file chosen"
+
+  // Apply Preview Quality State
+  if (settingsInputs.previewQualityLow)
+    settingsInputs.previewQualityLow.checked = state.previewQuality === "low"
+  if (settingsInputs.previewQualityMedium)
+    settingsInputs.previewQualityMedium.checked =
+      state.previewQuality === "medium"
+  if (settingsInputs.previewQualityHigh)
+    settingsInputs.previewQualityHigh.checked = state.previewQuality === "high"
 
   // Apply colors to pickers and inputs
   if (textColorPickr)
@@ -589,14 +601,19 @@ async function loadState() {
       }
 
       state = {
-        ...initialState, // Start with defaults (including new showTodosOnWallpaper: true)
+        ...initialState, // Start with defaults
         ...loadedStateFromFile, // Override with loaded values
 
-        // Ensure boolean defaults if missing in loaded state
+        // Ensure boolean/specific defaults if missing
         showTodosOnWallpaper:
           typeof loadedStateFromFile.showTodosOnWallpaper === "boolean"
             ? loadedStateFromFile.showTodosOnWallpaper
             : true,
+        previewQuality: ["low", "medium", "high"].includes(
+          loadedStateFromFile.previewQuality
+        )
+          ? loadedStateFromFile.previewQuality
+          : "medium", // Default to medium if invalid or missing
         autoApplyWallpaper:
           typeof loadedStateFromFile.autoApplyWallpaper === "boolean"
             ? loadedStateFromFile.autoApplyWallpaper
@@ -610,8 +627,8 @@ async function loadState() {
         ...currentScreenDims,
         customFontStatus: "idle",
         customFontError: null,
-        lastGeneratedImageDataUrl: null,
-        backgroundImageDataUrl: null, // This will be loaded separately if needed
+        lastGeneratedImageDataUrl: null, // High-quality PNG for apply
+        backgroundImageDataUrl: null, // Image data is loaded separately
         todos: Array.isArray(loadedStateFromFile.todos)
           ? loadedStateFromFile.todos.map((t) => ({
               ...t,
@@ -635,7 +652,7 @@ async function loadState() {
     } else {
       // Set initial state if no file found
       state = {
-        ...initialState,
+        ...initialState, // Includes previewQuality: 'medium'
         autoApplyWallpaper: false,
         quickAddTranslucent: platformDefaultTranslucent,
         screenWidth: state.screenWidth, // Keep potentially updated dims
@@ -650,7 +667,7 @@ async function loadState() {
     const platform = window.electronAPI?.getPlatform() || "win32"
     // Fallback state on error
     state = {
-      ...initialState,
+      ...initialState, // Includes previewQuality: 'medium'
       autoApplyWallpaper: false,
       quickAddTranslucent: platform === "darwin",
       showTodosOnWallpaper: true,
@@ -729,55 +746,50 @@ function handleVisualSettingChange(event) {
   const eventType = event.type // 'input' or 'change'
 
   // Handle immediate changes (radios, selects, checkboxes) first
-  if (key === "font-source") {
-    if (target.checked && state.fontSource !== value) {
-      state.fontSource = value
+  if (key === "font-source" || key === "bg-type" || key === "preview-quality") {
+    if (target.checked && state[key] !== value) {
+      state[key] = value
       stateChanged = true
-      requiresImmediateRegeneration = false // Handled below based on choice
-
-      if (value === "default") {
-        state.activeFontFamily = DEFAULT_FONT
-        updateFontStatus("idle", DEFAULT_FONT)
-        state.systemFontFamily = ""
-        state.googleFontName = ""
-        requiresImmediateRegeneration = true
-      } else if (value === "system") {
-        const selectedSystemFont = settingsInputs.systemFontSelect.value
-        if (selectedSystemFont) {
-          state.activeFontFamily = selectedSystemFont
-          state.systemFontFamily = selectedSystemFont
-          updateFontStatus("loaded", selectedSystemFont)
-          requiresImmediateRegeneration = true
-        } else {
-          // No font selected yet, revert visually but don't regen yet
+      if (key === "font-source") {
+        requiresImmediateRegeneration = false // Handled below
+        if (value === "default") {
           state.activeFontFamily = DEFAULT_FONT
-          state.systemFontFamily = ""
           updateFontStatus("idle", DEFAULT_FONT)
+          state.systemFontFamily = ""
+          state.googleFontName = ""
+          requiresImmediateRegeneration = true
+        } else if (value === "system") {
+          const selectedSystemFont = settingsInputs.systemFontSelect.value
+          if (selectedSystemFont) {
+            state.activeFontFamily = selectedSystemFont
+            state.systemFontFamily = selectedSystemFont
+            updateFontStatus("loaded", selectedSystemFont)
+            requiresImmediateRegeneration = true
+          } else {
+            state.activeFontFamily = DEFAULT_FONT
+            state.systemFontFamily = ""
+            updateFontStatus("idle", DEFAULT_FONT)
+          }
+          state.googleFontName = ""
+        } else if (value === "google") {
+          state.systemFontFamily = ""
+          if (state.googleFontName && state.customFontStatus === "loaded") {
+            updateFontStatus("loaded", state.activeFontFamily)
+          } else {
+            updateFontStatus("idle", state.googleFontName || DEFAULT_FONT)
+            state.customFontStatus = "idle"
+          }
         }
-        state.googleFontName = "" // Clear other source
-      } else if (value === "google") {
-        state.systemFontFamily = "" // Clear other source
-        if (state.googleFontName && state.customFontStatus === "loaded") {
-          // Font already loaded, just update status display
-          updateFontStatus("loaded", state.activeFontFamily)
-        } else {
-          // Needs loading or name change
-          updateFontStatus("idle", state.googleFontName || DEFAULT_FONT)
-          state.customFontStatus = "idle" // Reset status if name changes later
-        }
+        updateFontControlsVisibility()
+      } else if (key === "bg-type") {
+        updateBackgroundControlsVisibility()
+        requiresImmediateRegeneration = true
+      } else if (key === "preview-quality") {
+        requiresImmediateRegeneration = true // Regenerate preview on quality change
       }
-      updateFontControlsVisibility()
-    }
-  } else if (key === "bg-type") {
-    if (target.checked && state.backgroundType !== value) {
-      state.backgroundType = value
-      stateChanged = true
-      updateBackgroundControlsVisibility()
-      requiresImmediateRegeneration = true // Need to redraw background
     }
   } else if (id.endsWith("-hex") || id.endsWith("-picker")) {
-    // Color pickers/inputs handled separately by handleHexInputChange and Pickr events
-    return
+    return // Handled separately
   } else {
     // Handle text, number, range, select, checkbox (non-radio)
     const idToStateMap = {
@@ -803,47 +815,34 @@ function handleVisualSettingChange(event) {
       "system-font-select": "systemFontFamily",
       "google-font-name": "googleFontName",
     }
-
     const propertyName = idToStateMap[id]
-
     if (propertyName && state.hasOwnProperty(propertyName)) {
       const oldValue = state[propertyName]
       let newValue = value
-
-      // Type coercion and validation
       if (target.type === "number" || target.type === "range") {
         newValue = parseFloat(value)
-        if (isNaN(newValue)) newValue = 0 // Default to 0 if parsing fails
-        // Clamp to min/max if defined
+        if (isNaN(newValue)) newValue = 0
         if (target.min !== "" && newValue < parseFloat(target.min))
           newValue = parseFloat(target.min)
         if (target.max !== "" && newValue > parseFloat(target.max))
           newValue = parseFloat(target.max)
-
-        // Round non-float sliders/numbers
         if (target.type === "number") {
           const step = target.getAttribute("step")
-          if (!step || step === "1") {
-            newValue = Math.round(newValue)
-          }
+          if (!step || step === "1") newValue = Math.round(newValue)
         } else if (
           isSlider &&
           !(target.step && (target.step === "0.01" || target.step === "0.05"))
         ) {
           newValue = Math.round(newValue)
         } else if (isSlider) {
-          // Keep precision for float sliders
           newValue = parseFloat(newValue.toFixed(2))
         }
       } else if (target.type === "checkbox") {
         newValue = target.checked
       }
-
       if (oldValue !== newValue) {
         state[propertyName] = newValue
         stateChanged = true
-
-        // Update slider value display immediately on 'input' event
         if (isSlider && eventType === "input") {
           const valueSpan = document.getElementById(`${id}-value`)
           if (valueSpan) {
@@ -852,43 +851,36 @@ function handleVisualSettingChange(event) {
                 ? newValue.toFixed(2)
                 : newValue.toFixed(0)
           }
-          requiresImmediateRegeneration = false // Don't regen on slider drag, wait for 'change' or debounce
+          requiresImmediateRegeneration = false
         } else if (propertyName === "textBackgroundEnabled") {
-          // Checkbox, handled by 'change'
           updateTextBackgroundControlsVisibility()
           requiresImmediateRegeneration = true
         } else if (
           propertyName === "systemFontFamily" &&
           state.fontSource === "system"
         ) {
-          // Select, handled by 'change'
           if (newValue) {
             state.activeFontFamily = newValue
             updateFontStatus("loaded", newValue)
           } else {
-            state.activeFontFamily = DEFAULT_FONT // Revert if "Select..." chosen
+            state.activeFontFamily = DEFAULT_FONT
             updateFontStatus("idle", DEFAULT_FONT)
-            requiresImmediateRegeneration = false // Don't regen if no font selected
+            requiresImmediateRegeneration = false
           }
-          requiresImmediateRegeneration = true // Requires regen on valid selection
+          requiresImmediateRegeneration = true
         } else if (propertyName === "googleFontName") {
-          // Text input, defer regen
           if (
             state.customFontStatus === "loaded" ||
             state.customFontStatus === "error"
           ) {
-            // Reset status if name changes after load/error
-            updateFontStatus("idle", state.activeFontFamily) // Show last active font until new load
+            updateFontStatus("idle", state.activeFontFamily)
             state.customFontStatus = "idle"
           }
           requiresImmediateRegeneration = false
         }
-
-        // Assume other simple inputs (selects, checkboxes not handled above) require immediate regen on 'change'
         if (!isSlider && eventType === "change") {
           requiresImmediateRegeneration = true
         }
-        // Text/Number input events defer regeneration until blur/enter
         if (
           eventType === "input" &&
           !isSlider &&
@@ -903,28 +895,21 @@ function handleVisualSettingChange(event) {
       )
     }
   }
-
-  // Save state if changed
   if (stateChanged) {
     saveState()
-    // Trigger regeneration/apply only if needed immediately or via debounce for sliders
     if (requiresImmediateRegeneration) {
       console.log(
-        `Regenerating preview immediately due to '${eventType}' event on '${id}'`
+        `Regenerating preview immediately due to '${eventType}' event on '${id}' or radio change`
       )
-      debouncedGenerateAndApply() // Use debounced version even for immediate changes
+      debouncedGenerateAndApply()
     } else if (isSlider && eventType === "input") {
-      // Slider drag only triggers debounce, not immediate regen
       debouncedGenerateAndApply()
     }
-    // Text/Number inputs are handled by handleInputBlurOrEnter using debounce
   }
 }
 function handleInputBlurOrEnter(event) {
   if (event.type === "keydown" && event.key !== "Enter") return
-
   const target = event.target
-  // Check if it's a text, number, or hex input within the settings
   if (
     target.closest(".column-settings") &&
     target.tagName === "INPUT" &&
@@ -935,23 +920,19 @@ function handleInputBlurOrEnter(event) {
     console.log(
       `Triggering preview update due to ${event.type} on ${target.id}`
     )
-    debouncedGenerateAndApply() // Use debounce on blur or Enter
-    if (event.type === "keydown" && target.blur) {
-      target.blur() // Remove focus on Enter
-    }
+    debouncedGenerateAndApply()
+    if (event.type === "keydown" && target.blur) target.blur()
   }
 }
 function handleAppSettingChange(event) {
   const target = event.target
   if (!target || (target.type !== "checkbox" && target.type !== "button"))
     return
-
   const id = target.id
   let stateChanged = false
   let needsIpcUpdate = false
   let propertyName = null
   let newValue = null
-
   switch (id) {
     case "modal-run-in-tray-checkbox":
       propertyName = "runInTray"
@@ -968,9 +949,7 @@ function handleAppSettingChange(event) {
       propertyName = "autoApplyWallpaper"
       newValue = target.checked
       break
-    // Note: Check for updates button is handled separately
   }
-
   if (
     propertyName &&
     state.hasOwnProperty(propertyName) &&
@@ -979,12 +958,11 @@ function handleAppSettingChange(event) {
     state[propertyName] = newValue
     stateChanged = true
   }
-
   if (stateChanged) {
     saveState()
     if (needsIpcUpdate) {
       console.log("Renderer: Sending updated app settings to main:", {
-        runInTray: state.runInTray,
+        /* ... */ runInTray: state.runInTray,
         quickAddShortcut: state.quickAddShortcut,
         quickAddTranslucent: state.quickAddTranslucent,
       })
@@ -994,7 +972,7 @@ function handleAppSettingChange(event) {
         quickAddTranslucent: state.quickAddTranslucent,
       })
     }
-    applyStateToUI() // Update UI locally if needed (e.g., checkbox state)
+    applyStateToUI()
   }
 }
 function handleToggleTodosVisibility() {
@@ -1003,16 +981,13 @@ function handleToggleTodosVisibility() {
   saveState()
   debouncedGenerateAndApply()
 }
-// <<< NEW FUNCTION for Button Click >>>
 function handleCheckForUpdatesClick() {
   if (checkForUpdatesBtn && !checkForUpdatesBtn.disabled) {
     console.log("Manual check for updates requested.")
     window.electronAPI.checkForUpdates()
-    // Optionally update UI immediately to "Checking..."
     handleUpdateStatusMessage("Checking for updates...", true)
   }
 }
-
 function setupEventListeners() {
   console.log("Setting up event listeners...")
   applyWallpaperBtn.addEventListener("click", handleApplyWallpaper)
@@ -1022,8 +997,6 @@ function setupEventListeners() {
   )
   openAppSettingsModalBtn.addEventListener("click", openAppSettingsModal)
   toggleSettingsBtn.addEventListener("click", handleToggleSettings)
-
-  // Window Controls
   if (minimizeBtn)
     minimizeBtn.addEventListener("click", () =>
       window.electronAPI.minimizeWindow()
@@ -1034,13 +1007,9 @@ function setupEventListeners() {
     )
   if (closeBtn)
     closeBtn.addEventListener("click", () => window.electronAPI.closeWindow())
-
-  // Settings Panel Events
   const visualSettingsContainer = document.getElementById("settings-column")
-  visualSettingsContainer.addEventListener("change", handleVisualSettingChange) // For selects, radios, checkboxes
-  visualSettingsContainer.addEventListener("input", handleVisualSettingChange) // For sliders
-
-  // Specific Input Handling (Blur/Enter for Text/Number/Hex)
+  visualSettingsContainer.addEventListener("change", handleVisualSettingChange)
+  visualSettingsContainer.addEventListener("input", handleVisualSettingChange)
   const textNumHexInputs = visualSettingsContainer.querySelectorAll(
     'input[type="text"], input[type="number"], .input-hex'
   )
@@ -1048,8 +1017,6 @@ function setupEventListeners() {
     input.addEventListener("blur", handleInputBlurOrEnter)
     input.addEventListener("keydown", handleInputBlurOrEnter)
   })
-
-  // Hex input validation (on input for immediate feedback)
   settingsInputs.textColorHex.addEventListener("input", handleHexInputChange)
   settingsInputs.bgColorHex.addEventListener("input", handleHexInputChange)
   settingsInputs.textBgColorHex.addEventListener("input", handleHexInputChange)
@@ -1057,8 +1024,6 @@ function setupEventListeners() {
     "input",
     handleHexInputChange
   )
-
-  // Font/Image Buttons
   settingsInputs.loadFontBtn.addEventListener("click", handleLoadFontClick)
   settingsInputs.chooseImageBtn.addEventListener("click", () =>
     settingsInputs.imageFileInput.click()
@@ -1068,12 +1033,8 @@ function setupEventListeners() {
     "change",
     handleImageFileSelect
   )
-
-  // Todo List Interaction
   const todoColumn = document.querySelector(".column-todos")
   if (todoColumn) todoColumn.addEventListener("click", handleListClick)
-
-  // Modals
   openAddTodoModalBtn.addEventListener("click", openModal)
   modalCloseBtn.addEventListener("click", closeModal)
   modalCancelBtn.addEventListener("click", closeModal)
@@ -1081,21 +1042,18 @@ function setupEventListeners() {
   addTodoModal.addEventListener("click", (e) => {
     if (e.target === addTodoModal) closeModal()
   })
-
   editModalCloseBtn.addEventListener("click", closeEditModal)
   editModalCancelBtn.addEventListener("click", closeEditModal)
   editTodoForm.addEventListener("submit", handleEditModalSubmit)
   editTodoModal.addEventListener("click", (e) => {
     if (e.target === editTodoModal) closeEditModal()
   })
-
   recordModalCloseBtn.addEventListener("click", closeRecordShortcutModal)
   recordCancelBtn.addEventListener("click", closeRecordShortcutModal)
   recordSaveBtn.addEventListener("click", handleSaveShortcut)
   recordShortcutModal.addEventListener("click", (e) => {
     if (e.target === recordShortcutModal) closeRecordShortcutModal()
   })
-
   appSettingsModalCloseBtn.addEventListener("click", closeAppSettingsModal)
   appSettingsModalDoneBtn.addEventListener("click", closeAppSettingsModal)
   appSettingsModal.addEventListener("click", (e) => {
@@ -1110,24 +1068,18 @@ function setupEventListeners() {
       openRecordShortcutModal()
     })
   }
-  // Check for Updates Button
   if (checkForUpdatesBtn) {
     checkForUpdatesBtn.addEventListener("click", handleCheckForUpdatesClick)
   }
-
-  // Clear Buttons
   if (clearCompletedBtn)
     clearCompletedBtn.addEventListener("click", handleClearCompleted)
   if (clearActiveBtn)
     clearActiveBtn.addEventListener("click", handleClearActive)
-
-  // Global Keydown & Section Toggles
   document.addEventListener("keydown", handleGlobalKeyDown)
   settingsColumn.addEventListener("click", (e) => {
     const t = e.target.closest(".setting-section-toggle")
     if (t) handleSettingToggleClick(t)
   })
-
   console.log("Event listeners setup complete.")
 }
 
@@ -1139,11 +1091,11 @@ async function maybeAutoApplyWallpaper() {
   )
   try {
     // Always generate/update the preview first
-    await generateTodoImageAndUpdatePreview()
+    await generateTodoImageAndUpdatePreview() // This now updates state.lastGeneratedImageDataUrl (high quality)
 
     if (state.autoApplyWallpaper) {
       console.log("Auto-applying wallpaper...")
-      await handleApplyWallpaper() // Apply if enabled
+      await handleApplyWallpaper() // Apply uses the stored high-quality URL
     } else {
       console.log("Auto-apply disabled, preview updated.")
     }
@@ -1157,7 +1109,6 @@ async function maybeAutoApplyWallpaper() {
   }
 }
 // --- Auto Updater Listeners ---
-// Modify this function to use the new status update mechanism for the modal
 function setupAutoUpdaterListeners() {
   // Keep these for the bottom notification bar functionality
   window.electronAPI.onUpdateAvailable((i) => {
@@ -1177,13 +1128,9 @@ function setupAutoUpdaterListeners() {
     setTimeout(hideUpdateMessage, 8000)
   })
   window.electronAPI.onDownloadProgress((p) => {
-    //console.log(`Download progress: ${p.percent}%`) // Logged in main
     showUpdateMessage(`Downloading update: ${Math.round(p.percent)}%`)
   })
-
-  // Listener for the modal status update (handled separately)
-  // window.electronAPI.onUpdateStatusMessage(handleUpdateStatusMessage); // Now called in initialize
-
+  // Listener for modal status is set in initialize()
   if (restartButton) {
     restartButton.addEventListener("click", () => {
       console.log("Restart button clicked")
@@ -1202,7 +1149,6 @@ function hideUpdateMessage() {
   if (updateNotificationArea) {
     updateNotificationArea.classList.remove("visible")
     updateNotificationArea.classList.add("hiding")
-    // Use transitionend event for reliability if possible, but timeout as fallback
     setTimeout(() => {
       if (
         updateNotificationArea &&
@@ -1212,10 +1158,9 @@ function hideUpdateMessage() {
         updateNotificationArea.classList.remove("hiding")
         if (restartButton) restartButton.style.display = "none"
       }
-    }, 500) // Match transition duration
+    }, 500)
   }
 }
-// <<< NEW FUNCTION for Modal Update Status >>>
 function handleUpdateStatusMessage(
   message,
   isChecking = false,
@@ -1223,15 +1168,10 @@ function handleUpdateStatusMessage(
   isAvailable = false
 ) {
   if (!updateStatusDisplay || !checkForUpdatesBtn) return
-
   updateStatusDisplay.textContent = message
-  updateStatusDisplay.classList.remove("update-available", "update-error") // Reset classes
-  if (isAvailable) {
-    updateStatusDisplay.classList.add("update-available")
-  } else if (isError) {
-    updateStatusDisplay.classList.add("update-error")
-  }
-  // Disable button only while actively checking
+  updateStatusDisplay.classList.remove("update-available", "update-error")
+  if (isAvailable) updateStatusDisplay.classList.add("update-available")
+  else if (isError) updateStatusDisplay.classList.add("update-error")
   checkForUpdatesBtn.disabled = isChecking
   checkForUpdatesBtn.textContent = isChecking ? "Checking..." : "Check Now"
 }
@@ -1250,25 +1190,20 @@ function deleteTodo(id) {
 }
 function toggleDone(id) {
   const t = state.todos.find((t) => t.id === id)
-  if (t) {
-    t.done = !t.done
-  }
+  if (t) t.done = !t.done
 }
 // --- UI Rendering ---
 function renderTodoList() {
   todoListUl.innerHTML = ""
   completedTodoListUl.innerHTML = ""
-  if (!Array.isArray(state.todos)) state.todos = [] // Ensure todos is an array
-
+  if (!Array.isArray(state.todos)) state.todos = []
   const activeTodos = state.todos.filter((t) => !t.done)
   const completedTodos = state.todos.filter((t) => t.done)
-
   if (activeTodos.length === 0) {
     todoListUl.innerHTML = `<li class="empty-list-message">No active tasks!</li>`
   } else {
     activeTodos.forEach((t) => todoListUl.appendChild(createTodoElement(t)))
   }
-
   const hasCompleted = completedTodos.length > 0
   completedHeader.classList.toggle("hidden", !hasCompleted)
   completedListContainer.classList.toggle("hidden", !hasCompleted)
@@ -1277,103 +1212,83 @@ function renderTodoList() {
   if (clearActiveBtn)
     clearActiveBtn.style.display =
       activeTodos.length > 0 ? "inline-flex" : "none"
-
   if (hasCompleted) {
     completedTodos.forEach((t) =>
       completedTodoListUl.appendChild(createTodoElement(t))
     )
   }
-
-  addContextInputListeners() // Re-attach listeners after rendering
+  addContextInputListeners()
 }
 function createTodoElement(todo) {
   const li = document.createElement("li")
   li.className = "todo-item"
   li.dataset.id = todo.id
   if (todo.done) li.classList.add("done")
-
   const cb = document.createElement("input")
   cb.type = "checkbox"
   cb.checked = todo.done
   cb.classList.add("toggle-done")
   cb.setAttribute("aria-label", `Mark task ${todo.done ? "not done" : "done"}`)
-
-  const detailsDiv = document.createElement("div")
-  detailsDiv.className = "task-details"
-
-  const textSpan = document.createElement("span")
-  textSpan.textContent = todo.text
-  textSpan.classList.add("todo-text")
-
-  const contextInput = document.createElement("input")
-  contextInput.type = "text"
-  contextInput.classList.add("context-input")
-  contextInput.placeholder = "Add context..."
-  contextInput.value = todo.context || ""
-  contextInput.dataset.id = todo.id
-  contextInput.maxLength = utils.CONTEXT_MAX_LENGTH // Use constant
-
-  detailsDiv.appendChild(textSpan)
-  detailsDiv.appendChild(contextInput)
-
-  const actionsDiv = document.createElement("div")
-  actionsDiv.className = "task-actions"
-
-  const editBtn = document.createElement("button")
-  editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.763 9.763a1.75 1.75 0 0 0-.44 1.06l-.663 3.18a.75.75 0 0 0 .914.914l3.18-.662a1.75 1.75 0 0 0 1.06-.44l7.25-7.25a1.75 1.75 0 0 0 0-2.475ZM4.753 10.61l6.875-6.875 1.118 1.118-6.875 6.875-1.528.318.41-1.964.001-.002Z"></path></svg>`
-  editBtn.className = "button button-ghost button-icon edit-btn"
-  editBtn.title = "Edit Task"
-  editBtn.setAttribute("aria-label", "Edit task")
-
-  const deleteBtn = document.createElement("button")
-  deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z" clip-rule="evenodd" /></svg>`
-  deleteBtn.className = "button button-ghost button-icon delete-btn"
-  deleteBtn.title = "Delete Task"
-  deleteBtn.setAttribute("aria-label", "Delete task")
-
-  actionsDiv.appendChild(editBtn)
-  actionsDiv.appendChild(deleteBtn)
-
+  const d = document.createElement("div")
+  d.className = "task-details"
+  const s = document.createElement("span")
+  s.textContent = todo.text
+  s.classList.add("todo-text")
+  const ci = document.createElement("input")
+  ci.type = "text"
+  ci.classList.add("context-input")
+  ci.placeholder = "Add context..."
+  ci.value = todo.context || ""
+  ci.dataset.id = todo.id
+  ci.maxLength = utils.CONTEXT_MAX_LENGTH
+  d.appendChild(s)
+  d.appendChild(ci)
+  const ab = document.createElement("div")
+  ab.className = "task-actions"
+  const eb = document.createElement("button")
+  eb.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.763 9.763a1.75 1.75 0 0 0-.44 1.06l-.663 3.18a.75.75 0 0 0 .914.914l3.18-.662a1.75 1.75 0 0 0 1.06-.44l7.25-7.25a1.75 1.75 0 0 0 0-2.475ZM4.753 10.61l6.875-6.875 1.118 1.118-6.875 6.875-1.528.318.41-1.964.001-.002Z"></path></svg>`
+  eb.className = "button button-ghost button-icon edit-btn"
+  eb.title = "Edit Task"
+  eb.setAttribute("aria-label", "Edit task")
+  const db = document.createElement("button")
+  db.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z" clip-rule="evenodd" /></svg>`
+  db.className = "button button-ghost button-icon delete-btn"
+  db.title = "Delete Task"
+  db.setAttribute("aria-label", "Delete task")
+  ab.appendChild(eb)
+  ab.appendChild(db)
   li.appendChild(cb)
-  li.appendChild(detailsDiv)
-  li.appendChild(actionsDiv)
-
+  li.appendChild(d)
+  li.appendChild(ab)
   return li
 }
 function handleContextChange(event) {
   const input = event.target
   if (!input.classList.contains("context-input")) return
-
   const id = parseInt(input.dataset.id, 10)
   const todo = state.todos.find((t) => t.id === id)
-
   if (todo) {
     let newContext = input.value
-    // Trim if exceeds max length
     if (newContext.length > utils.CONTEXT_MAX_LENGTH) {
       newContext = newContext.substring(0, utils.CONTEXT_MAX_LENGTH)
-      input.value = newContext // Update input visually
+      input.value = newContext
     }
-    // Only save if changed
     if (todo.context !== newContext) {
       todo.context = newContext
       console.log(`Context state updated for ID ${id}: "${newContext}"`)
-      saveState() // Save state on change
+      saveState()
     }
   }
 }
 function handleContextBlurOrEnter(event) {
   if (event.type === "keydown" && event.key !== "Enter") return
-
   const target = event.target
   if (target.classList.contains("context-input")) {
     console.log(
       `Triggering preview update due to ${event.type} on context input ${target.dataset.id}`
     )
-    debouncedGenerateAndApply() // Use debounce
-    if (event.type === "keydown") {
-      target.blur() // Remove focus on Enter
-    }
+    debouncedGenerateAndApply()
+    if (event.type === "keydown") target.blur()
   }
 }
 function addContextInputListeners() {
@@ -1382,11 +1297,9 @@ function addContextInputListeners() {
     ...completedTodoListUl.querySelectorAll(".context-input"),
   ]
   allInputs.forEach((input) => {
-    // Remove previous listeners to avoid duplicates
     input.removeEventListener("input", handleContextChange)
     input.removeEventListener("blur", handleContextBlurOrEnter)
     input.removeEventListener("keydown", handleContextBlurOrEnter)
-    // Add new listeners
     input.addEventListener("input", handleContextChange)
     input.addEventListener("blur", handleContextBlurOrEnter)
     input.addEventListener("keydown", handleContextBlurOrEnter)
@@ -1425,29 +1338,24 @@ async function generateTodoImageAndUpdatePreview() {
     textPanelOpacity,
     textBackgroundBorderRadius,
     showTodosOnWallpaper,
+    previewQuality, // <<< Get preview quality
   } = state
 
   if (!ctx || !canvas) {
     console.error("Canvas context not available.")
     return Promise.reject("Canvas context unavailable.")
   }
-
-  // Ensure canvas dimensions match state
   if (canvas.width !== screenWidth || canvas.height !== screenHeight) {
     setCanvasAndPreviewSize(screenWidth, screenHeight)
   }
-
   const currentActiveFont = activeFontFamily || DEFAULT_FONT
   const itemFontSize = parseInt(fontSize, 10) || 48
-
-  // Filter active todos *only if they should be shown*
   const linesToDraw = showTodosOnWallpaper
     ? todos
         .filter((t) => !t.done)
         .map((t) => ({ text: t.text, context: t.context || "", done: false }))
-    : [] // Empty array if hiding todos
-
-  const padding = Math.max(60, itemFontSize * 1.5) // Base padding
+    : []
+  const padding = Math.max(60, itemFontSize * 1.5)
   const titleSpacing = parseInt(titleBottomMargin, 10) || 40
   const spacingBetweenItems = parseInt(itemSpacing, 10) || 20
   const maxItems = Math.max(1, parseInt(maxItemsPerColumn, 10) || 10)
@@ -1467,15 +1375,14 @@ async function generateTodoImageAndUpdatePreview() {
         utils.drawBackgroundImage(ctx, img, screenWidth, screenHeight)
       } catch (e) {
         console.error("Background Image Error:", e)
-        utils.drawBackgroundColor(ctx, bgColor, screenWidth, screenHeight) // Fallback color
+        utils.drawBackgroundColor(ctx, bgColor, screenWidth, screenHeight)
       }
     } else {
       utils.drawBackgroundColor(ctx, bgColor, screenWidth, screenHeight)
     }
 
-    // 2. Draw Text Block (only if enabled and todos exist)
+    // 2. Draw Text Block (if enabled and todos exist)
     if (showTodosOnWallpaper && linesToDraw.length > 0) {
-      // Calculate dimensions needed for the text block
       const textBlockMetrics = utils.calculateTextBlockDimensions(ctx, {
         title,
         fontName: currentActiveFont,
@@ -1491,8 +1398,6 @@ async function generateTodoImageAndUpdatePreview() {
         columnGap: colGap,
         listStyle,
       })
-
-      // Calculate the top-left starting position
       const { startX: textStartX, startY: textStartY } =
         utils.calculateTextStartPositionMultiCol(
           screenWidth,
@@ -1509,11 +1414,9 @@ async function generateTodoImageAndUpdatePreview() {
           offsetY,
           textBlockMetrics
         )
-
       const originalAlpha = ctx.globalAlpha
-      ctx.globalAlpha = Math.max(0, Math.min(1, overallOpacity)) // Apply overall opacity
+      ctx.globalAlpha = Math.max(0, Math.min(1, overallOpacity))
 
-      // 3. Draw Optional Background Panel (if enabled)
       if (textBackgroundEnabled) {
         utils.drawTextBackgroundPanel(ctx, {
           x: textStartX,
@@ -1531,7 +1434,6 @@ async function generateTodoImageAndUpdatePreview() {
         })
       }
 
-      // 4. Draw Text Elements
       utils.drawTextElementsMultiCol(ctx, {
         title,
         textColor,
@@ -1552,35 +1454,62 @@ async function generateTodoImageAndUpdatePreview() {
         columnGap: colGap,
       })
 
-      ctx.globalAlpha = originalAlpha // Restore original alpha
+      ctx.globalAlpha = originalAlpha
     }
 
-    // 5. Update Preview Image
-    updatePreviewImage()
+    // 3. Store High-Quality PNG for Applying
+    try {
+      state.lastGeneratedImageDataUrl = canvas.toDataURL("image/png")
+      console.log("High-quality PNG data URL stored for potential application.")
+    } catch (e) {
+      console.error("Error generating high-quality PNG data URL:", e)
+      state.lastGeneratedImageDataUrl = null
+    }
+
+    // 4. Update Preview Image (potentially lower quality)
+    updatePreviewImage(previewQuality) // Pass quality setting
   } catch (err) {
     console.error("Error during image generation process:", err)
-    updatePreviewImage() // Still update preview to show potential background/clear errors
-    throw err // Re-throw for handling elsewhere if needed
+    updatePreviewImage(previewQuality) // Update preview even on error
+    throw err
   }
 }
-function updatePreviewImage() {
+function updatePreviewImage(quality = "medium") {
+  if (!canvas) return
+  let previewDataUrl = null
+  let format = "image/jpeg"
+  let qualityValue = 0.75
+  switch (quality) {
+    case "low":
+      qualityValue = 0.5
+      break
+    case "medium":
+      qualityValue = 0.75
+      break
+    case "high":
+      format = "image/png"
+      qualityValue = undefined
+      break
+  }
   try {
-    state.lastGeneratedImageDataUrl = canvas.toDataURL("image/png")
-    previewAreaImg.onload = () => {
-      previewContainer.classList.add("loaded")
-    }
+    console.log(
+      `Generating preview with format: ${format}, quality: ${
+        qualityValue ?? "N/A"
+      }`
+    )
+    previewDataUrl = canvas.toDataURL(format, qualityValue)
+    previewAreaImg.onload = () => previewContainer.classList.add("loaded")
     previewAreaImg.onerror = () => {
       console.error("Preview image failed to load from data URL.")
       previewContainer.classList.remove("loaded")
-      previewAreaImg.src = "" // Clear broken src
+      previewAreaImg.src = ""
       if (previewLoader) previewLoader.textContent = "Preview Error"
     }
-    previewAreaImg.src = state.lastGeneratedImageDataUrl
+    previewAreaImg.src = previewDataUrl
   } catch (e) {
-    console.error("Preview Gen Error (canvas.toDataURL or setting src):", e)
+    console.error(`Preview Gen Error (toDataURL ${format} ${qualityValue}):`, e)
     previewContainer.classList.remove("loaded")
     previewAreaImg.src = ""
-    state.lastGeneratedImageDataUrl = null // Reset generated data on error
     if (previewLoader) previewLoader.textContent = "Generation Error"
   }
 }
@@ -1592,17 +1521,16 @@ async function handleLoadFontClick() {
     utils.showToast(toastContainer, "Please enter a Google Font name.", "error")
     return
   }
-  await loadAndApplyGoogleFont(fontName, true) // Save state after successful load
+  await loadAndApplyGoogleFont(fontName, true)
 }
 async function loadAndApplyGoogleFont(fontName, shouldSaveState = true) {
-  updateFontStatus("loading", state.activeFontFamily) // Show loading status
+  updateFontStatus("loading", state.activeFontFamily)
   try {
-    const fontWeight = state.fontWeight || DEFAULT_WEIGHT // Use current weight
+    const fontWeight = state.fontWeight || DEFAULT_WEIGHT
     const result = await window.electronAPI.loadGoogleFontByName(
       fontName,
       fontWeight
     )
-
     if (result.success && result.fontFamily && result.fontDataUrl) {
       const actualFontFamily = result.fontFamily
       const actualWeight = result.fontWeight
@@ -1611,32 +1539,24 @@ async function loadAndApplyGoogleFont(fontName, shouldSaveState = true) {
         `url(${result.fontDataUrl})`,
         { weight: actualWeight }
       )
-
-      await fontFace.load() // Load the font
-      document.fonts.add(fontFace) // Add to document's font set
-      await document.fonts.ready // Wait for the font to be usable
-
+      await fontFace.load()
+      document.fonts.add(fontFace)
+      await document.fonts.ready
       console.log(`Font loaded and added: ${actualFontFamily} ${actualWeight}`)
-
-      state.activeFontFamily = actualFontFamily // Update active font
-      state.googleFontName = fontName // Store the requested name
+      state.activeFontFamily = actualFontFamily
+      state.googleFontName = fontName
       state.customFontStatus = "loaded"
       state.customFontError = null
-
-      updateFontStatus("loaded", actualFontFamily) // Update UI status
+      updateFontStatus("loaded", actualFontFamily)
       utils.showToast(
         toastContainer,
         `Font "${actualFontFamily}" loaded!`,
         "success"
       )
-
-      generateTodoImageAndUpdatePreview() // Regenerate preview with new font
-      if (shouldSaveState) {
-        saveState() // Save the state if requested
-      }
-      maybeAutoApplyWallpaper() // Apply if auto-apply is on
+      generateTodoImageAndUpdatePreview()
+      if (shouldSaveState) saveState()
+      maybeAutoApplyWallpaper()
     } else {
-      // Handle API errors (font not found, network issue etc.)
       throw new Error(
         result.error ||
           `Could not load font "${fontName}". Check spelling and availability.`
@@ -1646,7 +1566,7 @@ async function loadAndApplyGoogleFont(fontName, shouldSaveState = true) {
     console.error("Google Font Load Error:", e)
     state.customFontStatus = "error"
     state.customFontError = e.message
-    updateFontStatus("error", state.activeFontFamily, e.message) // Show error in UI
+    updateFontStatus("error", state.activeFontFamily, e.message)
     utils.showToast(toastContainer, `Error loading font: ${e.message}`, "error")
   }
 }
@@ -1662,12 +1582,10 @@ function updateFontControlsVisibility() {
   )
 }
 function updateFontStatus(status, displayFontFamily, error = null) {
-  state.customFontStatus = status // Store the status
-  state.customFontError = error // Store the error message if any
-
+  state.customFontStatus = status
+  state.customFontError = error
   let statusText = ""
-  settingsInputs.fontStatus.className = "font-status-display" // Reset classes
-
+  settingsInputs.fontStatus.className = "font-status-display"
   switch (status) {
     case "loading":
       statusText = "Loading..."
@@ -1688,26 +1606,22 @@ function updateFontStatus(status, displayFontFamily, error = null) {
       break
     case "idle":
     default:
-      if (state.fontSource === "default") {
+      if (state.fontSource === "default")
         statusText = `Default: ${DEFAULT_FONT}`
-      } else if (state.fontSource === "system") {
+      else if (state.fontSource === "system")
         statusText = state.systemFontFamily
           ? `System: ${state.systemFontFamily}`
           : `System: (Select Font)`
-      } else if (state.fontSource === "google") {
+      else if (state.fontSource === "google")
         statusText = state.googleFontName
           ? `Google: ${state.googleFontName} (Load)`
           : `Google: (Enter Name)`
-      } else {
-        // Fallback if state is inconsistent
-        statusText = `Active: ${displayFontFamily || DEFAULT_FONT}`
-      }
-      settingsInputs.loadFontBtn.disabled = state.fontSource !== "google" // Only enable for Google
+      else statusText = `Active: ${displayFontFamily || DEFAULT_FONT}`
+      settingsInputs.loadFontBtn.disabled = state.fontSource !== "google"
       break
   }
-
   settingsInputs.fontStatus.textContent = statusText
-  settingsInputs.fontStatus.title = error || statusText // Use error for tooltip if available
+  settingsInputs.fontStatus.title = error || statusText
 }
 // --- Settings Panel ---
 function handleToggleSettings() {
@@ -1728,76 +1642,59 @@ function updateToggleIcons(isCollapsed) {
 function handleListClick(event) {
   const target = event.target
   const li = target.closest(".todo-item")
-  if (!li || !li.dataset.id) return // Ignore clicks outside items or without ID
-
+  if (!li || !li.dataset.id) return
   const id = parseInt(li.dataset.id, 10)
-
-  // Checkbox or Text click: Toggle done state
   if (
     target.classList.contains("toggle-done") ||
     target.classList.contains("todo-text")
   ) {
     toggleDone(id)
-    renderTodoList() // Update UI immediately
+    renderTodoList()
     saveState()
-    debouncedGenerateAndApply() // Regenerate wallpaper (debounced)
-  }
-  // Edit Button click
-  else if (target.closest(".edit-btn")) {
+    debouncedGenerateAndApply()
+  } else if (target.closest(".edit-btn")) {
     openEditModal(id)
-  }
-  // Delete Button click
-  else if (target.closest(".delete-btn")) {
+  } else if (target.closest(".delete-btn")) {
     deleteTodo(id)
-    // Animate removal
     li.style.opacity = "0"
     li.style.transform = "translateX(-20px)"
     li.addEventListener(
       "transitionend",
       () => {
-        // Ensure it's still in the DOM before potentially re-rendering
         if (
           li.parentNode === todoListUl ||
           li.parentNode === completedTodoListUl
-        ) {
-          renderTodoList() // Re-render the list after animation
-        }
+        )
+          renderTodoList()
       },
       { once: true }
     )
-    // Fallback redraw if transitionend doesn't fire (e.g., element removed too quickly)
     setTimeout(() => {
-      if (
-        li.parentNode === todoListUl ||
-        li.parentNode === completedTodoListUl
-      ) {
+      if (li.parentNode === todoListUl || li.parentNode === completedTodoListUl)
         renderTodoList()
-      }
-    }, 350) // Slightly longer than transition
+    }, 350)
     saveState()
-    debouncedGenerateAndApply() // Regenerate wallpaper (debounced)
+    debouncedGenerateAndApply()
   }
 }
 // --- Modal Functions ---
 function openModal() {
   addTodoModal.classList.remove("hidden")
-  setTimeout(() => modalTodoInput.focus(), 50) // Focus after transition
+  setTimeout(() => modalTodoInput.focus(), 50)
 }
 function closeModal() {
   addTodoModal.classList.add("hidden")
-  modalTodoInput.value = "" // Clear input
+  modalTodoInput.value = ""
 }
 function handleModalSubmit(event) {
-  event.preventDefault() // Prevent default form submission
+  event.preventDefault()
   const text = modalTodoInput.value
   if (addTodo(text)) {
-    // If todo was successfully added
     renderTodoList()
     saveState()
     closeModal()
-    debouncedGenerateAndApply() // Regenerate wallpaper
+    debouncedGenerateAndApply()
   } else {
-    // Shake animation for empty input
     modalTodoInput.focus()
     modalTodoInput.classList.add("shake-animation")
     setTimeout(() => modalTodoInput.classList.remove("shake-animation"), 500)
@@ -1811,22 +1708,20 @@ function openEditModal(id) {
     return
   }
   modalEditInput.value = todo.text
-  editTodoIdInput.value = todo.id // Store the ID
+  editTodoIdInput.value = todo.id
   editTodoModal.classList.remove("hidden")
-  setTimeout(() => modalEditInput.focus(), 50) // Focus after transition
+  setTimeout(() => modalEditInput.focus(), 50)
 }
 function closeEditModal() {
   editTodoModal.classList.add("hidden")
   modalEditInput.value = ""
-  editTodoIdInput.value = "" // Clear stored ID
+  editTodoIdInput.value = ""
 }
 function handleEditModalSubmit(event) {
   event.preventDefault()
   const newText = modalEditInput.value.trim()
   const id = parseInt(editTodoIdInput.value, 10)
-
   if (!newText) {
-    // Shake if input is empty
     modalEditInput.focus()
     modalEditInput.classList.add("shake-animation")
     setTimeout(() => modalEditInput.classList.remove("shake-animation"), 500)
@@ -1838,15 +1733,14 @@ function handleEditModalSubmit(event) {
     closeEditModal()
     return
   }
-
   const todo = state.todos.find((t) => t.id === id)
   if (todo) {
     if (todo.text !== newText) {
       todo.text = newText
-      renderTodoList() // Update UI
+      renderTodoList()
       saveState()
       utils.showToast(toastContainer, "Task updated!", "success")
-      debouncedGenerateAndApply() // Regenerate wallpaper
+      debouncedGenerateAndApply()
     } else {
       utils.showToast(toastContainer, "No changes detected.", "info")
     }
@@ -1861,28 +1755,24 @@ function openRecordShortcutModal() {
   pressedKeys.clear()
   lastMainKeyPressed = null
   currentRecordedString = ""
-  updateRecordShortcutDisplay("Press keys...") // Initial message
-  recordSaveBtn.disabled = true // Disable save initially
+  updateRecordShortcutDisplay("Press keys...")
+  recordSaveBtn.disabled = true
   recordShortcutModal.classList.remove("hidden")
-  // Add global listeners capturing key events
   document.addEventListener("keydown", handleShortcutKeyDown, true)
   document.addEventListener("keyup", handleShortcutKeyUp, true)
 }
 function closeRecordShortcutModal() {
   isRecordingShortcut = false
   recordShortcutModal.classList.add("hidden")
-  // Remove global listeners
   document.removeEventListener("keydown", handleShortcutKeyDown, true)
   document.removeEventListener("keyup", handleShortcutKeyUp, true)
-  // Show app settings modal again if it was hidden
-  if (appSettingsModal) {
+  if (appSettingsModal)
     appSettingsModal.classList.remove("modal-temporarily-hidden")
-  }
 }
 function openAppSettingsModal() {
-  applyStateToUI() // Ensure modal reflects current state
-  updateShortcutInputVisibility() // Show/hide shortcut based on tray state
-  handleUpdateStatusMessage(`Current Version: v${currentAppVersion}`) // <<< SET INITIAL UPDATE STATUS
+  applyStateToUI()
+  updateShortcutInputVisibility()
+  handleUpdateStatusMessage(`Current Version: v${currentAppVersion}`)
   appSettingsModal.classList.remove("hidden")
 }
 function closeAppSettingsModal() {
@@ -1895,7 +1785,7 @@ function handleClearCompleted() {
     utils.showToast(toastContainer, "No completed tasks to clear.", "info")
     return
   }
-  state.todos = state.todos.filter((t) => !t.done) // Keep only non-done tasks
+  state.todos = state.todos.filter((t) => !t.done)
   renderTodoList()
   saveState()
   utils.showToast(
@@ -1903,7 +1793,7 @@ function handleClearCompleted() {
     `${completedCount} completed task${completedCount > 1 ? "s" : ""} cleared.`,
     "success"
   )
-  debouncedGenerateAndApply() // Regenerate wallpaper
+  debouncedGenerateAndApply()
 }
 function handleClearActive() {
   const activeCount = state.todos.filter((t) => !t.done).length
@@ -1915,10 +1805,9 @@ function handleClearActive() {
     !window.confirm(
       `Are you sure you want to delete ${activeCount} active task(s)? This cannot be undone.`
     )
-  ) {
+  )
     return
-  }
-  state.todos = state.todos.filter((t) => t.done) // Keep only done tasks
+  state.todos = state.todos.filter((t) => t.done)
   renderTodoList()
   saveState()
   utils.showToast(
@@ -1926,39 +1815,30 @@ function handleClearActive() {
     `${activeCount} active task${activeCount > 1 ? "s" : ""} cleared.`,
     "success"
   )
-  debouncedGenerateAndApply() // Regenerate wallpaper
+  debouncedGenerateAndApply()
 }
 // --- Shortcut Recording ---
 function handleShortcutKeyDown(event) {
   if (!isRecordingShortcut) return
-
   event.preventDefault()
-  event.stopPropagation() // Prevent other handlers
-
+  event.stopPropagation()
   const key = event.key
-  const code = event.code // Use code for modifiers if needed
-
-  // Check if the key is a modifier
+  const code = event.code
   const isModifier =
     ["Control", "Shift", "Alt", "Meta", "ContextMenu"].includes(key) ||
     code.startsWith("Control") ||
     code.startsWith("Shift") ||
     code.startsWith("Alt") ||
     code.startsWith("Meta")
-
   if (!isModifier) {
-    // This is the main key
     if (!lastMainKeyPressed) {
-      // Only register the first non-modifier key pressed
-      pressedKeys.clear() // Reset keys when main key is pressed
-      // Add currently held modifiers
+      pressedKeys.clear()
       if (event.ctrlKey) pressedKeys.add("Control")
       if (event.shiftKey) pressedKeys.add("Shift")
       if (event.altKey) pressedKeys.add("Alt")
       if (event.metaKey) pressedKeys.add("Meta")
-      pressedKeys.add(key) // Add the main key
-      lastMainKeyPressed = key // Mark that a main key has been pressed
-
+      pressedKeys.add(key)
+      lastMainKeyPressed = key
       currentRecordedString = utils.buildAcceleratorString(pressedKeys)
       const isValid = utils.isValidAccelerator(currentRecordedString)
       updateRecordShortcutDisplay(
@@ -1966,71 +1846,50 @@ function handleShortcutKeyDown(event) {
         utils.buildAcceleratorStringParts(pressedKeys)
       )
       recordSaveBtn.disabled = !isValid
-
       if (!isValid) {
-        // Electron requires at least one modifier
         updateRecordShortcutDisplay(
           "Modifier needed!",
           utils.buildAcceleratorStringParts(pressedKeys)
         )
-        currentRecordedString = "" // Reset if invalid
+        currentRecordedString = ""
         lastMainKeyPressed = null
         pressedKeys.clear()
         recordSaveBtn.disabled = true
       }
     }
-    // Ignore subsequent non-modifier keys until modifiers are released/re-pressed
   } else {
-    // Modifier key pressed
     if (!lastMainKeyPressed) {
-      // Only add modifiers if no main key is pressed yet
       pressedKeys.add(key)
       updateRecordShortcutDisplay(
         "Press main key...",
         utils.buildAcceleratorStringParts(pressedKeys)
       )
     }
-    // If main key already pressed, ignore modifier presses (they were captured on main key press)
   }
 }
 function handleShortcutKeyUp(event) {
   if (!isRecordingShortcut) return
-
   const key = event.key
-
-  // If a modifier key is released
   if (["Control", "Shift", "Alt", "Meta"].includes(key)) {
-    pressedKeys.delete(key) // Remove from the current set
-    if (!lastMainKeyPressed) {
-      // If we haven't pressed the main key yet, update display
+    pressedKeys.delete(key)
+    if (!lastMainKeyPressed)
       updateRecordShortcutDisplay(
         "Press main key...",
         utils.buildAcceleratorStringParts(pressedKeys)
       )
-    }
   }
-  // Optional: Reset if the main key is released? Current logic waits for next combo.
-  // if (key === lastMainKeyPressed) {
-  //     lastMainKeyPressed = null;
-  //     pressedKeys.clear();
-  //     updateRecordShortcutDisplay('Press keys...');
-  //     recordSaveBtn.disabled = true;
-  // }
 }
 function updateRecordShortcutDisplay(message = null, parts = []) {
-  shortcutDisplayArea.innerHTML = "" // Clear previous display
-
+  shortcutDisplayArea.innerHTML = ""
   if (message) {
-    const messageSpan = document.createElement("span")
-    messageSpan.textContent = message
-    shortcutDisplayArea.appendChild(messageSpan)
+    const span = document.createElement("span")
+    span.textContent = message
+    shortcutDisplayArea.appendChild(span)
   }
-
   if (parts.length > 0) {
     parts.forEach((part) => {
       const keySpan = document.createElement("span")
       keySpan.className = "key-display"
-      // Add modifier class for styling
       if (
         [
           "CmdOrCtrl",
@@ -2041,16 +1900,13 @@ function updateRecordShortcutDisplay(message = null, parts = []) {
           "Cmd",
           "Option",
         ].includes(part)
-      ) {
+      )
         keySpan.classList.add("modifier")
-      }
-      keySpan.textContent = utils.mapKeyForDisplay(part) // Map to display-friendly name
+      keySpan.textContent = utils.mapKeyForDisplay(part)
       shortcutDisplayArea.appendChild(keySpan)
     })
-  } else if (!message) {
-    // Default message if no keys/message provided
+  } else if (!message)
     shortcutDisplayArea.innerHTML = "<span>Press keys...</span>"
-  }
 }
 function handleSaveShortcut() {
   if (
@@ -2061,13 +1917,12 @@ function handleSaveShortcut() {
       "Invalid shortcut recorded. Please ensure you press a modifier (Ctrl, Alt, Shift, Cmd) plus another key."
     )
     recordSaveBtn.disabled = true
-    updateRecordShortcutDisplay("Press keys...") // Reset display
+    updateRecordShortcutDisplay("Press keys...")
     return
   }
-
   if (currentRecordedString !== state.quickAddShortcut) {
     state.quickAddShortcut = currentRecordedString
-    applyStateToUI() // Update the display in the main settings modal
+    applyStateToUI()
     saveState()
     console.log(
       "Renderer: Sending updated shortcut to main:",
@@ -2083,9 +1938,7 @@ function handleSaveShortcut() {
       `Shortcut saved: ${utils.formatAccelerator(currentRecordedString)}`,
       "success"
     )
-  } else {
-    utils.showToast(toastContainer, "Shortcut unchanged.", "info")
-  }
+  } else utils.showToast(toastContainer, "Shortcut unchanged.", "info")
   closeRecordShortcutModal()
 }
 // --- Background Image Handling ---
@@ -2096,45 +1949,38 @@ function updateBackgroundControlsVisibility() {
 }
 async function handleImageFileSelect(e) {
   const file = e.target.files[0]
-  if (!file) return // No file selected
-
-  // Basic validation
+  if (!file) return
   if (!file.type.startsWith("image/")) {
     alert("Invalid image file type. Please select a PNG, JPG, or WEBP image.")
-    e.target.value = "" // Reset file input
+    e.target.value = ""
     return
   }
-  // Size limit (e.g., 15MB)
   if (file.size > 15 * 1024 * 1024) {
     alert("Image file is too large (Max 15MB). Please choose a smaller image.")
-    e.target.value = "" // Reset file input
+    e.target.value = ""
     return
   }
-
   const reader = new FileReader()
   reader.onload = async (event) => {
     const imageDataUrl = event.target.result
-    state.backgroundImageDataUrl = imageDataUrl // Store temporary data URL for preview
-    state.backgroundImageName = file.name // Store filename
-    state.backgroundType = "image" // Set type
-    settingsInputs.imageFilenameSpan.textContent = file.name // Update UI
-    applyStateToUI() // Reflect type change in UI
-
+    state.backgroundImageDataUrl = imageDataUrl
+    state.backgroundImageName = file.name
+    state.backgroundType = "image"
+    settingsInputs.imageFilenameSpan.textContent = file.name
+    applyStateToUI()
     try {
       console.log("Saving selected background image...")
-      // Ask main process to save the image persistently
       const saveResult = await window.electronAPI.saveBackgroundImage(
         imageDataUrl
       )
-      if (!saveResult.success) {
+      if (!saveResult.success)
         throw new Error(
           saveResult.error || "Failed to save background image file."
         )
-      }
       console.log("Background image saved by main process.")
-      generateTodoImageAndUpdatePreview() // Update preview
-      saveState() // Save the state (including filename and type)
-      maybeAutoApplyWallpaper() // Apply if needed
+      generateTodoImageAndUpdatePreview()
+      saveState()
+      maybeAutoApplyWallpaper()
     } catch (error) {
       console.error("Error saving background image:", error)
       utils.showToast(
@@ -2142,48 +1988,48 @@ async function handleImageFileSelect(e) {
         `Error saving image: ${error.message}`,
         "error"
       )
-      handleClearImage() // Revert state if saving fails
+      handleClearImage()
     }
   }
   reader.onerror = handleImageReadError
-  reader.readAsDataURL(file) // Read file as Data URL
+  reader.readAsDataURL(file)
 }
 async function handleClearImage() {
-  const oldImageName = state.backgroundImageName // Store name in case we need to tell main to delete
+  const oldImageName = state.backgroundImageName
   state.backgroundImageDataUrl = null
   state.backgroundImageName = null
   state.backgroundType = "color"
   settingsInputs.imageFilenameSpan.textContent = "No file chosen"
-  settingsInputs.imageFileInput.value = "" // Clear file input
-  settingsInputs.bgTypeColor.checked = true // Select color radio
+  settingsInputs.imageFileInput.value = ""
+  settingsInputs.bgTypeColor.checked = true
   updateBackgroundControlsVisibility()
-  generateTodoImageAndUpdatePreview() // Update preview
-  saveState() // Save the cleared state
+  generateTodoImageAndUpdatePreview()
+  saveState()
   if (oldImageName) {
     try {
       console.log("Requesting main process to clear saved background image...")
-      await window.electronAPI.clearBackgroundImage() // Ask main to delete persistent file
+      await window.electronAPI.clearBackgroundImage()
       console.log("Cleared background image acknowledged by main process.")
     } catch (error) {
       console.error(
         "Error telling main process to clear background image:",
         error
       )
-      // Non-critical error, state is already cleared locally
     }
   }
-  maybeAutoApplyWallpaper() // Apply if needed
+  maybeAutoApplyWallpaper()
 }
 function handleImageReadError(err) {
   console.error("FileReader error:", err)
   alert("Error reading the selected image file.")
-  handleClearImage() // Revert UI and state on read error
+  handleClearImage()
 }
 // --- Wallpaper Application ---
 async function handleApplyWallpaper() {
-  // Ensure image is generated if needed
   if (!state.lastGeneratedImageDataUrl) {
-    console.warn("Apply Wallpaper: No image data generated yet. Generating...")
+    console.warn(
+      "Apply Wallpaper: High-quality image data not available. Generating first..."
+    )
     try {
       await generateTodoImageAndUpdatePreview()
       if (!state.lastGeneratedImageDataUrl) {
@@ -2192,7 +2038,7 @@ async function handleApplyWallpaper() {
           "Could not generate wallpaper image.",
           "error"
         )
-        return // Stop if generation failed
+        return
       }
     } catch (genErr) {
       utils.showToast(
@@ -2203,15 +2049,12 @@ async function handleApplyWallpaper() {
       return
     }
   }
-
-  if (applyWallpaperBtn.disabled) return // Prevent double clicks
-
+  if (applyWallpaperBtn.disabled) return
   applyWallpaperBtn.disabled = true
   const span = applyWallpaperBtn.querySelector("span")
   const originalText = span ? span.textContent : "Apply Wallpaper"
   if (span) span.textContent = "Applying..."
-  console.log("Applying wallpaper...")
-
+  console.log("Applying high-quality wallpaper...")
   try {
     const dataUrl = state.lastGeneratedImageDataUrl
     const result = await window.electronAPI.updateWallpaper(dataUrl)
@@ -2223,9 +2066,7 @@ async function handleApplyWallpaper() {
         "Wallpaper applied successfully!",
         "success"
       )
-      // Reset button text after a short delay
       setTimeout(() => {
-        // Check if still disabled and showing 'Applied!' before resetting
         if (applyWallpaperBtn.disabled && span?.textContent === "Applied!") {
           if (span) span.textContent = originalText
           applyWallpaperBtn.disabled = false
@@ -2241,7 +2082,7 @@ async function handleApplyWallpaper() {
       `Failed to apply wallpaper: ${err.message}`,
       "error"
     )
-    if (span) span.textContent = originalText // Reset button text on error
+    if (span) span.textContent = originalText
     applyWallpaperBtn.disabled = false
   }
 }
@@ -2249,18 +2090,15 @@ async function handleApplyWallpaper() {
 async function handleQuickAddTaskAndApply(taskText) {
   console.log("Renderer received task and apply trigger:", taskText)
   if (addTodo(taskText)) {
-    // If todo was added
     renderTodoList()
     saveState()
     try {
-      // Generate the new wallpaper image data
       await generateTodoImageAndUpdatePreview()
       if (state.lastGeneratedImageDataUrl) {
         console.log("Applying wallpaper after quick add...")
-        const wasBtnDisabled = applyWallpaperBtn.disabled // Store original state
-        applyWallpaperBtn.disabled = true // Disable temporarily
+        const wasBtnDisabled = applyWallpaperBtn.disabled
+        applyWallpaperBtn.disabled = true
         try {
-          // Send the generated image to main process to set as wallpaper
           await window.electronAPI.updateWallpaper(
             state.lastGeneratedImageDataUrl
           )
@@ -2273,7 +2111,7 @@ async function handleQuickAddTaskAndApply(taskText) {
             "error"
           )
         } finally {
-          applyWallpaperBtn.disabled = wasBtnDisabled // Restore original state
+          applyWallpaperBtn.disabled = wasBtnDisabled
         }
       } else {
         console.error(
@@ -2303,12 +2141,9 @@ function handleShortcutError(errorMessage) {
   alert(
     `Shortcut Error:\n${errorMessage}\n\nPlease choose different keys or close the conflicting application.`
   )
-  // Force tray mode off in state and UI
   state.runInTray = false
-  if (modalRunInTrayCheckbox) {
-    modalRunInTrayCheckbox.checked = false
-  }
-  updateShortcutInputVisibility() // Hide shortcut controls
+  if (modalRunInTrayCheckbox) modalRunInTrayCheckbox.checked = false
+  updateShortcutInputVisibility()
   saveState()
 }
 function handleForcedSettingUpdate(settingsToUpdate) {
@@ -2324,36 +2159,30 @@ function handleForcedSettingUpdate(settingsToUpdate) {
       )
       state[key] = settingsToUpdate[key]
       stateChanged = true
-      // Update specific UI elements if needed based on the key
-      if (key === "runInTray" && modalRunInTrayCheckbox) {
+      if (key === "runInTray" && modalRunInTrayCheckbox)
         modalRunInTrayCheckbox.checked = state.runInTray
-      } else if (key === "quickAddShortcut" && modalCurrentShortcutDisplay) {
+      else if (key === "quickAddShortcut" && modalCurrentShortcutDisplay)
         modalCurrentShortcutDisplay.textContent = utils.formatAccelerator(
           state.quickAddShortcut || DEFAULT_SHORTCUT
         )
-      } else if (
+      else if (
         key === "quickAddTranslucent" &&
         modalQuickAddTranslucentCheckbox
-      ) {
+      )
         modalQuickAddTranslucentCheckbox.checked = state.quickAddTranslucent
-      } else if (key === "autoApplyWallpaper" && modalAutoApplyCheckbox) {
+      else if (key === "autoApplyWallpaper" && modalAutoApplyCheckbox)
         modalAutoApplyCheckbox.checked = state.autoApplyWallpaper
-      }
-      // Add other UI updates here if main process forces other settings
     }
   }
   if (stateChanged) {
     console.log("Applying forced state changes to UI and saving.")
-    applyStateToUI() // Ensure entire UI is consistent
+    applyStateToUI()
     saveState()
-  } else {
-    console.log("No actual state changes needed from forced update.")
-  }
+  } else console.log("No actual state changes needed from forced update.")
 }
 function handleWindowStateChange({ isMaximized }) {
   console.log("Renderer received window state change - Maximized:", isMaximized)
   document.body.classList.toggle("maximized", isMaximized)
-
   if (maximizeRestoreBtn && maximizeIcon && restoreIcon) {
     maximizeRestoreBtn.title = isMaximized ? "Restore" : "Maximize"
     maximizeRestoreBtn.setAttribute(
@@ -2362,11 +2191,10 @@ function handleWindowStateChange({ isMaximized }) {
     )
     maximizeIcon.classList.toggle("hidden", isMaximized)
     restoreIcon.classList.toggle("hidden", !isMaximized)
-  } else {
+  } else
     console.warn(
       "Could not find maximize/restore button or icons to update state."
     )
-  }
 }
 // --- Collapsible Settings Sections ---
 function initializeCollapsibleSections() {
@@ -2376,35 +2204,29 @@ function initializeCollapsibleSections() {
   toggleButtons.forEach((button) => {
     const section = button.closest(".setting-section")
     const content = section.querySelector(".setting-section-content")
-    const isCollapsedInitially = section.classList.contains("collapsed") // Check initial state if needed
-
+    const isCollapsedInitially = section.classList.contains("collapsed")
     button.setAttribute("aria-expanded", !isCollapsedInitially)
-
     if (content) {
-      // Set initial styles without transition for instant setup
       content.style.transition = "none"
       if (isCollapsedInitially) {
         content.style.maxHeight = "0"
         content.style.opacity = "0"
         content.style.visibility = "hidden"
-        // Also zero out padding/margin for collapsed state
         content.style.paddingTop = "0"
         content.style.paddingBottom = "0"
         content.style.marginTop = "0"
         content.style.marginBottom = "0"
       } else {
-        content.style.maxHeight = null // Use null for auto height
+        content.style.maxHeight = null
         content.style.opacity = "1"
         content.style.visibility = "visible"
-        // Reset padding/margin if not collapsed
         content.style.paddingTop = ""
         content.style.paddingBottom = ""
         content.style.marginTop = ""
         content.style.marginBottom = ""
       }
-      // Force reflow before re-enabling transitions
       void content.offsetHeight
-      content.style.transition = "" // Re-enable transitions
+      content.style.transition = ""
     }
   })
 }
@@ -2412,54 +2234,42 @@ function handleSettingToggleClick(button) {
   const section = button.closest(".setting-section")
   const content = section.querySelector(".setting-section-content")
   if (!section || !content) return
-
   section.classList.toggle("collapsed")
   const isCollapsed = section.classList.contains("collapsed")
   button.setAttribute("aria-expanded", !isCollapsed)
-
   if (isCollapsed) {
-    // Set max-height to current scroll height before collapsing
     content.style.maxHeight = content.scrollHeight + "px"
-    // requestAnimationFrame helps ensure the style is applied before transition starts
     requestAnimationFrame(() => {
       content.style.maxHeight = "0"
       content.style.opacity = "0"
-      // Animate padding/margin as well
       content.style.paddingTop = "0"
       content.style.paddingBottom = "0"
       content.style.marginTop = "0"
       content.style.marginBottom = "0"
-      // Set visibility after transition ends
       content.addEventListener(
         "transitionend",
         () => {
-          if (section.classList.contains("collapsed")) {
-            // Check again in case it was re-opened quickly
+          if (section.classList.contains("collapsed"))
             content.style.visibility = "hidden"
-          }
         },
         { once: true }
       )
     })
   } else {
-    content.style.visibility = "visible" // Make visible immediately
-    // Reset padding/margin before expanding
+    content.style.visibility = "visible"
     content.style.paddingTop = ""
     content.style.paddingBottom = ""
     content.style.marginTop = ""
     content.style.marginBottom = ""
     requestAnimationFrame(() => {
-      // Set max-height to scroll height to trigger expansion
       content.style.maxHeight = content.scrollHeight + "px"
       content.style.opacity = "1"
     })
-    // After expansion, set max-height to null for auto-height adjustments
     content.addEventListener(
       "transitionend",
       () => {
-        if (!section.classList.contains("collapsed")) {
+        if (!section.classList.contains("collapsed"))
           content.style.maxHeight = null
-        }
       },
       { once: true }
     )
