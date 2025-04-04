@@ -1,0 +1,102 @@
+/* styles/toasts.css */
+
+.toast-container {
+    position: fixed;
+    bottom: var(--spacing-lg);
+    right: var(--spacing-lg);
+    z-index: 1050; /* Above modals */
+    display: flex;
+    flex-direction: column-reverse; /* New toasts appear on top */
+    align-items: flex-end;
+    gap: var(--spacing-sm);
+    max-width: 350px;
+    pointer-events: none; /* Container doesn't block clicks */
+}
+
+.toast {
+    background-color: hsl(var(--secondary-bg) / 0.95);
+    color: hsl(var(--foreground));
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: calc(var(--radius) / 1.5);
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 4px 12px hsla(0, 0%, 0%, 0.25);
+    font-size: 0.875rem;
+    line-height: 1.4;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+    pointer-events: auto; /* Toasts are clickable */
+    backdrop-filter: blur(5px); /* Subtle blur effect */
+    max-width: 100%;
+    overflow: hidden;
+    word-wrap: break-word;
+}
+
+.toast.toast-visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* State for when toast is exiting */
+.toast.toast-exiting {
+    opacity: 0;
+    transform: scale(0.95); /* Optional shrink effect */
+    transition-duration: 0.2s;
+}
+
+/* Type variations */
+.toast--success {
+    background-color: hsl(var(--success) / 0.9);
+    color: hsl(var(--success-foreground));
+    border-color: hsl(var(--success) / 0.5);
+}
+
+.toast--error {
+    background-color: hsl(var(--destructive) / 0.9);
+    color: hsl(var(--destructive-foreground));
+    border-color: hsl(var(--destructive) / 0.5);
+}
+
+.toast--info {
+    background-color: hsl(var(--info) / 0.9);
+    color: hsl(var(--info-foreground));
+    border-color: hsl(var(--info) / 0.5);
+}
+
+/* Style for the bottom update notification bar */
+.update-notification {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: hsl(var(--primary) / 0.9);
+    color: hsl(var(--primary-foreground));
+    padding: var(--spacing-sm) var(--spacing-lg);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 1000; /* Below toasts and modals */
+    font-size: 0.9rem;
+    transform: translateY(100%);
+    transition: transform 0.4s ease-in-out, opacity 0.4s ease-in-out;
+    opacity: 0;
+    visibility: hidden;
+}
+
+.update-notification.visible {
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
+    transition-delay: 0s, 0s;
+}
+
+.update-notification.hiding {
+    transform: translateY(100%);
+    opacity: 0;
+    visibility: hidden;
+    transition-delay: 0s, 0.4s; /* Delay hiding visibility */
+}
+
+.update-notification span {
+    margin-right: var(--spacing-lg);
+}

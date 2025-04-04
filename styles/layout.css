@@ -1,0 +1,171 @@
+/* styles/layout.css */
+
+/* --- App Shell & Header --- */
+.app-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+}
+
+.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--spacing-lg);
+    border-bottom: 1px solid hsl(var(--border));
+    background-color: hsl(var(--background));
+    flex-shrink: 0;
+    height: 52px;
+    -webkit-app-region: drag; /* Make header draggable */
+}
+
+/* Make specific header elements non-draggable */
+.header-left,
+.header-right,
+.header-right > button,
+.app-title,
+.window-controls button {
+    -webkit-app-region: no-drag;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.app-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: hsl(var(--foreground));
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    height: 100%;
+}
+
+/* Button Order in Header */
+.header-right #toggle-todos-visibility-btn { order: 1; }
+.header-right #apply-wallpaper-btn { order: 2; }
+.header-right #open-app-settings-modal-btn { order: 3; margin-left: auto; } /* Pushes settings/panel toggle right */
+.header-right #toggle-settings-btn { order: 4; }
+.header-right .window-controls { order: 5; }
+
+/* Platform specific adjustments */
+body[data-platform="darwin"] .window-controls {
+    order: -1; /* Move controls to the left on macOS */
+    padding-left: var(--spacing-md);
+    padding-right: 0;
+}
+
+body[data-platform="darwin"] .header-left {
+    margin-left: 65px; /* Make space for window controls */
+}
+
+/* --- Main Content Area & Columns --- */
+.app-main {
+    display: flex;
+    flex-grow: 1;
+    overflow: hidden; /* Prevent scrollbars on main area */
+}
+
+.column {
+    height: 100%; /* Fill vertical space */
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-lg);
+    transition: flex-basis var(--transition-speed) var(--transition-curve),
+                width var(--transition-speed) var(--transition-curve),
+                padding var(--transition-speed) var(--transition-curve),
+                opacity var(--transition-speed) var(--transition-curve),
+                border var(--transition-speed) var(--transition-curve);
+}
+
+.column-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid hsl(var(--border));
+    flex-shrink: 0; /* Prevent header from shrinking */
+}
+
+.column-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0; /* Override default heading margin */
+}
+
+/* Scrollable Content Area within Columns */
+.scrollable-content {
+    flex-grow: 1; /* Allow content to take remaining space */
+    overflow-y: auto; /* Enable vertical scrollbar only when needed */
+    scrollbar-width: thin; /* Firefox scrollbar style */
+    scrollbar-color: hsl(var(--muted)) transparent; /* Firefox scrollbar colors */
+    padding-right: var(--spacing-sm); /* Space for scrollbar */
+    padding-left: var(--spacing-xs);
+    padding-top: var(--spacing-xs);
+}
+
+/* Webkit Scrollbar Styles */
+.scrollable-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.scrollable-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.scrollable-content::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted));
+    border-radius: var(--radius);
+}
+
+.scrollable-content::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground));
+}
+
+/* Column Specific Widths/Styles */
+.column-todos {
+    flex-basis: 320px;
+    flex-shrink: 0; /* Prevent shrinking */
+    background-color: hsl(var(--background));
+    border-right: 1px solid hsl(var(--border));
+    display: flex;
+    flex-direction: column;
+}
+
+.column-preview {
+    flex-grow: 1; /* Take remaining horizontal space */
+    background-color: hsl(var(--background));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-width: 300px; /* Prevent excessive shrinking */
+    padding: var(--spacing-xl); /* More padding for preview */
+}
+
+.column-settings {
+    flex-basis: 350px;
+    flex-shrink: 0;
+    background-color: hsl(var(--secondary-bg) / 0.4); /* Slightly transparent */
+    border-left: 1px solid hsl(var(--border));
+    overflow: hidden; /* Needed for collapse transition */
+}
+
+/* Collapsed State for Settings Column */
+.column-settings[data-collapsed="true"] {
+    flex-basis: 0;
+    width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    opacity: 0;
+    pointer-events: none; /* Prevent interaction when collapsed */
+    border-left: none;
+}

@@ -1,0 +1,61 @@
+/* styles/window-controls.css */
+
+.window-controls {
+    display: flex;
+    gap: 0; /* No gap between buttons */
+    height: 100%;
+}
+
+.window-control-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px; /* Fixed width for consistent look */
+    height: 100%; /* Fill header height */
+    border: none;
+    background-color: transparent;
+    color: hsl(var(--muted-foreground));
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    transition: background-color 0.1s, color 0.1s;
+    outline: none;
+    -webkit-app-region: no-drag;
+}
+
+.window-control-btn .material-symbols-outlined {
+    font-size: 18px; /* Adjust icon size */
+    width: auto;
+    height: auto;
+}
+
+/* Specific icon adjustments */
+.minimize-btn .material-symbols-outlined {
+    font-size: 20px;
+    font-weight: 600; /* Make minimize line thicker */
+}
+
+.window-control-btn:hover {
+    background-color: hsl(var(--muted) / 0.5);
+    color: hsl(var(--foreground));
+}
+
+.window-control-btn:active {
+    background-color: hsl(var(--muted));
+}
+
+/* Close button specific hover */
+.close-btn:hover {
+    background-color: hsl(var(--destructive));
+    color: hsl(var(--destructive-foreground));
+}
+
+.close-btn:active {
+    background-color: hsl(var(--destructive) / 0.9);
+}
+
+/* Handle Maximize/Restore Icon Visibility */
+body.maximized .maximize-restore-btn .icon-maximize { display: none; }
+body.maximized .maximize-restore-btn .icon-restore { display: inline-block; }
+body:not(.maximized) .maximize-restore-btn .icon-maximize { display: inline-block; }
+body:not(.maximized) .maximize-restore-btn .icon-restore { display: none; }

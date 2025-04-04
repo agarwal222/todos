@@ -1,0 +1,57 @@
+/* styles/pickr-theme.css */
+
+/* Pickr Customization */
+.pcr-app {
+    background: hsl(var(--popover));
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 4px 12px hsla(0, 0%, 0%, 0.2);
+    border-radius: var(--radius);
+    color: hsl(var(--foreground));
+    z-index: 100; /* Ensure it's above most content */
+}
+
+.pcr-interaction input {
+    height: 28px !important;
+    border-radius: calc(var(--radius) / 1.5) !important;
+    background: hsl(var(--input)) !important;
+    border: 1px solid hsl(var(--border)) !important;
+    color: hsl(var(--foreground)) !important;
+    font-size: 0.8rem !important;
+}
+
+.pcr-interaction input:focus {
+    box-shadow: 0 0 0 1px hsl(var(--ring)) !important;
+}
+
+.pcr-interaction .pcr-save,
+.pcr-interaction .pcr-cancel,
+.pcr-interaction .pcr-clear {
+    background: hsl(var(--secondary-bg)) !important;
+    color: hsl(var(--secondary-foreground)) !important;
+    border-radius: calc(var(--radius) / 1.5) !important;
+    padding: 4px 8px !important;
+    font-size: 0.8rem !important;
+    /* Add other button styles if needed */
+}
+
+.pcr-interaction .pcr-save:hover,
+.pcr-interaction .pcr-cancel:hover,
+.pcr-interaction .pcr-clear:hover {
+    background: hsl(var(--muted)) !important;
+}
+
+/* Pickr Button (the color swatch) */
+.pcr-button {
+    position: static !important; /* Override absolute positioning */
+    margin: 0 !important;
+    height: calc(100% - 6px) !important; /* Fit inside widget */
+    width: calc(100% - 6px) !important;
+    border-radius: calc(var(--radius) - 3px); /* Slightly smaller radius */
+    overflow: hidden;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.pcr-button::before { /* Checkerboard background */
+    border-radius: inherit;
+}

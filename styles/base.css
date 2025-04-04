@@ -1,0 +1,116 @@
+/* styles/base.css */
+
+/* --- Theme Variables --- */
+:root {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 262.1 83.3% 57.8%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-bg: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 72.2% 50.6%;
+    --destructive-foreground: 0 0% 98%;
+    --success: 142.1 76.2% 36.3%;
+    --success-foreground: 0 0% 98%;
+    --warning: 47.9 95.8% 53.1%;
+    --warning-foreground: 38 92% 50%;
+    --info: 200 90% 50%;
+    --info-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 262.1 83.3% 57.8%;
+    --radius: 0.5rem;
+    --font-sans: 'Inter', sans-serif;
+    --font-default: 'Inter'; /* Keep default font variable if used elsewhere */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 0.75rem;
+    --spacing-lg: 1rem;
+    --spacing-xl: 1.5rem;
+    --transition-speed: 0.2s;
+    --transition-curve: cubic-bezier(0.4, 0, 0.2, 1);
+    --input-height: 36px;
+}
+
+/* --- Basic Reset & Body --- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid hsl(var(--border));
+}
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    font-family: var(--font-sans);
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    line-height: 1.5;
+    font-size: 14px;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/* Allow text selection on specific elements */
+input[type="text"],
+input[type="url"],
+input[type="number"],
+textarea,
+select {
+    user-select: auto;
+    -webkit-user-select: auto;
+    -moz-user-select: auto;
+    -ms-user-select: auto;
+}
+
+.filename-display,
+.shortcut-display,
+.font-status-display,
+.todo-text,
+.context-input,
+.update-status-display, /* Allow selection on update status */
+.record-instructions, /* Allow selection on instructions */
+.modal-content h2 /* Allow selection on modal titles */
+{
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+}
+
+
+/* --- Material Symbols Base Style --- */
+.material-symbols-outlined {
+  font-variation-settings:
+  'FILL' 0,
+  'wght' 400,
+  'GRAD' 0,
+  'opsz' 20; /* Use 20 size, adjust font-size below */
+  font-size: 18px; /* Base size */
+  line-height: 1; /* Important for alignment */
+  vertical-align: middle; /* Align with text */
+  display: inline-block; /* Needed for vertical-align */
+  /* Prevent selection */
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}

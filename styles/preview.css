@@ -1,0 +1,63 @@
+/* styles/preview.css */
+
+.preview-area-container {
+    position: relative;
+    border: 1px solid hsl(var(--border));
+    background-color: hsl(var(--background));
+    width: 100%;
+    max-width: none; /* Allow filling column */
+    aspect-ratio: var(--preview-aspect-ratio, 16 / 9); /* Controlled by JS */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    border-radius: var(--radius);
+    flex-grow: 1; /* Allow preview to grow vertically */
+    min-height: 150px; /* Minimum height */
+    transition: aspect-ratio 0.3s var(--transition-curve);
+}
+
+.preview-loader {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: hsl(var(--muted) / 0.5);
+    color: hsl(var(--muted-foreground));
+    font-style: italic;
+    font-size: 0.9rem;
+    z-index: 2;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity var(--transition-speed) ease-out,
+                visibility 0s linear 0s;
+}
+
+#preview-area {
+    display: block; /* Remove potential extra space */
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain; /* Scale image while preserving aspect ratio */
+    background-color: transparent; /* Avoid default img background */
+    border-radius: calc(var(--radius) - 1px); /* Match container rounding */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--transition-speed) ease-in,
+                visibility 0s linear var(--transition-speed);
+    position: relative; /* Ensure it's above background, below loader */
+    z-index: 1;
+}
+
+/* Show preview image and hide loader when loaded */
+.preview-area-container.loaded .preview-loader {
+    opacity: 0;
+    visibility: hidden;
+    transition-delay: 0s, var(--transition-speed); /* Hide immediately, delay visibility change */
+}
+
+.preview-area-container.loaded #preview-area {
+    opacity: 1;
+    visibility: visible;
+    transition-delay: var(--transition-speed), 0s; /* Delay opacity fade-in */
+}

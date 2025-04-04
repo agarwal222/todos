@@ -16,7 +16,6 @@ import * as utils from "./utils.js" // Import all utils
 
 // --- DOM Elements ---
 const applyWallpaperBtn = document.getElementById("apply-wallpaper-btn")
-// Get references to the new spans inside the apply button
 const applyBtnIconDefault = applyWallpaperBtn?.querySelector(".icon-default")
 const applyBtnTextDefault = applyWallpaperBtn?.querySelector(
   ".button-text-default"
@@ -27,7 +26,6 @@ const applyBtnTextLoading = applyWallpaperBtn?.querySelector(
 const applyBtnTextSuccess = applyWallpaperBtn?.querySelector(
   ".button-text-success"
 )
-
 const toggleTodosVisibilityBtn = document.getElementById(
   "toggle-todos-visibility-btn"
 )
@@ -59,7 +57,6 @@ const closeBtn = document.getElementById("close-btn")
 const settingsInputs = {
   title: document.getElementById("wallpaper-title-input"),
   textColorPickerEl: document.getElementById("text-color-picker"),
-  textColorHex: document.getElementById("text-color-hex"),
   fontSize: document.getElementById("font-size"),
   fontWeight: document.getElementById("font-weight-select"),
   listStyle: document.getElementById("list-style-select"),
@@ -76,7 +73,6 @@ const settingsInputs = {
   textBackgroundEnable: document.getElementById("text-background-enable"),
   textBackgroundControls: document.getElementById("text-background-controls"),
   textBgColorPickerEl: document.getElementById("text-bg-color-picker"),
-  textBgColorHex: document.getElementById("text-bg-color-hex"),
   textPanelOpacity: document.getElementById("text-panel-opacity"),
   textPanelOpacityValue: document.getElementById("text-panel-opacity-value"),
   textBgPaddingInline: document.getElementById("text-bg-padding-inline"),
@@ -86,7 +82,6 @@ const settingsInputs = {
     "text-bg-border-radius-value"
   ),
   textBorderColorPickerEl: document.getElementById("text-border-color-picker"),
-  textBorderColorHex: document.getElementById("text-border-color-hex"),
   textBgBorderWidth: document.getElementById("text-bg-border-width"),
   fontSourceDefault: document.getElementById("font-source-default"),
   fontSourceSystem: document.getElementById("font-source-system"),
@@ -101,15 +96,11 @@ const settingsInputs = {
   bgTypeImage: document.getElementById("bg-type-image"),
   bgColorControls: document.getElementById("bg-color-controls"),
   bgColorPickerEl: document.getElementById("bg-color-picker"),
-  bgColorHex: document.getElementById("bg-color-hex"),
   bgImageControls: document.getElementById("bg-image-controls"),
   chooseImageBtn: document.getElementById("choose-image-btn"),
   clearImageBtn: document.getElementById("clear-image-btn"),
   imageFileInput: document.getElementById("image-file-input"),
   imageFilenameSpan: document.getElementById("image-filename"),
-  previewQualityLow: document.getElementById("preview-quality-low"),
-  previewQualityMedium: document.getElementById("preview-quality-medium"),
-  previewQualityHigh: document.getElementById("preview-quality-high"),
 }
 const openAddTodoModalBtn = document.getElementById("open-add-todo-modal-btn")
 const addTodoModal = document.getElementById("add-todo-modal")
@@ -155,6 +146,20 @@ const modalQuickAddTranslucentCheckbox = document.getElementById(
 const modalAutoApplyCheckbox = document.getElementById(
   "modal-auto-apply-checkbox"
 )
+const wallpaperStoragePathDisplay = document.getElementById(
+  "wallpaper-storage-path-display"
+)
+const updateStatusDisplay = document.getElementById("update-status-display")
+const checkForUpdatesBtn = document.getElementById("check-for-updates-btn")
+const modalPreviewQualityLow = document.getElementById(
+  "modal-preview-quality-low"
+)
+const modalPreviewQualityMedium = document.getElementById(
+  "modal-preview-quality-medium"
+)
+const modalPreviewQualityHigh = document.getElementById(
+  "modal-preview-quality-high"
+)
 const updateNotificationArea = document.getElementById(
   "update-notification-area"
 )
@@ -166,8 +171,6 @@ const recordInstructions = recordShortcutModal?.querySelector(
 const canvas = document.getElementById("image-canvas")
 const ctx = canvas.getContext("2d")
 const toastContainer = document.getElementById("toast-container")
-const updateStatusDisplay = document.getElementById("update-status-display")
-const checkForUpdatesBtn = document.getElementById("check-for-updates-btn")
 
 // --- Application State ---
 let state = JSON.parse(JSON.stringify(initialState))
@@ -183,14 +186,21 @@ let textColorPickr = null
 let bgColorPickr = null
 let textBgColorPickr = null
 let textBorderColorPickr = null
-let applyButtonTimeout = null // Timeout for resetting "Applied!" text
+let applyButtonTimeout = null
+let isApplyingWallpaper = false
 
 // *** Debounced function ***
 const DEBOUNCE_DELAY = 300
 const debouncedGenerateAndApply = utils.debounce(() => {
-  console.log("Debounced action triggered")
+  console.log("Debounced action triggered for preview/apply")
   generateTodoImageAndUpdatePreview()
-  maybeAutoApplyWallpaper()
+    .then(() => {
+      maybeAutoApplyWallpaper()
+    })
+    .catch((err) => {
+      console.error("Error during debounced generation:", err)
+      utils.showToast(toastContainer, "Error updating preview.", "error")
+    })
 }, DEBOUNCE_DELAY)
 
 // --- Initialization ---
@@ -198,7 +208,7 @@ async function initialize() {
   console.log("Initializing Renderer...")
   try {
     currentAppVersion = await window.electronAPI.getAppVersion()
-    console.log("App Version:", currentAppVersion) // Log version
+    console.log("App Version:", currentAppVersion)
   } catch (err) {
     console.error("Failed to get app version:", err)
   }
@@ -214,7 +224,7 @@ async function initialize() {
   await populateSystemFonts()
   setupAutoUpdaterListeners()
   initializeColorPickers()
-  applyStateToUI() // Apply state including the new button's icon
+  applyStateToUI()
   if (previewContainer) previewContainer.classList.remove("loaded")
   let imageLoadPromise = Promise.resolve()
   if (state.backgroundType === "image" && state.backgroundImageName) {
@@ -226,12 +236,9 @@ async function initialize() {
       .loadBackgroundImage()
       .then((dataUrl) => {
         if (dataUrl) {
-          console.log("Successfully loaded background image data.")
           state.backgroundImageDataUrl = dataUrl
         } else {
-          console.warn(
-            "Failed to load background image data from main process. Resetting to color background."
-          )
+          console.warn("Failed to load background image data. Resetting.")
           utils.showToast(
             toastContainer,
             `Could not load image "${state.backgroundImageName}". Resetting background.`,
@@ -260,9 +267,9 @@ async function initialize() {
   }
   let fontLoadPromise = Promise.resolve()
   try {
-    if (state.fontSource === "google" && state.googleFontName) {
+    if (state.fontSource === "google" && state.googleFontName)
       fontLoadPromise = loadAndApplyGoogleFont(state.googleFontName, false)
-    } else if (state.fontSource === "system" && state.systemFontFamily) {
+    else if (state.fontSource === "system" && state.systemFontFamily) {
       state.activeFontFamily = state.systemFontFamily
       updateFontStatus("loaded", state.activeFontFamily)
     } else {
@@ -273,7 +280,7 @@ async function initialize() {
       updateFontStatus("idle", DEFAULT_FONT)
     }
   } catch (err) {
-    console.warn("Initial font setup/load failed:", err)
+    console.warn("Initial font setup failed:", err)
     state.activeFontFamily = DEFAULT_FONT
     state.fontSource = "default"
     applyStateToUI()
@@ -281,11 +288,11 @@ async function initialize() {
   }
   renderTodoList()
   Promise.all([imageLoadPromise, fontLoadPromise])
-    .catch((err) => console.warn("Font/Image loading promise rejected:", err))
+    .catch((err) => console.warn("Init promise rejected:", err))
     .finally(() => {
-      generateTodoImageAndUpdatePreview() // Generate initial preview
+      generateTodoImageAndUpdatePreview()
     })
-  console.log("Sending loaded settings to main process:", {
+  console.log("Sending loaded settings to main:", {
     runInTray: state.runInTray,
     quickAddShortcut: state.quickAddShortcut,
     quickAddTranslucent: state.quickAddTranslucent,
@@ -306,22 +313,20 @@ async function initialize() {
   window.electronAPI.onWindowStateChange(handleWindowStateChange)
   window.electronAPI.onForceSettingUpdate(handleForcedSettingUpdate)
   window.electronAPI.onPerformTaskToggle((taskId) => {
-    console.log(`Renderer received toggle request for task ID: ${taskId}`)
+    console.log(`Renderer received toggle for task ID: ${taskId}`)
     toggleDone(taskId)
     renderTodoList()
     saveState()
     debouncedGenerateAndApply()
   })
   window.electronAPI.onPerformTaskDelete((taskId) => {
-    console.log(`Renderer received delete request for task ID: ${taskId}`)
+    console.log(`Renderer received delete for task ID: ${taskId}`)
     deleteTodo(taskId)
     renderTodoList()
     saveState()
     debouncedGenerateAndApply()
   })
-  // Listen for detailed update status messages for the modal
   window.electronAPI.onUpdateStatusMessage(handleUpdateStatusMessage)
-
   const platform = window.electronAPI.getPlatform()
   document.body.dataset.platform = platform
   console.log("Renderer initialized on platform:", platform)
@@ -330,18 +335,17 @@ async function initialize() {
 function setCanvasAndPreviewSize(width, height) {
   canvas.width = width
   canvas.height = height
-  if (previewContainer) {
+  if (previewContainer)
     previewContainer.style.setProperty(
       "--preview-aspect-ratio",
       `${width}/${height}`
     )
-  }
 }
 // --- Populate System Fonts ---
 async function populateSystemFonts() {
   try {
     systemFontsCache = await window.electronAPI.getSystemFonts()
-    settingsInputs.systemFontSelect.innerHTML = "" // Clear previous options
+    settingsInputs.systemFontSelect.innerHTML = ""
     if (!systemFontsCache || systemFontsCache.length === 0) {
       const o = document.createElement("option")
       o.value = ""
@@ -350,12 +354,10 @@ async function populateSystemFonts() {
       settingsInputs.systemFontSelect.appendChild(o)
       return
     }
-    // Add placeholder
     const d = document.createElement("option")
     d.value = ""
     d.textContent = "Select System Font..."
     settingsInputs.systemFontSelect.appendChild(d)
-    // Add fonts
     systemFontsCache.forEach((f) => {
       const o = document.createElement("option")
       o.value = f
@@ -382,10 +384,7 @@ function initializeColorPickers() {
       hue: true,
       interaction: {
         hex: true,
-        rgba: false,
-        hsla: false,
-        hsva: false,
-        cmyk: false,
+        rgba: true,
         input: true,
         clear: false,
         cancel: false,
@@ -393,70 +392,39 @@ function initializeColorPickers() {
       },
     },
   })
-
-  const onSave = (prop, hexInputId) => (color, instance) => {
+  const onSave = (prop) => (color, instance) => {
     const newColor = color.toHEXA().toString()
     if (state[prop] !== newColor) {
       state[prop] = newColor
-      settingsInputs[hexInputId].value = newColor
-      settingsInputs[hexInputId].classList.remove("invalid")
       saveState()
       debouncedGenerateAndApply()
     }
     instance.hide()
   }
-
-  const onChange = (hexInputId) => (color, source, instance) => {
-    settingsInputs[hexInputId].value = color.toHEXA().toString()
-    settingsInputs[hexInputId].classList.remove("invalid")
-  }
-
-  const onShow = (hexInputId) => (color, instance) => {
-    settingsInputs[hexInputId].value = instance.getColor().toHEXA().toString()
-    settingsInputs[hexInputId].classList.remove("invalid")
-  }
-
   textColorPickr = Pickr.create(
     options("textColorPickerEl", DEFAULT_TEXT_COLOR, "textColor")
-  )
-    .on("save", onSave("textColor", "textColorHex"))
-    .on("change", onChange("textColorHex"))
-    .on("show", onShow("textColorHex"))
-
+  ).on("save", onSave("textColor"))
   bgColorPickr = Pickr.create(
     options("bgColorPickerEl", DEFAULT_BG_COLOR, "bgColor")
-  )
-    .on("save", onSave("bgColor", "bgColorHex"))
-    .on("change", onChange("bgColorHex"))
-    .on("show", onShow("bgColorHex"))
-
+  ).on("save", onSave("bgColor"))
   textBgColorPickr = Pickr.create(
     options("textBgColorPickerEl", DEFAULT_TEXT_BG_COLOR, "textBackgroundColor")
-  )
-    .on("save", onSave("textBackgroundColor", "textBgColorHex"))
-    .on("change", onChange("textBgColorHex"))
-    .on("show", onShow("textBgColorHex"))
-
+  ).on("save", onSave("textBackgroundColor"))
   textBorderColorPickr = Pickr.create(
     options(
       "textBorderColorPickerEl",
       DEFAULT_TEXT_BORDER_COLOR,
       "textBackgroundBorderColor"
     )
-  )
-    .on("save", onSave("textBackgroundBorderColor", "textBorderColorHex"))
-    .on("change", onChange("textBorderColorHex"))
-    .on("show", onShow("textBorderColorHex"))
+  ).on("save", onSave("textBackgroundBorderColor"))
 }
 // --- UI Update Helpers ---
 function updateShortcutInputVisibility() {
   const isTrayEnabled = state.runInTray
-  if (modalShortcutGroup) {
+  if (modalShortcutGroup)
     modalShortcutGroup.classList.toggle("hidden", !isTrayEnabled)
-  }
-  if (modalQuickAddTranslucentGroup) {
+  if (modalQuickAddTranslucentGroup)
     modalQuickAddTranslucentGroup.classList.toggle("hidden", !isTrayEnabled)
-  }
 }
 function updateTextBackgroundControlsVisibility() {
   settingsInputs.textBackgroundControls?.classList.toggle(
@@ -508,55 +476,33 @@ function applyStateToUI() {
   settingsInputs.fontSourceDefault.checked = state.fontSource === "default"
   settingsInputs.fontSourceSystem.checked = state.fontSource === "system"
   settingsInputs.fontSourceGoogle.checked = state.fontSource === "google"
-  if (state.fontSource === "system" && state.systemFontFamily) {
+  if (state.fontSource === "system" && state.systemFontFamily)
     settingsInputs.systemFontSelect.value = state.systemFontFamily
-  } else {
-    settingsInputs.systemFontSelect.value = ""
-  }
+  else settingsInputs.systemFontSelect.value = ""
   settingsInputs.bgTypeColor.checked = state.backgroundType === "color"
   settingsInputs.bgTypeImage.checked = state.backgroundType === "image"
   settingsInputs.imageFilenameSpan.textContent =
     state.backgroundImageName || "No file chosen"
-
-  // Apply Preview Quality State
-  if (settingsInputs.previewQualityLow)
-    settingsInputs.previewQualityLow.checked = state.previewQuality === "low"
-  if (settingsInputs.previewQualityMedium)
-    settingsInputs.previewQualityMedium.checked =
-      state.previewQuality === "medium"
-  if (settingsInputs.previewQualityHigh)
-    settingsInputs.previewQualityHigh.checked = state.previewQuality === "high"
-
-  // Apply colors to pickers and inputs
+  if (modalPreviewQualityLow)
+    modalPreviewQualityLow.checked = state.previewQuality === "low"
+  if (modalPreviewQualityMedium)
+    modalPreviewQualityMedium.checked = state.previewQuality === "medium"
+  if (modalPreviewQualityHigh)
+    modalPreviewQualityHigh.checked = state.previewQuality === "high" // Apply to modal radios
   if (textColorPickr)
     textColorPickr.setColor(state.textColor || DEFAULT_TEXT_COLOR, true)
-  settingsInputs.textColorHex.value = state.textColor || DEFAULT_TEXT_COLOR
-  settingsInputs.textColorHex.classList.remove("invalid")
-
   if (bgColorPickr)
     bgColorPickr.setColor(state.bgColor || DEFAULT_BG_COLOR, true)
-  settingsInputs.bgColorHex.value = state.bgColor || DEFAULT_BG_COLOR
-  settingsInputs.bgColorHex.classList.remove("invalid")
-
   if (textBgColorPickr)
     textBgColorPickr.setColor(
       state.textBackgroundColor || DEFAULT_TEXT_BG_COLOR,
       true
     )
-  settingsInputs.textBgColorHex.value =
-    state.textBackgroundColor || DEFAULT_TEXT_BG_COLOR
-  settingsInputs.textBgColorHex.classList.remove("invalid")
-
   if (textBorderColorPickr)
     textBorderColorPickr.setColor(
       state.textBackgroundBorderColor || DEFAULT_TEXT_BORDER_COLOR,
       true
     )
-  settingsInputs.textBorderColorHex.value =
-    state.textBackgroundBorderColor || DEFAULT_TEXT_BORDER_COLOR
-  settingsInputs.textBorderColorHex.classList.remove("invalid")
-
-  // App Settings Modal
   if (modalRunInTrayCheckbox) modalRunInTrayCheckbox.checked = state.runInTray
   if (modalQuickAddTranslucentCheckbox)
     modalQuickAddTranslucentCheckbox.checked = state.quickAddTranslucent
@@ -566,7 +512,6 @@ function applyStateToUI() {
     )
   if (modalAutoApplyCheckbox)
     modalAutoApplyCheckbox.checked = state.autoApplyWallpaper
-
   updateTodosVisibilityToggleIcon()
   updateFontControlsVisibility()
   updateFontStatus(
@@ -584,19 +529,14 @@ function applyStateToUI() {
 function saveState() {
   try {
     const stateToSave = { ...state }
-    // Remove transient properties before saving
     delete stateToSave.backgroundImageDataUrl
     delete stateToSave.lastGeneratedImageDataUrl
     delete stateToSave.customFontStatus
     delete stateToSave.customFontError
     window.electronAPI.saveState(stateToSave)
   } catch (e) {
-    console.error("Save State Error (preparing state):", e)
-    utils.showToast(
-      toastContainer,
-      "Error preparing settings to save.",
-      "error"
-    )
+    console.error("Save State Error:", e)
+    utils.showToast(toastContainer, "Error saving settings.", "error")
   }
 }
 async function loadState() {
@@ -604,19 +544,14 @@ async function loadState() {
     const loadedStateFromFile = await window.electronAPI.loadState()
     const platform = window.electronAPI?.getPlatform() || "win32"
     const platformDefaultTranslucent = platform === "darwin"
-
     if (loadedStateFromFile) {
-      console.log("Received state from main process:", loadedStateFromFile)
       const currentScreenDims = {
         screenWidth: state.screenWidth,
         screenHeight: state.screenHeight,
       }
-
       state = {
-        ...initialState, // Start with defaults
-        ...loadedStateFromFile, // Override with loaded values
-
-        // Ensure boolean/specific defaults if missing
+        ...initialState,
+        ...loadedStateFromFile,
         showTodosOnWallpaper:
           typeof loadedStateFromFile.showTodosOnWallpaper === "boolean"
             ? loadedStateFromFile.showTodosOnWallpaper
@@ -625,7 +560,7 @@ async function loadState() {
           loadedStateFromFile.previewQuality
         )
           ? loadedStateFromFile.previewQuality
-          : "medium", // Default to medium if invalid or missing
+          : "medium",
         autoApplyWallpaper:
           typeof loadedStateFromFile.autoApplyWallpaper === "boolean"
             ? loadedStateFromFile.autoApplyWallpaper
@@ -634,13 +569,11 @@ async function loadState() {
           typeof loadedStateFromFile.quickAddTranslucent === "boolean"
             ? loadedStateFromFile.quickAddTranslucent
             : platformDefaultTranslucent,
-
-        // Keep transient state separate
         ...currentScreenDims,
         customFontStatus: "idle",
         customFontError: null,
-        lastGeneratedImageDataUrl: null, // High-quality PNG for apply
-        backgroundImageDataUrl: null, // Image data is loaded separately
+        lastGeneratedImageDataUrl: null,
+        backgroundImageDataUrl: null,
         todos: Array.isArray(loadedStateFromFile.todos)
           ? loadedStateFromFile.todos.map((t) => ({
               ...t,
@@ -648,38 +581,34 @@ async function loadState() {
             }))
           : [],
       }
-
-      // Font logic
-      if (state.fontSource === "system" && state.systemFontFamily) {
+      if (state.fontSource === "system" && state.systemFontFamily)
         state.activeFontFamily = state.systemFontFamily
-      } else if (state.fontSource === "google" && state.googleFontName) {
-        state.activeFontFamily = state.googleFontName // Keep name, will load font later
-      } else {
+      else if (state.fontSource === "google" && state.googleFontName)
+        state.activeFontFamily = state.googleFontName
+      else {
         state.fontSource = "default"
         state.activeFontFamily = DEFAULT_FONT
         state.systemFontFamily = ""
         state.googleFontName = ""
       }
-      console.log("Final state after loading and merging:", state)
+      console.log("Final state after loading:", state)
     } else {
-      // Set initial state if no file found
       state = {
-        ...initialState, // Includes previewQuality: 'medium'
+        ...initialState,
         autoApplyWallpaper: false,
         quickAddTranslucent: platformDefaultTranslucent,
-        screenWidth: state.screenWidth, // Keep potentially updated dims
+        screenWidth: state.screenWidth,
         screenHeight: state.screenHeight,
-        showTodosOnWallpaper: true, // Default for new users
+        showTodosOnWallpaper: true,
       }
-      console.log("No valid state file found, using defaults.")
+      console.log("No state file found, using defaults.")
     }
   } catch (e) {
-    console.error("Load State Error (requesting state):", e)
+    console.error("Load State Error:", e)
     utils.showToast(toastContainer, "Error loading settings.", "error")
     const platform = window.electronAPI?.getPlatform() || "win32"
-    // Fallback state on error
     state = {
-      ...initialState, // Includes previewQuality: 'medium'
+      ...initialState,
       autoApplyWallpaper: false,
       quickAddTranslucent: platform === "darwin",
       showTodosOnWallpaper: true,
@@ -697,7 +626,6 @@ function handleGlobalKeyDown(event) {
   } else if (isRecordingShortcut) {
     if (event.key === "Escape") closeRecordShortcutModal()
   } else {
-    // Main window shortcuts
     if ((event.ctrlKey || event.metaKey) && event.key === "n") {
       event.preventDefault()
       openModal()
@@ -708,179 +636,158 @@ function handleGlobalKeyDown(event) {
     }
   }
 }
-function handleHexInputChange(event) {
-  const input = event.target
-  const value = input.value.trim()
-  let pickrInstance = null
-  let stateProp = null
-
-  switch (input.id) {
-    case "text-color-hex":
-      pickrInstance = textColorPickr
-      stateProp = "textColor"
-      break
-    case "bg-color-hex":
-      pickrInstance = bgColorPickr
-      stateProp = "bgColor"
-      break
-    case "text-bg-color-hex":
-      pickrInstance = textBgColorPickr
-      stateProp = "textBackgroundColor"
-      break
-    case "text-border-color-hex":
-      pickrInstance = textBorderColorPickr
-      stateProp = "textBackgroundBorderColor"
-      break
-  }
-
-  if (utils.isValidHexColor(value)) {
-    input.classList.remove("invalid")
-    if (pickrInstance) {
-      pickrInstance.setColor(value, true) // Update pickr silently
-    }
-    if (state[stateProp] !== value) {
-      state[stateProp] = value
-      saveState()
-      debouncedGenerateAndApply() // Debounce regeneration
-    }
-  } else {
-    input.classList.add("invalid")
-  }
-}
 function handleVisualSettingChange(event) {
   const target = event.target
   const id = target.id
   const value = target.type === "checkbox" ? target.checked : target.value
-  const key = target.name || id // Use name for radios
+  const key = target.name || id
   let stateChanged = false
   let requiresImmediateRegeneration = false
+  let requiresUiUpdate = false
   let isSlider = target.type === "range"
-  const eventType = event.type // 'input' or 'change'
-
-  // Handle immediate changes (radios, selects, checkboxes) first
-  if (key === "font-source" || key === "bg-type" || key === "preview-quality") {
-    if (target.checked && state[key] !== value) {
-      state[key] = value
+  const eventType = event.type
+  const idToStateMap = {
+    "wallpaper-title-input": "title",
+    "font-size": "fontSize",
+    "font-weight-select": "fontWeight",
+    "list-style-select": "listStyle",
+    "overall-opacity": "overallOpacity",
+    "text-position": "textPosition",
+    "text-align-select": "textAlign",
+    "offset-x": "offsetX",
+    "offset-y": "offsetY",
+    "title-spacing-input": "titleBottomMargin",
+    "item-spacing-input": "itemSpacing",
+    "max-items-input": "maxItemsPerColumn",
+    "column-gap-input": "columnGap",
+    "text-background-enable": "textBackgroundEnabled",
+    "text-panel-opacity": "textPanelOpacity",
+    "text-bg-padding-inline": "textBackgroundPaddingInline",
+    "text-bg-padding-block": "textBackgroundPaddingBlock",
+    "text-bg-border-radius": "textBackgroundBorderRadius",
+    "text-bg-border-width": "textBackgroundBorderWidth",
+    "system-font-select": "systemFontFamily",
+    "google-font-name": "googleFontName",
+    "font-source": "fontSource",
+    "bg-type": "backgroundType" /* Removed previewQuality */,
+  }
+  const propertyName = idToStateMap[key]
+  if (propertyName && state.hasOwnProperty(propertyName)) {
+    const oldValue = state[propertyName]
+    let newValue = value
+    if (target.type === "number" || target.type === "range") {
+      newValue = parseFloat(value)
+      if (isNaN(newValue)) newValue = 0
+      if (target.min !== "" && newValue < parseFloat(target.min))
+        newValue = parseFloat(target.min)
+      if (target.max !== "" && newValue > parseFloat(target.max))
+        newValue = parseFloat(target.max)
+      if (target.type === "number") {
+        const step = target.getAttribute("step")
+        if (!step || step === "1") newValue = Math.round(newValue)
+      } else if (
+        isSlider &&
+        !(target.step && (target.step === "0.01" || target.step === "0.05"))
+      )
+        newValue = Math.round(newValue)
+      else if (isSlider) newValue = parseFloat(newValue.toFixed(2))
+    }
+    if (oldValue !== newValue && (target.type !== "radio" || target.checked)) {
+      console.log(
+        `State change: ${propertyName} from ${oldValue} to ${newValue}`
+      )
+      state[propertyName] = newValue
       stateChanged = true
-      if (key === "font-source") {
-        requiresImmediateRegeneration = false // Handled below
-        if (value === "default") {
-          state.activeFontFamily = DEFAULT_FONT
-          updateFontStatus("idle", DEFAULT_FONT)
-          state.systemFontFamily = ""
-          state.googleFontName = ""
+      switch (propertyName) {
+        case "textBackgroundEnabled":
+          requiresUiUpdate = true
           requiresImmediateRegeneration = true
-        } else if (value === "system") {
-          const selectedSystemFont = settingsInputs.systemFontSelect.value
-          if (selectedSystemFont) {
-            state.activeFontFamily = selectedSystemFont
-            state.systemFontFamily = selectedSystemFont
-            updateFontStatus("loaded", selectedSystemFont)
-            requiresImmediateRegeneration = true
-          } else {
-            state.activeFontFamily = DEFAULT_FONT
-            state.systemFontFamily = ""
-            updateFontStatus("idle", DEFAULT_FONT)
-          }
-          state.googleFontName = ""
-        } else if (value === "google") {
-          state.systemFontFamily = ""
-          if (state.googleFontName && state.customFontStatus === "loaded") {
-            updateFontStatus("loaded", state.activeFontFamily)
-          } else {
-            updateFontStatus("idle", state.googleFontName || DEFAULT_FONT)
-            state.customFontStatus = "idle"
-          }
-        }
-        updateFontControlsVisibility()
-      } else if (key === "bg-type") {
-        updateBackgroundControlsVisibility()
-        requiresImmediateRegeneration = true
-      } else if (key === "preview-quality") {
-        requiresImmediateRegeneration = true // Regenerate preview on quality change
-      }
-    }
-  } else if (id.endsWith("-hex") || id.endsWith("-picker")) {
-    return // Handled separately
-  } else {
-    // Handle text, number, range, select, checkbox (non-radio)
-    const idToStateMap = {
-      "wallpaper-title-input": "title",
-      "font-size": "fontSize",
-      "font-weight-select": "fontWeight",
-      "list-style-select": "listStyle",
-      "overall-opacity": "overallOpacity",
-      "text-position": "textPosition",
-      "text-align-select": "textAlign",
-      "offset-x": "offsetX",
-      "offset-y": "offsetY",
-      "title-spacing-input": "titleBottomMargin",
-      "item-spacing-input": "itemSpacing",
-      "max-items-input": "maxItemsPerColumn",
-      "column-gap-input": "columnGap",
-      "text-background-enable": "textBackgroundEnabled",
-      "text-panel-opacity": "textPanelOpacity",
-      "text-bg-padding-inline": "textBackgroundPaddingInline",
-      "text-bg-padding-block": "textBackgroundPaddingBlock",
-      "text-bg-border-radius": "textBackgroundBorderRadius",
-      "text-bg-border-width": "textBackgroundBorderWidth",
-      "system-font-select": "systemFontFamily",
-      "google-font-name": "googleFontName",
-    }
-    const propertyName = idToStateMap[id]
-    if (propertyName && state.hasOwnProperty(propertyName)) {
-      const oldValue = state[propertyName]
-      let newValue = value
-      if (target.type === "number" || target.type === "range") {
-        newValue = parseFloat(value)
-        if (isNaN(newValue)) newValue = 0
-        if (target.min !== "" && newValue < parseFloat(target.min))
-          newValue = parseFloat(target.min)
-        if (target.max !== "" && newValue > parseFloat(target.max))
-          newValue = parseFloat(target.max)
-        if (target.type === "number") {
-          const step = target.getAttribute("step")
-          if (!step || step === "1") newValue = Math.round(newValue)
-        } else if (
-          isSlider &&
-          !(target.step && (target.step === "0.01" || target.step === "0.05"))
-        ) {
-          newValue = Math.round(newValue)
-        } else if (isSlider) {
-          newValue = parseFloat(newValue.toFixed(2))
-        }
-      } else if (target.type === "checkbox") {
-        newValue = target.checked
-      }
-      if (oldValue !== newValue) {
-        state[propertyName] = newValue
-        stateChanged = true
-        if (isSlider && eventType === "input") {
-          const valueSpan = document.getElementById(`${id}-value`)
-          if (valueSpan) {
-            valueSpan.textContent =
-              target.step && (target.step === "0.01" || target.step === "0.05")
-                ? newValue.toFixed(2)
-                : newValue.toFixed(0)
-          }
+          break
+        case "fontSource":
+          requiresUiUpdate = true
           requiresImmediateRegeneration = false
-        } else if (propertyName === "textBackgroundEnabled") {
-          updateTextBackgroundControlsVisibility()
-          requiresImmediateRegeneration = true
-        } else if (
-          propertyName === "systemFontFamily" &&
-          state.fontSource === "system"
-        ) {
-          if (newValue) {
-            state.activeFontFamily = newValue
-            updateFontStatus("loaded", newValue)
-          } else {
+          if (value === "default") {
             state.activeFontFamily = DEFAULT_FONT
             updateFontStatus("idle", DEFAULT_FONT)
+            state.systemFontFamily = ""
+            state.googleFontName = ""
+            requiresImmediateRegeneration = true
+          } else if (value === "system") {
+            const sel = settingsInputs.systemFontSelect.value
+            if (sel) {
+              state.activeFontFamily = sel
+              state.systemFontFamily = sel
+              updateFontStatus("loaded", sel)
+              requiresImmediateRegeneration = true
+            } else {
+              state.activeFontFamily = DEFAULT_FONT
+              state.systemFontFamily = ""
+              updateFontStatus("idle", DEFAULT_FONT)
+            }
+            state.googleFontName = ""
+          } else if (value === "google") {
+            state.systemFontFamily = ""
+            if (state.googleFontName && state.customFontStatus === "loaded")
+              updateFontStatus("loaded", state.activeFontFamily)
+            else {
+              updateFontStatus("idle", state.googleFontName || DEFAULT_FONT)
+              state.customFontStatus = "idle"
+            }
+            requiresImmediateRegeneration =
+              state.googleFontName && state.customFontStatus === "loaded"
+          }
+          break
+        case "backgroundType":
+          requiresUiUpdate = true
+          requiresImmediateRegeneration = true
+          break
+        case "fontWeight":
+        case "listStyle":
+        case "fontSize":
+        case "textColor":
+        case "overallOpacity":
+        case "textPosition":
+        case "textAlign":
+        case "offsetX":
+        case "offsetY":
+        case "titleBottomMargin":
+        case "itemSpacing":
+        case "maxItemsPerColumn":
+        case "columnGap":
+        case "textBackgroundColor":
+        case "textPanelOpacity":
+        case "textBackgroundPaddingInline":
+        case "textBackgroundPaddingBlock":
+        case "textBackgroundBorderRadius":
+        case "textBackgroundBorderWidth":
+        case "textBackgroundBorderColor":
+          if (!isSlider || eventType === "change")
+            requiresImmediateRegeneration = true
+          else if (isSlider && eventType === "input") {
+            const valueSpan = document.getElementById(`${id}-value`)
+            if (valueSpan)
+              valueSpan.textContent =
+                target.step &&
+                (target.step === "0.01" || target.step === "0.05")
+                  ? newValue.toFixed(2)
+                  : newValue.toFixed(0)
             requiresImmediateRegeneration = false
           }
-          requiresImmediateRegeneration = true
-        } else if (propertyName === "googleFontName") {
+          break
+        case "systemFontFamily":
+          if (state.fontSource === "system") {
+            if (newValue) {
+              state.activeFontFamily = newValue
+              updateFontStatus("loaded", newValue)
+            } else {
+              state.activeFontFamily = DEFAULT_FONT
+              updateFontStatus("idle", DEFAULT_FONT)
+              requiresImmediateRegeneration = false
+            }
+            requiresImmediateRegeneration = true
+          }
+          break
+        case "googleFontName":
           if (
             state.customFontStatus === "loaded" ||
             state.customFontStatus === "error"
@@ -889,92 +796,85 @@ function handleVisualSettingChange(event) {
             state.customFontStatus = "idle"
           }
           requiresImmediateRegeneration = false
-        }
-        if (!isSlider && eventType === "change") {
+          break
+        default:
+          console.warn(`Unhandled property: ${propertyName}`)
           requiresImmediateRegeneration = true
-        }
-        if (
-          eventType === "input" &&
-          !isSlider &&
-          (target.type === "text" || target.type === "number")
-        ) {
-          requiresImmediateRegeneration = false
-        }
+          break
       }
-    } else {
-      console.warn(
-        `Visual Setting: State property not found or unmapped for element ID/name: ${id}`
-      )
     }
+  } else if (key !== "modal-preview-quality") {
+    // Ignore the modal radios here
+    console.warn(
+      `Visual Setting: State property not found or unmapped for: ${key}`
+    )
   }
   if (stateChanged) {
     saveState()
-    if (requiresImmediateRegeneration) {
+    if (requiresUiUpdate) {
+      console.log("Triggering UI update...")
+      if (propertyName === "textBackgroundEnabled")
+        updateTextBackgroundControlsVisibility()
+      if (propertyName === "fontSource") updateFontControlsVisibility()
+      if (propertyName === "backgroundType")
+        updateBackgroundControlsVisibility()
+    }
+    if (requiresImmediateRegeneration || (isSlider && eventType === "input")) {
       console.log(
-        `Regenerating preview immediately due to '${eventType}' event on '${id}' or radio change`
+        `Triggering debounce (immediate: ${requiresImmediateRegeneration}, sliderInput: ${
+          isSlider && eventType === "input"
+        })...`
       )
       debouncedGenerateAndApply()
-    } else if (isSlider && eventType === "input") {
-      debouncedGenerateAndApply()
     }
-  }
-}
-function handleInputBlurOrEnter(event) {
-  if (event.type === "keydown" && event.key !== "Enter") return
-  const target = event.target
-  if (
-    target.closest(".column-settings") &&
-    target.tagName === "INPUT" &&
-    (target.type === "text" ||
-      target.type === "number" ||
-      target.classList.contains("input-hex"))
-  ) {
-    console.log(
-      `Triggering preview update due to ${event.type} on ${target.id}`
-    )
-    debouncedGenerateAndApply()
-    if (event.type === "keydown" && target.blur) target.blur()
   }
 }
 function handleAppSettingChange(event) {
   const target = event.target
-  if (!target || (target.type !== "checkbox" && target.type !== "button"))
-    return
+  if (!target) return
   const id = target.id
+  const value = target.type === "checkbox" ? target.checked : target.value
+  const key = target.name || id
   let stateChanged = false
   let needsIpcUpdate = false
   let propertyName = null
-  let newValue = null
-  switch (id) {
+  let newValue = value
+  switch (key) {
     case "modal-run-in-tray-checkbox":
       propertyName = "runInTray"
-      newValue = target.checked
       needsIpcUpdate = true
       updateShortcutInputVisibility()
       break
     case "modal-quick-add-translucent-checkbox":
       propertyName = "quickAddTranslucent"
-      newValue = target.checked
       needsIpcUpdate = true
       break
     case "modal-auto-apply-checkbox":
       propertyName = "autoApplyWallpaper"
-      newValue = target.checked
       break
+    case "modal-preview-quality":
+      if (target.checked) {
+        propertyName = "previewQuality"
+        console.log(`Preview quality changed to: ${newValue}`)
+        debouncedGenerateAndApply()
+      }
+      break // Handle modal radios
   }
   if (
     propertyName &&
     state.hasOwnProperty(propertyName) &&
     state[propertyName] !== newValue
   ) {
-    state[propertyName] = newValue
-    stateChanged = true
+    if (target.type !== "radio" || target.checked) {
+      state[propertyName] = newValue
+      stateChanged = true
+    }
   }
   if (stateChanged) {
     saveState()
     if (needsIpcUpdate) {
       console.log("Renderer: Sending updated app settings to main:", {
-        /* ... */ runInTray: state.runInTray,
+        runInTray: state.runInTray,
         quickAddShortcut: state.quickAddShortcut,
         quickAddTranslucent: state.quickAddTranslucent,
       })
@@ -983,8 +883,22 @@ function handleAppSettingChange(event) {
         quickAddShortcut: state.quickAddShortcut,
         quickAddTranslucent: state.quickAddTranslucent,
       })
-    }
-    applyStateToUI()
+    } /* applyStateToUI(); // No need usually, radios/checkboxes update visually */
+  }
+}
+function handleInputBlurOrEnter(event) {
+  if (event.type === "keydown" && event.key !== "Enter") return
+  const target = event.target
+  if (
+    target.closest(".column-settings") &&
+    target.tagName === "INPUT" &&
+    (target.type === "text" || target.type === "number")
+  ) {
+    console.log(
+      `Triggering preview update due to ${event.type} on ${target.id}`
+    )
+    debouncedGenerateAndApply()
+    if (event.type === "keydown" && target.blur) target.blur()
   }
 }
 function handleToggleTodosVisibility() {
@@ -1022,20 +936,13 @@ function setupEventListeners() {
   const visualSettingsContainer = document.getElementById("settings-column")
   visualSettingsContainer.addEventListener("change", handleVisualSettingChange)
   visualSettingsContainer.addEventListener("input", handleVisualSettingChange)
-  const textNumHexInputs = visualSettingsContainer.querySelectorAll(
-    'input[type="text"], input[type="number"], .input-hex'
+  const textNumInputs = visualSettingsContainer.querySelectorAll(
+    'input[type="text"], input[type="number"]'
   )
-  textNumHexInputs.forEach((input) => {
+  textNumInputs.forEach((input) => {
     input.addEventListener("blur", handleInputBlurOrEnter)
     input.addEventListener("keydown", handleInputBlurOrEnter)
   })
-  settingsInputs.textColorHex.addEventListener("input", handleHexInputChange)
-  settingsInputs.bgColorHex.addEventListener("input", handleHexInputChange)
-  settingsInputs.textBgColorHex.addEventListener("input", handleHexInputChange)
-  settingsInputs.textBorderColorHex.addEventListener(
-    "input",
-    handleHexInputChange
-  )
   settingsInputs.loadFontBtn.addEventListener("click", handleLoadFontClick)
   settingsInputs.chooseImageBtn.addEventListener("click", () =>
     settingsInputs.imageFileInput.click()
@@ -1071,18 +978,16 @@ function setupEventListeners() {
   appSettingsModal.addEventListener("click", (e) => {
     if (e.target === appSettingsModal) closeAppSettingsModal()
   })
-  appSettingsForm.addEventListener("change", handleAppSettingChange)
+  appSettingsForm.addEventListener("change", handleAppSettingChange) // This now handles modal radios too
   if (modalChangeShortcutBtn) {
     modalChangeShortcutBtn.addEventListener("click", () => {
-      if (appSettingsModal) {
+      if (appSettingsModal)
         appSettingsModal.classList.add("modal-temporarily-hidden")
-      }
       openRecordShortcutModal()
     })
   }
-  if (checkForUpdatesBtn) {
+  if (checkForUpdatesBtn)
     checkForUpdatesBtn.addEventListener("click", handleCheckForUpdatesClick)
-  }
   if (clearCompletedBtn)
     clearCompletedBtn.addEventListener("click", handleClearCompleted)
   if (clearActiveBtn)
@@ -1098,43 +1003,31 @@ function setupEventListeners() {
 // --- Auto-Apply Logic ---
 async function maybeAutoApplyWallpaper() {
   console.log(
-    "maybeAutoApplyWallpaper called. Auto-apply enabled:",
-    state.autoApplyWallpaper
+    `Maybe Auto Apply: Auto=${state.autoApplyWallpaper}, Applying=${isApplyingWallpaper}`
   )
-  try {
-    // Always generate/update the preview first
-    await generateTodoImageAndUpdatePreview() // This now updates state.lastGeneratedImageDataUrl (high quality)
-
-    if (state.autoApplyWallpaper) {
-      console.log("Auto-applying wallpaper...")
-      await handleApplyWallpaper() // Apply uses the stored high-quality URL
-    } else {
-      console.log("Auto-apply disabled, preview updated.")
-    }
-  } catch (error) {
-    console.error("Error during maybeAutoApplyWallpaper:", error)
-    utils.showToast(
-      toastContainer,
-      "Error updating preview/wallpaper.",
-      "error"
+  if (state.autoApplyWallpaper && !isApplyingWallpaper) {
+    console.log("Auto-applying wallpaper...")
+    await handleApplyWallpaper()
+  } else if (state.autoApplyWallpaper && isApplyingWallpaper)
+    console.log(
+      "Auto-apply skipped: Wallpaper application already in progress."
     )
-  }
+  else console.log("Auto-apply disabled or apply in progress, preview updated.")
 }
 // --- Auto Updater Listeners ---
 function setupAutoUpdaterListeners() {
-  // Keep these for the bottom notification bar functionality
   window.electronAPI.onUpdateAvailable((i) => {
-    console.log("Update available (bottom bar):", i)
+    console.log("Update available (bar):", i)
     showUpdateMessage(`Update v${i.version} available. Downloading...`)
     if (restartButton) restartButton.style.display = "none"
   })
   window.electronAPI.onUpdateDownloaded((i) => {
-    console.log("Update downloaded (bottom bar):", i)
+    console.log("Update downloaded (bar):", i)
     showUpdateMessage(`Update v${i.version} downloaded. Restart to install.`)
     if (restartButton) restartButton.style.display = "inline-flex"
   })
   window.electronAPI.onUpdateError((e) => {
-    console.error("Update error (bottom bar):", e)
+    console.error("Update error (bar):", e)
     showUpdateMessage(`Error checking for updates: ${e}`)
     if (restartButton) restartButton.style.display = "none"
     setTimeout(hideUpdateMessage, 8000)
@@ -1142,10 +1035,9 @@ function setupAutoUpdaterListeners() {
   window.electronAPI.onDownloadProgress((p) => {
     showUpdateMessage(`Downloading update: ${Math.round(p.percent)}%`)
   })
-  // Listener for modal status is set in initialize()
   if (restartButton) {
     restartButton.addEventListener("click", () => {
-      console.log("Restart button clicked")
+      console.log("Restart clicked")
       window.electronAPI.restartApp()
     })
   }
@@ -1187,7 +1079,6 @@ function handleUpdateStatusMessage(
   checkForUpdatesBtn.disabled = isChecking
   checkForUpdatesBtn.textContent = isChecking ? "Checking..." : "Check Now"
 }
-
 // --- Todo Management ---
 function addTodo(text) {
   const t = text.trim()
@@ -1211,11 +1102,9 @@ function renderTodoList() {
   if (!Array.isArray(state.todos)) state.todos = []
   const activeTodos = state.todos.filter((t) => !t.done)
   const completedTodos = state.todos.filter((t) => t.done)
-  if (activeTodos.length === 0) {
+  if (activeTodos.length === 0)
     todoListUl.innerHTML = `<li class="empty-list-message">No active tasks!</li>`
-  } else {
-    activeTodos.forEach((t) => todoListUl.appendChild(createTodoElement(t)))
-  }
+  else activeTodos.forEach((t) => todoListUl.appendChild(createTodoElement(t)))
   const hasCompleted = completedTodos.length > 0
   completedHeader.classList.toggle("hidden", !hasCompleted)
   completedListContainer.classList.toggle("hidden", !hasCompleted)
@@ -1224,11 +1113,10 @@ function renderTodoList() {
   if (clearActiveBtn)
     clearActiveBtn.style.display =
       activeTodos.length > 0 ? "inline-flex" : "none"
-  if (hasCompleted) {
+  if (hasCompleted)
     completedTodos.forEach((t) =>
       completedTodoListUl.appendChild(createTodoElement(t))
     )
-  }
   addContextInputListeners()
 }
 function createTodoElement(todo) {
@@ -1258,12 +1146,12 @@ function createTodoElement(todo) {
   const ab = document.createElement("div")
   ab.className = "task-actions"
   const eb = document.createElement("button")
-  eb.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.763 9.763a1.75 1.75 0 0 0-.44 1.06l-.663 3.18a.75.75 0 0 0 .914.914l3.18-.662a1.75 1.75 0 0 0 1.06-.44l7.25-7.25a1.75 1.75 0 0 0 0-2.475ZM4.753 10.61l6.875-6.875 1.118 1.118-6.875 6.875-1.528.318.41-1.964.001-.002Z"></path></svg>`
+  eb.innerHTML = `<span class="material-symbols-outlined">edit</span>`
   eb.className = "button button-ghost button-icon edit-btn"
   eb.title = "Edit Task"
   eb.setAttribute("aria-label", "Edit task")
   const db = document.createElement("button")
-  db.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z" clip-rule="evenodd" /></svg>`
+  db.innerHTML = `<span class="material-symbols-outlined">delete</span>`
   db.className = "button button-ghost button-icon delete-btn"
   db.title = "Delete Task"
   db.setAttribute("aria-label", "Delete task")
@@ -1287,7 +1175,7 @@ function handleContextChange(event) {
     }
     if (todo.context !== newContext) {
       todo.context = newContext
-      console.log(`Context state updated for ID ${id}: "${newContext}"`)
+      console.log(`Context updated: "${newContext}"`)
       saveState()
     }
   }
@@ -1296,9 +1184,7 @@ function handleContextBlurOrEnter(event) {
   if (event.type === "keydown" && event.key !== "Enter") return
   const target = event.target
   if (target.classList.contains("context-input")) {
-    console.log(
-      `Triggering preview update due to ${event.type} on context input ${target.dataset.id}`
-    )
+    console.log(`Context blur/enter trigger`)
     debouncedGenerateAndApply()
     if (event.type === "keydown") target.blur()
   }
@@ -1350,16 +1236,14 @@ async function generateTodoImageAndUpdatePreview() {
     textPanelOpacity,
     textBackgroundBorderRadius,
     showTodosOnWallpaper,
-    previewQuality, // <<< Get preview quality
+    previewQuality,
   } = state
-
   if (!ctx || !canvas) {
-    console.error("Canvas context not available.")
+    console.error("Canvas context unavailable.")
     return Promise.reject("Canvas context unavailable.")
   }
-  if (canvas.width !== screenWidth || canvas.height !== screenHeight) {
+  if (canvas.width !== screenWidth || canvas.height !== screenHeight)
     setCanvasAndPreviewSize(screenWidth, screenHeight)
-  }
   const currentActiveFont = activeFontFamily || DEFAULT_FONT
   const itemFontSize = parseInt(fontSize, 10) || 48
   const linesToDraw = showTodosOnWallpaper
@@ -1375,26 +1259,19 @@ async function generateTodoImageAndUpdatePreview() {
   const titleFontSize = Math.round(itemFontSize * 1.2)
   const contextFontSize = Math.round(itemFontSize * 0.6)
   const contextTopMargin = Math.round(spacingBetweenItems * 0.3)
-
   previewContainer.classList.remove("loaded")
-
   try {
-    // 1. Clear & Draw Background
     ctx.clearRect(0, 0, screenWidth, screenHeight)
     if (backgroundType === "image" && state.backgroundImageDataUrl) {
       try {
         const img = await utils.loadImage(state.backgroundImageDataUrl)
         utils.drawBackgroundImage(ctx, img, screenWidth, screenHeight)
       } catch (e) {
-        console.error("Background Image Error:", e)
+        console.error("BG Image Error:", e)
         utils.drawBackgroundColor(ctx, bgColor, screenWidth, screenHeight)
       }
-    } else {
-      utils.drawBackgroundColor(ctx, bgColor, screenWidth, screenHeight)
-    }
-
-    // 2. Draw Text Block (if enabled and todos exist)
-    if (showTodosOnWallpaper && linesToDraw.length > 0) {
+    } else utils.drawBackgroundColor(ctx, bgColor, screenWidth, screenHeight)
+    if (showTodosOnWallpaper && (linesToDraw.length > 0 || title)) {
       const textBlockMetrics = utils.calculateTextBlockDimensions(ctx, {
         title,
         fontName: currentActiveFont,
@@ -1415,21 +1292,19 @@ async function generateTodoImageAndUpdatePreview() {
           screenWidth,
           screenHeight,
           padding,
-          textBlockMetrics.titleHeight,
-          textBlockMetrics.maxColumnItemHeight,
-          titleSpacing,
-          spacingBetweenItems,
-          maxItems,
-          linesToDraw.length,
           textPosition,
           offsetX,
           offsetY,
-          textBlockMetrics
+          textBlockMetrics,
+          textAlign
         )
       const originalAlpha = ctx.globalAlpha
       ctx.globalAlpha = Math.max(0, Math.min(1, overallOpacity))
-
-      if (textBackgroundEnabled) {
+      if (
+        textBackgroundEnabled &&
+        (textBlockMetrics.overallWidth > 0 ||
+          textBlockMetrics.overallHeight > 0)
+      ) {
         utils.drawTextBackgroundPanel(ctx, {
           x: textStartX,
           y: textStartY,
@@ -1442,52 +1317,54 @@ async function generateTodoImageAndUpdatePreview() {
           borderColor: textBackgroundBorderColor,
           borderWidth: textBackgroundBorderWidth,
           borderRadius: textBackgroundBorderRadius,
-          textAlign: textAlign,
         })
       }
-
-      utils.drawTextElementsMultiCol(ctx, {
-        title,
-        textColor,
-        textAlign,
-        fontName: currentActiveFont,
-        fontWeight,
-        titleFontSize,
-        itemFontSize,
-        contextFontSize,
-        contextTopMargin,
-        titleSpacing,
-        itemSpacing: spacingBetweenItems,
-        lines: linesToDraw,
-        startX: textStartX,
-        startY: textStartY,
-        listStyle,
-        maxItemsPerColumn: maxItems,
-        columnGap: colGap,
-      })
-
+      if (
+        textBlockMetrics.overallWidth > 0 ||
+        textBlockMetrics.overallHeight > 0
+      ) {
+        utils.drawTextElementsMultiCol(ctx, {
+          title,
+          textColor,
+          textAlign,
+          fontName: currentActiveFont,
+          fontWeight,
+          titleFontSize,
+          itemFontSize,
+          contextFontSize,
+          contextTopMargin,
+          titleSpacing,
+          itemSpacing: spacingBetweenItems,
+          lines: linesToDraw,
+          startX: textStartX,
+          startY: textStartY,
+          listStyle,
+          maxItemsPerColumn: maxItems,
+          columnGap: colGap,
+          maxColumnWidth: textBlockMetrics.maxColumnWidth,
+        })
+      }
       ctx.globalAlpha = originalAlpha
     }
-
-    // 3. Store High-Quality PNG for Applying
     try {
       state.lastGeneratedImageDataUrl = canvas.toDataURL("image/png")
-      console.log("High-quality PNG data URL stored for potential application.")
+      console.log("High-quality PNG stored.")
     } catch (e) {
-      console.error("Error generating high-quality PNG data URL:", e)
+      console.error("Error generating PNG:", e)
       state.lastGeneratedImageDataUrl = null
     }
-
-    // 4. Update Preview Image (potentially lower quality)
-    updatePreviewImage(previewQuality) // Pass quality setting
+    updatePreviewImage(previewQuality)
   } catch (err) {
-    console.error("Error during image generation process:", err)
-    updatePreviewImage(previewQuality) // Update preview even on error
+    console.error("Error generating image:", err)
+    updatePreviewImage(previewQuality)
     throw err
   }
 }
 function updatePreviewImage(quality = "medium") {
-  if (!canvas) return
+  if (!canvas || !previewAreaImg || !previewContainer || !previewLoader) {
+    console.error("updatePreviewImage: Required DOM elements not found.")
+    return
+  }
   let previewDataUrl = null
   let format = "image/jpeg"
   let qualityValue = 0.75
@@ -1502,27 +1379,34 @@ function updatePreviewImage(quality = "medium") {
       format = "image/png"
       qualityValue = undefined
       break
+    default:
+      console.warn(`Unknown preview quality: ${quality}. Using medium.`)
+      qualityValue = 0.75
+      format = "image/jpeg"
+      break
   }
   try {
+    const qualityLogValue = qualityValue === undefined ? "N/A" : qualityValue
     console.log(
-      `Generating preview with format: ${format}, quality: ${
-        qualityValue ?? "N/A"
-      }`
+      `Generating preview with format: ${format}, quality: ${qualityLogValue}`
     )
     previewDataUrl = canvas.toDataURL(format, qualityValue)
-    previewAreaImg.onload = () => previewContainer.classList.add("loaded")
+    previewAreaImg.onload = () => {
+      previewContainer.classList.add("loaded")
+    }
     previewAreaImg.onerror = () => {
       console.error("Preview image failed to load from data URL.")
       previewContainer.classList.remove("loaded")
       previewAreaImg.src = ""
-      if (previewLoader) previewLoader.textContent = "Preview Error"
+      previewLoader.textContent = "Preview Error"
     }
     previewAreaImg.src = previewDataUrl
   } catch (e) {
-    console.error(`Preview Gen Error (toDataURL ${format} ${qualityValue}):`, e)
+    const qualityLogValue = qualityValue === undefined ? "N/A" : qualityValue
+    console.error(`Preview Gen Error (${format} ${qualityLogValue}):`, e)
     previewContainer.classList.remove("loaded")
     previewAreaImg.src = ""
-    if (previewLoader) previewLoader.textContent = "Generation Error"
+    previewLoader.textContent = "Generation Error"
   }
 }
 // --- Font Handling ---
@@ -1554,7 +1438,7 @@ async function loadAndApplyGoogleFont(fontName, shouldSaveState = true) {
       await fontFace.load()
       document.fonts.add(fontFace)
       await document.fonts.ready
-      console.log(`Font loaded and added: ${actualFontFamily} ${actualWeight}`)
+      console.log(`Font loaded: ${actualFontFamily} ${actualWeight}`)
       state.activeFontFamily = actualFontFamily
       state.googleFontName = fontName
       state.customFontStatus = "loaded"
@@ -1569,10 +1453,7 @@ async function loadAndApplyGoogleFont(fontName, shouldSaveState = true) {
       if (shouldSaveState) saveState()
       maybeAutoApplyWallpaper()
     } else {
-      throw new Error(
-        result.error ||
-          `Could not load font "${fontName}". Check spelling and availability.`
-      )
+      throw new Error(result.error || `Could not load font "${fontName}".`)
     }
   } catch (e) {
     console.error("Google Font Load Error:", e)
@@ -1664,9 +1545,8 @@ function handleListClick(event) {
     renderTodoList()
     saveState()
     debouncedGenerateAndApply()
-  } else if (target.closest(".edit-btn")) {
-    openEditModal(id)
-  } else if (target.closest(".delete-btn")) {
+  } else if (target.closest(".edit-btn")) openEditModal(id)
+  else if (target.closest(".delete-btn")) {
     deleteTodo(id)
     li.style.opacity = "0"
     li.style.transform = "translateX(-20px)"
@@ -1715,8 +1595,8 @@ function handleModalSubmit(event) {
 function openEditModal(id) {
   const todo = state.todos.find((t) => t.id === id)
   if (!todo) {
-    console.error("Could not find todo to edit with ID:", id)
-    utils.showToast(toastContainer, "Error finding task to edit.", "error")
+    console.error("Cannot find todo to edit:", id)
+    utils.showToast(toastContainer, "Error finding task.", "error")
     return
   }
   modalEditInput.value = todo.text
@@ -1740,8 +1620,8 @@ function handleEditModalSubmit(event) {
     return
   }
   if (isNaN(id)) {
-    console.error("Invalid ID stored in edit modal.")
-    utils.showToast(toastContainer, "Error saving task edit.", "error")
+    console.error("Invalid ID in edit modal.")
+    utils.showToast(toastContainer, "Error saving edit.", "error")
     closeEditModal()
     return
   }
@@ -1753,11 +1633,9 @@ function handleEditModalSubmit(event) {
       saveState()
       utils.showToast(toastContainer, "Task updated!", "success")
       debouncedGenerateAndApply()
-    } else {
-      utils.showToast(toastContainer, "No changes detected.", "info")
-    }
+    } else utils.showToast(toastContainer, "No changes.", "info")
   } else {
-    console.error("Could not find todo to save edit for ID:", id)
+    console.error("Could not find todo to save:", id)
     utils.showToast(toastContainer, "Error updating task.", "error")
   }
   closeEditModal()
@@ -1781,10 +1659,24 @@ function closeRecordShortcutModal() {
   if (appSettingsModal)
     appSettingsModal.classList.remove("modal-temporarily-hidden")
 }
-function openAppSettingsModal() {
+async function openAppSettingsModal() {
   applyStateToUI()
   updateShortcutInputVisibility()
   handleUpdateStatusMessage(`Current Version: v${currentAppVersion}`)
+  if (wallpaperStoragePathDisplay) {
+    wallpaperStoragePathDisplay.textContent = "Fetching path..."
+    try {
+      const persistentPath =
+        await window.electronAPI.getPersistentWallpaperPath()
+      wallpaperStoragePathDisplay.textContent =
+        persistentPath || "Error: Path not configured"
+      wallpaperStoragePathDisplay.title = persistentPath || ""
+    } catch (error) {
+      console.error("Failed to get persistent wallpaper path:", error)
+      wallpaperStoragePathDisplay.textContent = "Error fetching path"
+      wallpaperStoragePathDisplay.title = error.message || "IPC Error"
+    }
+  }
   appSettingsModal.classList.remove("hidden")
 }
 function closeAppSettingsModal() {
@@ -1792,9 +1684,9 @@ function closeAppSettingsModal() {
 }
 // --- Clear Tasks ---
 function handleClearCompleted() {
-  const completedCount = state.todos.filter((t) => t.done).length
-  if (completedCount === 0) {
-    utils.showToast(toastContainer, "No completed tasks to clear.", "info")
+  const count = state.todos.filter((t) => t.done).length
+  if (count === 0) {
+    utils.showToast(toastContainer, "No completed tasks.", "info")
     return
   }
   state.todos = state.todos.filter((t) => !t.done)
@@ -1802,29 +1694,24 @@ function handleClearCompleted() {
   saveState()
   utils.showToast(
     toastContainer,
-    `${completedCount} completed task${completedCount > 1 ? "s" : ""} cleared.`,
+    `${count} task${count > 1 ? "s" : ""} cleared.`,
     "success"
   )
   debouncedGenerateAndApply()
 }
 function handleClearActive() {
-  const activeCount = state.todos.filter((t) => !t.done).length
-  if (activeCount === 0) {
-    utils.showToast(toastContainer, "No active tasks to clear.", "info")
+  const count = state.todos.filter((t) => !t.done).length
+  if (count === 0) {
+    utils.showToast(toastContainer, "No active tasks.", "info")
     return
   }
-  if (
-    !window.confirm(
-      `Are you sure you want to delete ${activeCount} active task(s)? This cannot be undone.`
-    )
-  )
-    return
+  if (!window.confirm(`Delete ${count} active task(s)?`)) return
   state.todos = state.todos.filter((t) => t.done)
   renderTodoList()
   saveState()
   utils.showToast(
     toastContainer,
-    `${activeCount} active task${activeCount > 1 ? "s" : ""} cleared.`,
+    `${count} task${count > 1 ? "s" : ""} cleared.`,
     "success"
   )
   debouncedGenerateAndApply()
@@ -1925,9 +1812,7 @@ function handleSaveShortcut() {
     !currentRecordedString ||
     !utils.isValidAccelerator(currentRecordedString)
   ) {
-    alert(
-      "Invalid shortcut recorded. Please ensure you press a modifier (Ctrl, Alt, Shift, Cmd) plus another key."
-    )
+    alert("Invalid shortcut. Modifier (Ctrl, Alt, Shift, Cmd) + key required.")
     recordSaveBtn.disabled = true
     updateRecordShortcutDisplay("Press keys...")
     return
@@ -1936,10 +1821,7 @@ function handleSaveShortcut() {
     state.quickAddShortcut = currentRecordedString
     applyStateToUI()
     saveState()
-    console.log(
-      "Renderer: Sending updated shortcut to main:",
-      state.quickAddShortcut
-    )
+    console.log("Sending updated shortcut:", state.quickAddShortcut)
     window.electronAPI.updateSettings({
       runInTray: state.runInTray,
       quickAddShortcut: state.quickAddShortcut,
@@ -1963,12 +1845,12 @@ async function handleImageFileSelect(e) {
   const file = e.target.files[0]
   if (!file) return
   if (!file.type.startsWith("image/")) {
-    alert("Invalid image file type. Please select a PNG, JPG, or WEBP image.")
+    alert("Invalid image type.")
     e.target.value = ""
     return
   }
   if (file.size > 15 * 1024 * 1024) {
-    alert("Image file is too large (Max 15MB). Please choose a smaller image.")
+    alert("Image too large (Max 15MB).")
     e.target.value = ""
     return
   }
@@ -1981,20 +1863,18 @@ async function handleImageFileSelect(e) {
     settingsInputs.imageFilenameSpan.textContent = file.name
     applyStateToUI()
     try {
-      console.log("Saving selected background image...")
+      console.log("Saving background image...")
       const saveResult = await window.electronAPI.saveBackgroundImage(
         imageDataUrl
       )
       if (!saveResult.success)
-        throw new Error(
-          saveResult.error || "Failed to save background image file."
-        )
-      console.log("Background image saved by main process.")
+        throw new Error(saveResult.error || "Failed to save image.")
+      console.log("Background saved.")
       generateTodoImageAndUpdatePreview()
       saveState()
       maybeAutoApplyWallpaper()
     } catch (error) {
-      console.error("Error saving background image:", error)
+      console.error("Error saving image:", error)
       utils.showToast(
         toastContainer,
         `Error saving image: ${error.message}`,
@@ -2019,39 +1899,30 @@ async function handleClearImage() {
   saveState()
   if (oldImageName) {
     try {
-      console.log("Requesting main process to clear saved background image...")
+      console.log("Clearing saved image...")
       await window.electronAPI.clearBackgroundImage()
-      console.log("Cleared background image acknowledged by main process.")
+      console.log("Saved image cleared.")
     } catch (error) {
-      console.error(
-        "Error telling main process to clear background image:",
-        error
-      )
+      console.error("Error clearing saved image:", error)
     }
   }
   maybeAutoApplyWallpaper()
 }
 function handleImageReadError(err) {
   console.error("FileReader error:", err)
-  alert("Error reading the selected image file.")
+  alert("Error reading image file.")
   handleClearImage()
 }
 // --- Wallpaper Application ---
-// <<< MODIFIED Function >>>
 async function handleApplyWallpaper() {
-  // Clear any existing reset timeout
   if (applyButtonTimeout) {
     clearTimeout(applyButtonTimeout)
     applyButtonTimeout = null
   }
-
-  // Ensure image is generated if needed
   if (!state.lastGeneratedImageDataUrl) {
-    console.warn(
-      "Apply Wallpaper: High-quality image data not available. Generating first..."
-    )
+    console.warn("Apply: High-quality image needed. Generating first...")
     try {
-      await generateTodoImageAndUpdatePreview() // This generates and stores high-quality PNG
+      await generateTodoImageAndUpdatePreview()
       if (!state.lastGeneratedImageDataUrl) {
         utils.showToast(
           toastContainer,
@@ -2063,120 +1934,84 @@ async function handleApplyWallpaper() {
     } catch (genErr) {
       utils.showToast(
         toastContainer,
-        `Failed to generate image: ${genErr.message}`,
+        `Image generation failed: ${genErr.message}`,
         "error"
       )
       return
     }
   }
-
-  if (applyWallpaperBtn.disabled) return // Prevent double clicks
-
+  if (applyWallpaperBtn.disabled) return
+  isApplyingWallpaper = true
   applyWallpaperBtn.disabled = true
-  // Hide default icon and text, show loading text
   applyBtnIconDefault?.classList.add("hidden")
   applyBtnTextDefault?.classList.add("hidden")
   applyBtnTextSuccess?.classList.add("hidden")
   applyBtnTextLoading?.classList.remove("hidden")
-
   console.log("Applying high-quality wallpaper...")
-
   try {
-    const dataUrl = state.lastGeneratedImageDataUrl // Use the stored high-quality PNG
+    const dataUrl = state.lastGeneratedImageDataUrl
     const result = await window.electronAPI.updateWallpaper(dataUrl)
-
     if (result?.success) {
-      console.log("Wallpaper update successful.")
-      // Hide loading, show success text
+      console.log("Wallpaper applied.")
       applyBtnTextLoading?.classList.add("hidden")
       applyBtnTextSuccess?.classList.remove("hidden")
-      utils.showToast(
-        toastContainer,
-        "Wallpaper applied successfully!",
-        "success"
-      )
-
-      // Set a timeout to revert the button text
+      utils.showToast(toastContainer, "Wallpaper applied!", "success")
       applyButtonTimeout = setTimeout(() => {
-        // Hide success, show default icon and text
-        applyBtnTextSuccess?.classList.add("hidden")
-        applyBtnIconDefault?.classList.remove("hidden")
-        applyBtnTextDefault?.classList.remove("hidden")
-        applyWallpaperBtn.disabled = false
-        applyButtonTimeout = null // Clear the timeout reference
-      }, 2000) // Revert after 2 seconds
+        resetApplyButtonState()
+        isApplyingWallpaper = false
+      }, 2000)
     } else {
-      throw new Error(result?.error || "Unknown error setting wallpaper")
+      throw new Error(result?.error || "Unknown error")
     }
   } catch (err) {
-    console.error("Wallpaper update failed:", err)
-    utils.showToast(
-      toastContainer,
-      `Failed to apply wallpaper: ${err.message}`,
-      "error"
-    )
-    // Hide loading, show default icon and text immediately on error
+    console.error("Wallpaper apply failed:", err)
+    utils.showToast(toastContainer, `Apply failed: ${err.message}`, "error")
+    resetApplyButtonState()
+    isApplyingWallpaper = false
+  }
+}
+// --- Apply Button State Reset ---
+function resetApplyButtonState() {
+  if (applyButtonTimeout) {
+    clearTimeout(applyButtonTimeout)
+    applyButtonTimeout = null
+  }
+  if (applyWallpaperBtn) {
     applyBtnTextLoading?.classList.add("hidden")
     applyBtnTextSuccess?.classList.add("hidden")
     applyBtnIconDefault?.classList.remove("hidden")
     applyBtnTextDefault?.classList.remove("hidden")
     applyWallpaperBtn.disabled = false
+    console.log("Apply button state reset.")
   }
 }
 // --- IPC Event Handlers ---
 async function handleQuickAddTaskAndApply(taskText) {
-  console.log("Renderer received task and apply trigger:", taskText)
+  console.log("Quick Add task:", taskText)
   if (addTodo(taskText)) {
     renderTodoList()
     saveState()
     try {
       await generateTodoImageAndUpdatePreview()
-      if (state.lastGeneratedImageDataUrl) {
+      if (state.autoApplyWallpaper && !isApplyingWallpaper) {
         console.log("Applying wallpaper after quick add...")
-        const wasBtnDisabled = applyWallpaperBtn.disabled
-        applyWallpaperBtn.disabled = true
-        try {
-          await window.electronAPI.updateWallpaper(
-            state.lastGeneratedImageDataUrl
-          )
-          console.log("Wallpaper updated successfully via Quick Add.")
-        } catch (applyErr) {
-          console.error("Error applying wallpaper after quick add:", applyErr)
-          utils.showToast(
-            toastContainer,
-            `Quick Add Error: ${applyErr.message}`,
-            "error"
-          )
-        } finally {
-          applyWallpaperBtn.disabled = wasBtnDisabled
-        }
-      } else {
-        console.error(
-          "Failed to generate image after quick add, cannot apply wallpaper."
+        await handleApplyWallpaper()
+      } else if (state.autoApplyWallpaper && isApplyingWallpaper) {
+        console.log(
+          "Skipping auto-apply after quick add: apply already in progress."
         )
-        utils.showToast(
-          toastContainer,
-          "Failed to generate image for wallpaper.",
-          "error"
-        )
-      }
-    } catch (genErr) {
-      console.error(
-        "Error during image generation or application after quick add:",
-        genErr
-      )
-      utils.showToast(
-        toastContainer,
-        "Error applying wallpaper after Quick Add.",
-        "error"
-      )
+      } else
+        console.log("Auto-apply disabled or apply in progress after quick add.")
+    } catch (e) {
+      console.error("Error in Quick Add generation/application:", e)
+      utils.showToast(toastContainer, "Error applying Quick Add.", "error")
     }
   }
 }
 function handleShortcutError(errorMessage) {
-  console.error("Renderer received Shortcut Error from main:", errorMessage)
+  console.error("Shortcut Error:", errorMessage)
   alert(
-    `Shortcut Error:\n${errorMessage}\n\nPlease choose different keys or close the conflicting application.`
+    `Shortcut Error:\n${errorMessage}\n\nPlease choose different keys or close conflicting application.`
   )
   state.runInTray = false
   if (modalRunInTrayCheckbox) modalRunInTrayCheckbox.checked = false
@@ -2184,41 +2019,33 @@ function handleShortcutError(errorMessage) {
   saveState()
 }
 function handleForcedSettingUpdate(settingsToUpdate) {
-  console.log(
-    "Renderer received forced setting update from main:",
-    settingsToUpdate
-  )
+  console.log("Forced setting update:", settingsToUpdate)
   let stateChanged = false
-  for (const key in settingsToUpdate) {
-    if (state.hasOwnProperty(key) && state[key] !== settingsToUpdate[key]) {
-      console.log(
-        `Forcing setting ${key} from ${state[key]} to ${settingsToUpdate[key]}`
-      )
-      state[key] = settingsToUpdate[key]
+  for (const k in settingsToUpdate) {
+    if (state.hasOwnProperty(k) && state[k] !== settingsToUpdate[k]) {
+      console.log(`Forcing ${k}: ${state[k]} -> ${settingsToUpdate[k]}`)
+      state[k] = settingsToUpdate[k]
       stateChanged = true
-      if (key === "runInTray" && modalRunInTrayCheckbox)
+      if (k === "runInTray" && modalRunInTrayCheckbox)
         modalRunInTrayCheckbox.checked = state.runInTray
-      else if (key === "quickAddShortcut" && modalCurrentShortcutDisplay)
+      else if (k === "quickAddShortcut" && modalCurrentShortcutDisplay)
         modalCurrentShortcutDisplay.textContent = utils.formatAccelerator(
           state.quickAddShortcut || DEFAULT_SHORTCUT
         )
-      else if (
-        key === "quickAddTranslucent" &&
-        modalQuickAddTranslucentCheckbox
-      )
+      else if (k === "quickAddTranslucent" && modalQuickAddTranslucentCheckbox)
         modalQuickAddTranslucentCheckbox.checked = state.quickAddTranslucent
-      else if (key === "autoApplyWallpaper" && modalAutoApplyCheckbox)
+      else if (k === "autoApplyWallpaper" && modalAutoApplyCheckbox)
         modalAutoApplyCheckbox.checked = state.autoApplyWallpaper
     }
   }
   if (stateChanged) {
-    console.log("Applying forced state changes to UI and saving.")
+    console.log("Applying forced state & saving.")
     applyStateToUI()
     saveState()
-  } else console.log("No actual state changes needed from forced update.")
+  } else console.log("No forced changes needed.")
 }
 function handleWindowStateChange({ isMaximized }) {
-  console.log("Renderer received window state change - Maximized:", isMaximized)
+  console.log("Window Maximized:", isMaximized)
   document.body.classList.toggle("maximized", isMaximized)
   if (maximizeRestoreBtn && maximizeIcon && restoreIcon) {
     maximizeRestoreBtn.title = isMaximized ? "Restore" : "Maximize"
@@ -2228,17 +2055,12 @@ function handleWindowStateChange({ isMaximized }) {
     )
     maximizeIcon.classList.toggle("hidden", isMaximized)
     restoreIcon.classList.toggle("hidden", !isMaximized)
-  } else
-    console.warn(
-      "Could not find maximize/restore button or icons to update state."
-    )
+  } else console.warn("Cannot find max/restore elements.")
 }
 // --- Collapsible Settings Sections ---
 function initializeCollapsibleSections() {
-  const toggleButtons = settingsColumn.querySelectorAll(
-    ".setting-section-toggle"
-  )
-  toggleButtons.forEach((button) => {
+  const tBtns = settingsColumn.querySelectorAll(".setting-section-toggle")
+  tBtns.forEach((button) => {
     const section = button.closest(".setting-section")
     const content = section.querySelector(".setting-section-content")
     const isCollapsedInitially = section.classList.contains("collapsed")

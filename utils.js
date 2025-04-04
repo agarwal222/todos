@@ -231,43 +231,22 @@ export function calculateTextBlockDimensions(ctx, params) {
     maxColumnWidth,
   }
 }
+
 export function calculateTextStartPositionMultiCol(
   canvasWidth,
   canvasHeight,
   padding,
-  titleHeight,
-  columnItemHeight,
-  titleSpacing,
-  itemSpacing,
-  maxItems,
-  lineCount,
   position,
   offsetX,
   offsetY,
-  metrics
+  metrics,
+  textAlign // Added textAlign
 ) {
-  /* ... keep body ... */ let startX, startY
+  let startX, startY
   const requiredHeight = metrics.overallHeight
-  const requiredWidth = metrics.overallWidth
-  switch (position) {
-    case "top-left":
-    case "center-left":
-    case "bottom-left":
-      startX = padding
-      break
-    case "top-center":
-    case "center":
-    case "bottom-center":
-      startX = canvasWidth / 2
-      break
-    case "top-right":
-    case "bottom-right":
-      startX = canvasWidth - padding
-      break
-    default:
-      startX = padding
-      break
-  }
+  const requiredWidth = metrics.overallWidth // Use overallWidth from metrics
+
+  // --- Y Calculation (Vertical) - Stays the same ---
   switch (position) {
     case "top-left":
     case "top-center":
@@ -276,6 +255,7 @@ export function calculateTextStartPositionMultiCol(
       break
     case "center-left":
     case "center":
+    case "center-right": // Added center-right
       startY = Math.max(padding, canvasHeight / 2 - requiredHeight / 2)
       break
     case "bottom-left":
@@ -287,65 +267,48 @@ export function calculateTextStartPositionMultiCol(
       startY = padding
       break
   }
+  // Clamp Y
   startY = Math.max(padding, startY)
   if (startY + requiredHeight > canvasHeight - padding) {
-    startY = canvasHeight - padding - requiredHeight
-    startY = Math.max(padding, startY)
+    startY = Math.max(padding, canvasHeight - padding - requiredHeight)
   }
+
+  // --- X Calculation (Horizontal) - *NEW LOGIC* ---
+  // Calculate the STARTING X based on the entire block width and alignment preference
+  switch (position) {
+    case "top-left":
+    case "center-left":
+    case "bottom-left":
+      startX = padding // Left edge aligns with padding
+      break
+    case "top-center":
+    case "center":
+    case "bottom-center":
+      startX = canvasWidth / 2 - requiredWidth / 2 // Center the entire block
+      break
+    case "top-right":
+    case "center-right":
+    case "bottom-right": // Added center-right
+      startX = canvasWidth - padding - requiredWidth // Right edge aligns with padding
+      break
+    default:
+      startX = padding
+      break
+  }
+
+  // Clamp X (ensure block stays within padding) - this might clip if block is wider than canvas-2*padding
+  startX = Math.max(padding, startX)
+  if (startX + requiredWidth > canvasWidth - padding) {
+    startX = Math.max(padding, canvasWidth - padding - requiredWidth)
+  }
+
+  // Apply offsets at the end
   return { startX: startX + offsetX, startY: startY + offsetY }
 }
-export function drawTextBackgroundPanel(ctx, opts) {
-  /* ... keep body ... */ const {
-    x,
-    y,
-    width,
-    height,
-    paddingInline,
-    paddingBlock,
-    bgColor,
-    opacity,
-    borderColor,
-    borderWidth,
-    borderRadius,
-    textAlign,
-  } = opts
-  const padX = Math.max(0, paddingInline)
-  const padY = Math.max(0, paddingBlock)
-  let panelX = x
-  if (textAlign === "center") {
-    panelX = x - width / 2
-  } else if (textAlign === "right") {
-    panelX = x - width
-  }
-  panelX -= padX
-  const panelY = y - padY
-  const panelWidth = width + 2 * padX
-  const panelHeight = height + 2 * padY
-  const originalAlpha = ctx.globalAlpha
-  ctx.globalAlpha = originalAlpha * Math.max(0, Math.min(1, opacity))
-  ctx.fillStyle = bgColor
-  if (borderRadius > 0 && ctx.roundRect) {
-    ctx.beginPath()
-    ctx.roundRect(panelX, panelY, panelWidth, panelHeight, borderRadius)
-    ctx.fill()
-  } else {
-    ctx.fillRect(panelX, panelY, panelWidth, panelHeight)
-  }
-  if (borderWidth > 0) {
-    ctx.strokeStyle = borderColor
-    ctx.lineWidth = borderWidth
-    if (borderRadius > 0 && ctx.roundRect) {
-      ctx.beginPath()
-      ctx.roundRect(panelX, panelY, panelWidth, panelHeight, borderRadius)
-      ctx.stroke()
-    } else {
-      ctx.strokeRect(panelX, panelY, panelWidth, panelHeight)
-    }
-  }
-  ctx.globalAlpha = originalAlpha
-}
+
+// <<< MODIFIED FUNCTION >>>
 export function drawTextElementsMultiCol(ctx, params) {
-  /* ... (Keep body with check for lines.length) ... */ const {
+  const {
     title,
     textColor,
     textAlign,
@@ -359,121 +322,317 @@ export function drawTextElementsMultiCol(ctx, params) {
     itemSpacing,
     lines,
     startX,
-    startY,
+    startY, // startX is now the LEFT edge of the entire block
     listStyle,
     maxItemsPerColumn,
     columnGap,
+    maxColumnWidth, // <<< Need maxColumnWidth from metrics
   } = params
-  if (!lines || lines.length === 0) {
-    return
-  }
-  ctx.textAlign = textAlign
-  ctx.textBaseline = "top"
+
+  // Only draw if there are lines or a title to draw
+  const hasContent = title || (lines && lines.length > 0)
+  if (!hasContent) return
+
   ctx.fillStyle = textColor
-  ctx.shadowColor = "transparent"
-  ctx.shadowBlur = 0
-  ctx.shadowOffsetX = 0
-  ctx.shadowOffsetY = 0
-  let currentX = startX
+  ctx.textBaseline = "top" // Consistent baseline
+  ctx.textAlign = textAlign // <<< Set alignment for all text drawing
+
+  // --- Determine Adjustment based on Alignment ---
+  // This adjustment is applied relative to the start of each column's logical space
+  let alignmentOffset = 0
+  if (textAlign === "center") {
+    alignmentOffset = maxColumnWidth / 2
+  } else if (textAlign === "right") {
+    alignmentOffset = maxColumnWidth
+  }
+
   let currentY = startY
-  let columnStartX = currentX
-  let initialItemY = startY
-  const titleWeight = Math.max(parseInt(fontWeight, 10) || 400, 600)
-  const titleFont = `${titleWeight} ${titleFontSize}px "${fontName}", ${DEFAULT_FONT}`
-  const fallbackTitleFont = `${titleWeight} ${titleFontSize}px ${DEFAULT_FONT}`
-  const titleHeight = title ? titleFontSize : 0
+  let columnStartX = startX // Start drawing first column at the block's left edge
+  let currentColumnItemCount = 0
+
+  // 1. Draw Title
   if (title) {
+    const titleWeight = Math.max(parseInt(fontWeight, 10) || 400, 600)
+    const titleFont = `${titleWeight} ${titleFontSize}px "${fontName}", ${DEFAULT_FONT}`
+    const fallbackTitleFont = `${titleWeight} ${titleFontSize}px ${DEFAULT_FONT}`
+    const titleDrawX = startX + alignmentOffset // Align title based on overall block alignment
+
     try {
       ctx.font = titleFont
-      ctx.fillText(title, currentX, currentY)
+      ctx.fillText(title, titleDrawX, currentY)
     } catch (e) {
       console.warn(
         `Failed to draw title with font ${fontName}. Falling back.`,
         e
       )
       ctx.font = fallbackTitleFont
-      ctx.fillText(title, currentX, currentY)
+      ctx.fillText(title, titleDrawX, currentY)
     }
-    currentY += titleHeight + titleSpacing
-    initialItemY = currentY
+    currentY += titleFontSize + (lines.length > 0 ? titleSpacing : 0)
   }
-  const itemWeight = parseInt(fontWeight, 10) || 400
-  const itemFont = `${itemWeight} ${itemFontSize}px "${fontName}", ${DEFAULT_FONT}`
-  const fallbackItemFont = `${itemWeight} ${itemFontSize}px ${DEFAULT_FONT}`
-  const contextWeight = 300
-  const contextFont = `${contextWeight} ${contextFontSize}px "${fontName}", ${DEFAULT_FONT}`
-  const fallbackContextFont = `${contextWeight} ${contextFontSize}px ${DEFAULT_FONT}`
-  let currentColumnItemCount = 0
-  let currentColumnCalculatedWidth = 0
-  lines.forEach((item, index) => {
-    if (index > 0 && currentColumnItemCount >= maxItemsPerColumn) {
-      columnStartX += currentColumnCalculatedWidth + columnGap
-      currentY = initialItemY
-      currentColumnItemCount = 0
-      currentColumnCalculatedWidth = 0
-    }
-    currentColumnItemCount++
-    let prefix
-    switch (listStyle) {
-      case "dash":
-        prefix = "- "
-        break
-      case "number":
-        prefix = `${index + 1}. `
-        break
-      default:
-        prefix = "• "
-        break
-    }
-    const itemText = `${prefix}${item.text}`
-    ctx.fillStyle = textColor
-    let itemWidth = 0
-    try {
-      ctx.font = itemFont
-      itemWidth = ctx.measureText(itemText).width
-      ctx.fillText(itemText, columnStartX, currentY)
-    } catch (e) {
-      console.warn(
-        `Failed to draw item with font ${fontName}. Falling back.`,
-        e
-      )
-      ctx.font = fallbackItemFont
-      itemWidth = ctx.measureText(itemText).width
-      ctx.fillText(itemText, columnStartX, currentY)
-    }
-    let currentItemTotalHeight = itemFontSize
-    let contextWidth = 0
-    let effectiveContextWidth = 0
-    if (item.context) {
-      const originalAlpha = ctx.globalAlpha
-      ctx.globalAlpha *= 0.8
-      const contextY = currentY + itemFontSize + contextTopMargin
-      const contextIndent = itemFontSize * 0.75
-      try {
-        ctx.font = contextFont
-        contextWidth = ctx.measureText(item.context).width
-        ctx.fillText(item.context, columnStartX + contextIndent, contextY)
-      } catch (e) {
-        console.warn(
-          `Failed to draw context with font ${fontName}. Falling back.`,
-          e
-        )
-        ctx.font = fallbackContextFont
-        contextWidth = ctx.measureText(item.context).width
-        ctx.fillText(item.context, columnStartX + contextIndent, contextY)
+
+  // 2. Draw Items
+  if (lines && lines.length > 0) {
+    const itemFont = `${
+      parseInt(fontWeight, 10) || 400
+    } ${itemFontSize}px "${fontName}", ${DEFAULT_FONT}`
+    const fallbackItemFont = `${
+      parseInt(fontWeight, 10) || 400
+    } ${itemFontSize}px ${DEFAULT_FONT}`
+    const contextFont = `300 ${contextFontSize}px "${fontName}", ${DEFAULT_FONT}`
+    const fallbackContextFont = `300 ${contextFontSize}px ${DEFAULT_FONT}`
+    const initialItemY = currentY // Remember where items start vertically for new columns
+
+    lines.forEach((item, index) => {
+      // Check for column break *before* drawing the item
+      if (index > 0 && currentColumnItemCount >= maxItemsPerColumn) {
+        columnStartX += maxColumnWidth + columnGap // Move to the next column start X
+        currentY = initialItemY // Reset Y to the top item position
+        currentColumnItemCount = 0 // Reset item count for the new column
       }
-      currentItemTotalHeight += contextTopMargin + contextFontSize
-      ctx.globalAlpha = originalAlpha
-      effectiveContextWidth = contextWidth + contextIndent
-    }
-    currentColumnCalculatedWidth = Math.max(
-      currentColumnCalculatedWidth,
-      itemWidth,
-      effectiveContextWidth
-    )
-    currentY += currentItemTotalHeight + itemSpacing
-  })
+
+      currentColumnItemCount++
+
+      let prefix
+      switch (listStyle) {
+        case "dash":
+          prefix = "- "
+          break
+        case "number":
+          prefix = `${index + 1}. `
+          break
+        default:
+          prefix = "• "
+          break
+      }
+      const itemText = `${prefix}${item.text}`
+      const itemDrawX = columnStartX + alignmentOffset // Calculate X based on column start + alignment
+
+      // Draw item text
+      try {
+        ctx.font = itemFont
+        ctx.fillText(itemText, itemDrawX, currentY)
+      } catch (e) {
+        console.warn(`Item font fallback: ${fontName}`)
+        ctx.font = fallbackItemFont
+        ctx.fillText(itemText, itemDrawX, currentY)
+      }
+
+      let currentItemTotalHeight = itemFontSize
+
+      // Draw context text if present
+      if (item.context) {
+        const contextY = currentY + itemFontSize + contextTopMargin
+        // Context should generally follow the item's alignment
+        const contextDrawX = itemDrawX // Align context start with item start (adjust if needed)
+        const originalAlpha = ctx.globalAlpha
+        ctx.globalAlpha *= 0.8 // Slightly faded context
+
+        try {
+          ctx.font = contextFont
+          ctx.fillText(item.context, contextDrawX, contextY)
+        } catch (e) {
+          console.warn(`Context font fallback: ${fontName}`)
+          ctx.font = fallbackContextFont
+          ctx.fillText(item.context, contextDrawX, contextY)
+        }
+
+        currentItemTotalHeight += contextTopMargin + contextFontSize
+        ctx.globalAlpha = originalAlpha
+      }
+
+      currentY += currentItemTotalHeight + itemSpacing // Move Y for the next item
+    })
+  }
 }
+// <<< MODIFIED FUNCTION >>>
+export function drawTextBackgroundPanel(ctx, opts) {
+  const {
+    x,
+    y, // These are now the TOP-LEFT corner of the text *block*
+    width,
+    height, // These are the *overall* width/height of the text *block*
+    paddingInline,
+    paddingBlock,
+    bgColor,
+    opacity,
+    borderColor,
+    borderWidth,
+    borderRadius,
+    // textAlign is NO LONGER needed here
+  } = opts
+
+  const padX = Math.max(0, paddingInline)
+  const padY = Math.max(0, paddingBlock)
+
+  // Calculate panel coordinates based on the text block's top-left corner (x, y)
+  const panelX = x - padX
+  const panelY = y - padY
+  const panelWidth = width + 2 * padX
+  const panelHeight = height + 2 * padY
+
+  // Apply opacity correctly
+  const originalAlpha = ctx.globalAlpha
+  ctx.globalAlpha = originalAlpha * Math.max(0, Math.min(1, opacity)) // Panel's own opacity
+
+  // Draw background
+  ctx.fillStyle = bgColor
+  if (borderRadius > 0 && ctx.roundRect) {
+    ctx.beginPath()
+    ctx.roundRect(panelX, panelY, panelWidth, panelHeight, borderRadius)
+    ctx.fill()
+  } else {
+    ctx.fillRect(panelX, panelY, panelWidth, panelHeight)
+  }
+
+  // Draw border if needed
+  if (borderWidth > 0) {
+    ctx.strokeStyle = borderColor
+    ctx.lineWidth = borderWidth
+    if (borderRadius > 0 && ctx.roundRect) {
+      ctx.beginPath() // Need a new path for stroke
+      ctx.roundRect(panelX, panelY, panelWidth, panelHeight, borderRadius)
+      ctx.stroke()
+    } else {
+      ctx.strokeRect(panelX, panelY, panelWidth, panelHeight)
+    }
+  }
+
+  // Restore original alpha (likely the overallOpacity value)
+  ctx.globalAlpha = originalAlpha
+}
+
+// export function drawTextElementsMultiCol(ctx, params) {
+//   /* ... (Keep body with check for lines.length) ... */ const {
+//     title,
+//     textColor,
+//     textAlign,
+//     fontName,
+//     fontWeight,
+//     titleFontSize,
+//     itemFontSize,
+//     contextFontSize,
+//     contextTopMargin,
+//     titleSpacing,
+//     itemSpacing,
+//     lines,
+//     startX,
+//     startY,
+//     listStyle,
+//     maxItemsPerColumn,
+//     columnGap,
+//   } = params
+//   if (!lines || lines.length === 0) {
+//     return
+//   }
+//   ctx.textAlign = textAlign
+//   ctx.textBaseline = "top"
+//   ctx.fillStyle = textColor
+//   ctx.shadowColor = "transparent"
+//   ctx.shadowBlur = 0
+//   ctx.shadowOffsetX = 0
+//   ctx.shadowOffsetY = 0
+//   let currentX = startX
+//   let currentY = startY
+//   let columnStartX = currentX
+//   let initialItemY = startY
+//   const titleWeight = Math.max(parseInt(fontWeight, 10) || 400, 600)
+//   const titleFont = `${titleWeight} ${titleFontSize}px "${fontName}", ${DEFAULT_FONT}`
+//   const fallbackTitleFont = `${titleWeight} ${titleFontSize}px ${DEFAULT_FONT}`
+//   const titleHeight = title ? titleFontSize : 0
+//   if (title) {
+//     try {
+//       ctx.font = titleFont
+//       ctx.fillText(title, currentX, currentY)
+//     } catch (e) {
+//       console.warn(
+//         `Failed to draw title with font ${fontName}. Falling back.`,
+//         e
+//       )
+//       ctx.font = fallbackTitleFont
+//       ctx.fillText(title, currentX, currentY)
+//     }
+//     currentY += titleHeight + titleSpacing
+//     initialItemY = currentY
+//   }
+//   const itemWeight = parseInt(fontWeight, 10) || 400
+//   const itemFont = `${itemWeight} ${itemFontSize}px "${fontName}", ${DEFAULT_FONT}`
+//   const fallbackItemFont = `${itemWeight} ${itemFontSize}px ${DEFAULT_FONT}`
+//   const contextWeight = 300
+//   const contextFont = `${contextWeight} ${contextFontSize}px "${fontName}", ${DEFAULT_FONT}`
+//   const fallbackContextFont = `${contextWeight} ${contextFontSize}px ${DEFAULT_FONT}`
+//   let currentColumnItemCount = 0
+//   let currentColumnCalculatedWidth = 0
+//   lines.forEach((item, index) => {
+//     if (index > 0 && currentColumnItemCount >= maxItemsPerColumn) {
+//       columnStartX += currentColumnCalculatedWidth + columnGap
+//       currentY = initialItemY
+//       currentColumnItemCount = 0
+//       currentColumnCalculatedWidth = 0
+//     }
+//     currentColumnItemCount++
+//     let prefix
+//     switch (listStyle) {
+//       case "dash":
+//         prefix = "- "
+//         break
+//       case "number":
+//         prefix = `${index + 1}. `
+//         break
+//       default:
+//         prefix = "• "
+//         break
+//     }
+//     const itemText = `${prefix}${item.text}`
+//     ctx.fillStyle = textColor
+//     let itemWidth = 0
+//     try {
+//       ctx.font = itemFont
+//       itemWidth = ctx.measureText(itemText).width
+//       ctx.fillText(itemText, columnStartX, currentY)
+//     } catch (e) {
+//       console.warn(
+//         `Failed to draw item with font ${fontName}. Falling back.`,
+//         e
+//       )
+//       ctx.font = fallbackItemFont
+//       itemWidth = ctx.measureText(itemText).width
+//       ctx.fillText(itemText, columnStartX, currentY)
+//     }
+//     let currentItemTotalHeight = itemFontSize
+//     let contextWidth = 0
+//     let effectiveContextWidth = 0
+//     if (item.context) {
+//       const originalAlpha = ctx.globalAlpha
+//       ctx.globalAlpha *= 0.8
+//       const contextY = currentY + itemFontSize + contextTopMargin
+//       const contextIndent = itemFontSize * 0.75
+//       try {
+//         ctx.font = contextFont
+//         contextWidth = ctx.measureText(item.context).width
+//         ctx.fillText(item.context, columnStartX + contextIndent, contextY)
+//       } catch (e) {
+//         console.warn(
+//           `Failed to draw context with font ${fontName}. Falling back.`,
+//           e
+//         )
+//         ctx.font = fallbackContextFont
+//         contextWidth = ctx.measureText(item.context).width
+//         ctx.fillText(item.context, columnStartX + contextIndent, contextY)
+//       }
+//       currentItemTotalHeight += contextTopMargin + contextFontSize
+//       ctx.globalAlpha = originalAlpha
+//       effectiveContextWidth = contextWidth + contextIndent
+//     }
+//     currentColumnCalculatedWidth = Math.max(
+//       currentColumnCalculatedWidth,
+//       itemWidth,
+//       effectiveContextWidth
+//     )
+//     currentY += currentItemTotalHeight + itemSpacing
+//   })
+// }
+
 export function formatAccelerator(accelerator) {
   /* ... keep body ... */ if (!accelerator) return ""
   const platform = navigator.platform

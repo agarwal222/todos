@@ -83,7 +83,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on(channel, listener)
     return () => ipcRenderer.removeListener(channel, listener)
   },
-  getAppVersion: () => ipcRenderer.invoke("get-app-version"), // <<< NEW
+  getAppVersion: () => ipcRenderer.invoke("get-app-version"),
+  getPersistentWallpaperPath: () =>
+    ipcRenderer.invoke("get-persistent-wallpaper-path"), // <<< NEW
 
   // == APIs for Quick Add Renderer ==
   sendTaskToMain: (taskText) =>
@@ -108,9 +110,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.send("quick-add-delete-task", taskId),
 
   // == Auto Updater APIs ==
-  checkForUpdates: () => ipcRenderer.send("check-for-updates"), // <<< NEW
+  checkForUpdates: () => ipcRenderer.send("check-for-updates"),
   onUpdateStatusMessage: (callback) => {
-    // <<< NEW listener for status
     const channel = "update-status-message"
     ipcRenderer.on(
       channel,
@@ -130,13 +131,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return () => ipcRenderer.removeAllListeners(channel)
   },
   onUpdateError: (callback) => {
-    // Still keep this for the main bottom bar notification
     const channel = "update_error"
     ipcRenderer.on(channel, (event, ...args) => callback(...args))
     return () => ipcRenderer.removeAllListeners(channel)
   },
   onDownloadProgress: (callback) => {
-    // Keep for bottom bar
     const channel = "download_progress"
     ipcRenderer.on(channel, (event, ...args) => callback(...args))
     return () => ipcRenderer.removeAllListeners(channel)

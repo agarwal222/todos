@@ -1,0 +1,196 @@
+/* styles/modals.css */
+
+/* --- Modal Styling (Base) --- */
+.modal-overlay { position: fixed; inset: 0; z-index: 1040; background-color: hsl(var(--background) / 0.8); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; opacity: 0; visibility: hidden; transition: opacity var(--transition-speed) var(--transition-curve), visibility 0s var(--transition-speed) linear; }
+.modal-overlay:not(.hidden) { opacity: 1; visibility: visible; transition-delay: 0s; }
+#app-settings-modal { z-index: 1041; }
+#record-shortcut-modal { z-index: 1042; }
+.modal-overlay.modal-temporarily-hidden { opacity: 0; pointer-events: none; transition: opacity 0.1s ease-out !important; }
+
+.modal-content { background-color: hsl(var(--card)); border-radius: calc(var(--radius) * 1.5); padding: var(--spacing-xl); width: 90%; max-width: 500px; box-shadow: 0 10px 25px hsl(var(--background) / 0.5); position: relative; transform: translateY(-10px) scale(0.98); opacity: 0; transition: transform var(--transition-speed) var(--transition-curve), opacity var(--transition-speed) var(--transition-curve); border: 1px solid hsl(var(--border)); }
+.modal-overlay:not(.hidden) .modal-content { transform: translateY(0) scale(1); opacity: 1; }
+.modal-content h2 { margin-bottom: var(--spacing-lg); font-size: 1.15rem; font-weight: 600; text-align: center; color: hsl(var(--card-foreground)); }
+
+.modal-close-button { position: absolute; top: var(--spacing-md); right: var(--spacing-md); color: hsl(var(--muted-foreground)); width: 32px; height: 32px; padding: var(--spacing-xs); }
+.modal-close-button .material-symbols-outlined { font-size: 22px; }
+.modal-close-button:hover { background-color: hsl(var(--muted)); }
+
+/* Base styles for modal forms */
+#add-todo-form, #edit-todo-form { display: flex; flex-direction: column; gap: var(--spacing-md); }
+#app-settings-form { display: flex; flex-direction: column; gap: 0; }
+.modal-input-group { margin-bottom: 0; display: block; } /* For simple modals */
+.modal-input-group .input { font-size: 0.9rem; width: 100%; }
+.modal-actions { display: flex; justify-content: flex-end; gap: var(--spacing-md); margin-top: var(--spacing-xl); }
+.modal-divider { display: none; }
+
+
+/* --- App Settings Modal Specifics --- */
+.app-settings-content { max-width: 540px; }
+.app-settings-content h2 { margin-bottom: var(--spacing-xl); }
+
+/* Grouping for settings */
+.app-settings-content .settings-group { padding-bottom: var(--spacing-lg); margin-bottom: var(--spacing-lg); border-bottom: 1px solid hsl(var(--border) / 0.5); }
+.app-settings-content .settings-group:first-of-type { padding-top: 0; }
+.app-settings-content .settings-group:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.app-settings-content .settings-group .modal-input-group:last-child { margin-bottom: 0; }
+
+/* --- Revised GRID Input row styling within App Settings --- */
+.app-settings-content .modal-input-group {
+    display: grid;
+    grid-template-columns: minmax(120px, auto) 1fr;
+    align-items: center;
+    gap: var(--spacing-sm) var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-xs) 0;
+    min-height: calc(var(--input-height) + (var(--spacing-xs) * 2));
+}
+
+/* Label styling */
+.app-settings-content .modal-input-group > label:first-child {
+    grid-column: 1 / 2;
+    grid-row: 1 / 2;
+    text-align: left;
+    padding-right: 0;
+    font-size: 0.875rem;
+    color: hsl(var(--foreground));
+    font-weight: 500;
+    line-height: var(--input-height);
+    height: var(--input-height);
+    white-space: nowrap;
+}
+
+/* Default Control Area (Cell) Styling */
+.app-settings-content .modal-input-group > *:not(label:first-child):not(.checkbox-hint):not(.shortcut-display):not(.update-status-display):not(button) {
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+    justify-self: start;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    min-width: 0;
+}
+
+/* Make simple inputs/selects take available width in their cell */
+.app-settings-content .modal-input-group > .input,
+.app-settings-content .modal-input-group > .select {
+     width: 100%;
+     max-width: 250px; /* Add a max width to prevent extreme stretching */
+     justify-self: start; /* Ensure they align left */
+}
+/* Title input can be wider */
+.app-settings-content .modal-input-group > #wallpaper-title-input {
+    max-width: none;
+    flex-grow: 1;
+}
+/* Radio groups also align left */
+.app-settings-content .modal-input-group > .radio-group {
+     grid-column: 2 / 4; /* Span middle and right column if 3 columns */
+     justify-self: start;
+     display: flex;
+     flex-wrap: wrap;
+     gap: var(--spacing-sm) var(--spacing-lg);
+}
+.app-settings-content .modal-input-group > .radio-group label { font-size: 0.875rem; }
+.app-settings-content .modal-input-group > .radio-group input[type="radio"] { width: 16px; height: 16px; }
+
+/* Hint styling */
+.app-settings-content .modal-input-group > .checkbox-hint {
+    grid-column: 2 / 4; /* Default: Span under controls */
+    grid-row: 2 / 3;
+    padding-left: 0;
+    margin-top: calc(var(--spacing-xs) * 0.5);
+    font-size: 0.75rem;
+    color: hsl(var(--muted-foreground));
+    line-height: 1.3;
+    text-align: left;
+    justify-self: start;
+}
+
+
+/* --- Specific Control Adjustments in App Settings --- */
+
+/* Standard Checkbox */
+.app-settings-content .modal-input-group > .checkbox-input {
+    grid-column: 2 / 3; /* Place in second column */
+    justify-self: start; /* Align left */
+    width: 18px; height: 18px;
+}
+/* Hint specifically after a direct checkbox */
+.app-settings-content .modal-input-group > .checkbox-input + .checkbox-hint {
+     grid-column: 2 / 3; /* Align under checkbox */
+     grid-row: 2/3;
+     padding-left: 0;
+     margin-top: var(--spacing-xs);
+}
+
+/* Shortcut Key Group */
+.app-settings-content .shortcut-display-group {
+    grid-template-columns: minmax(120px, auto) 1fr auto; /* Label | Display | Button */
+}
+.app-settings-content .shortcut-display-group > label { grid-column: 1 / 2; }
+.app-settings-content .shortcut-display-group > .shortcut-display {
+    grid-column: 2 / 3; justify-self: stretch; min-width: 120px;
+    font-family: monospace; background-color: hsl(var(--input)); padding: var(--spacing-xs) var(--spacing-sm); border-radius: calc(var(--radius) / 1.5); border: 1px solid hsl(var(--border)); color: hsl(var(--accent-foreground)); font-size: 0.85rem; min-height: 30px; display: inline-flex; align-items: center; line-height: 1.4;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.app-settings-content .shortcut-display-group > button {
+   grid-column: 3 / 4; justify-self: end; height: 30px; padding: var(--spacing-xs) var(--spacing-sm); flex-shrink: 0;
+}
+
+
+/* Radio Group (Preview Quality in Modal) */
+.app-settings-content .modal-input-group > .modal-radio-group {
+    grid-column: 2 / 3; /* Place radios in the second column */
+    justify-self: start; /* Align the group left */
+}
+
+
+/* Storage Path Group - Label above path */
+.app-settings-content .storage-path-group {
+    grid-template-columns: minmax(120px, auto) 1fr; /* Keep label/path on same conceptual row for hint alignment */
+    grid-template-rows: auto auto; /* Label/Path | Hint */
+    align-items: start;
+    gap: var(--spacing-xs) var(--spacing-lg); /* Adjust gaps */
+    margin-bottom: var(--spacing-sm);
+}
+.app-settings-content .storage-path-group > label {
+    grid-column: 1 / 2; grid-row: 1 / 2; /* Label first row, first column */
+    text-align: left; align-self: center; /* Vertically center label */
+    padding-right: 0;
+}
+.app-settings-content .storage-path-group > .storage-path-display {
+    grid-column: 2 / 3; grid-row: 1 / 2; /* Path first row, second column */
+    justify-self: stretch; align-self: center; /* Center path vertically */
+    font-family: monospace; font-size: 0.8rem; color: hsl(var(--muted-foreground)); background-color: hsl(var(--input) / 0.5); padding: var(--spacing-xs) var(--spacing-sm); border-radius: calc(var(--radius) / 2); border: 1px solid hsl(var(--border) / 0.5); word-break: break-all; line-height: 1.4; min-height: auto; display: block; user-select: text; -webkit-user-select: text;
+}
+.app-settings-content .storage-path-group > .checkbox-hint {
+    grid-column: 2 / 3; /* Hint second row, second column */
+    grid-row: 2 / 3;
+    padding-left: 0; margin-top: var(--spacing-xs);
+}
+
+
+/* Update Status Group */
+.app-settings-content .update-status-group {
+    grid-template-columns: minmax(120px, auto) 1fr auto; /* Label | Status | Button */
+    gap: var(--spacing-sm) var(--spacing-md);
+}
+.app-settings-content .update-status-group > label { grid-column: 1 / 2; grid-row: 1/2; align-self: center;}
+.app-settings-content .update-status-group > .update-status-display {
+    grid-column: 2 / 3; grid-row: 1/2; justify-self: start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 0.85rem; color: hsl(var(--muted-foreground)); line-height: 1.4; min-height: 30px; display: inline-flex; align-items: center; font-style: normal; margin-right: var(--spacing-sm);
+}
+.app-settings-content .update-status-group > .update-status-display.update-available { color: hsl(var(--success)); font-weight: 500; }
+.app-settings-content .update-status-group > .update-status-display.update-error { color: hsl(var(--destructive)); font-weight: 500; }
+.app-settings-content .update-status-group > button {
+    grid-column: 3 / 4; grid-row: 1/2; justify-self: end; height: 30px; padding: var(--spacing-xs) var(--spacing-sm); flex-shrink: 0;
+}
+
+
+/* --- Record Shortcut Modal (Keep Existing) --- */
+.record-shortcut-content { max-width: 500px; }
+.record-instructions { color: hsl(var(--muted-foreground)); font-size: 0.9rem; margin-bottom: var(--spacing-lg); text-align: center; }
+.shortcut-display-area { background-color: hsl(var(--input)); border: 1px solid hsl(var(--border)); border-radius: var(--radius); padding: var(--spacing-lg); min-height: 60px; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg); text-align: center; font-size: 1.1rem; font-family: monospace; }
+.shortcut-display-area span:first-child:not(.key-display) { color: hsl(var(--muted-foreground)); font-style: italic; }
+span.key-display { display: inline-block; background-color: hsl(var(--background)); border: 1px solid hsl(var(--muted-foreground)); padding: var(--spacing-xs) var(--spacing-md); border-radius: calc(var(--radius) / 1.5); margin: var(--spacing-xs); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); font-weight: 500; color: hsl(var(--foreground)); }
+span.key-display.modifier { background-color: hsl(var(--primary) / 0.8); color: hsl(var(--primary-foreground)); border-color: hsl(var(--primary)); }

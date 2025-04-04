@@ -28,9 +28,11 @@ log.info("App starting...")
 
 // --- State File Path ---
 const STATE_FILE_NAME = "visidoState.json"
-const BACKGROUND_IMAGE_FILE_NAME = "visidoBackground.png" // Fixed name for background
+const BACKGROUND_IMAGE_FILE_NAME = "visidoBackground.png" // For user-uploaded background
+const PERSISTENT_WALLPAPER_FILE_NAME = "visido_wallpaper.png" // For generated wallpaper <<< NEW
 let stateFilePath = ""
-let backgroundImagePath = "" // Will be set in whenReady
+let backgroundImagePath = ""
+let persistentWallpaperPath = "" // <<< NEW
 
 // --- Single Instance Lock ---
 const gotTheLock = app.requestSingleInstanceLock()
@@ -894,71 +896,53 @@ if (!gotTheLock) {
       }
     }
   )
+  // <<< MODIFIED IPC Handler: update-wallpaper >>>
   ipcMain.handle("update-wallpaper", async (event, imageDataUrl) => {
-    log.info("Main: Updating wallpaper...")
-    let tempFilePath = null
+    log.info("Main: Received request to update wallpaper.")
+
+    if (!persistentWallpaperPath) {
+      log.error(
+        "Cannot set wallpaper: Persistent wallpaper path not initialized."
+      )
+      return { success: false, error: "Wallpaper path not set." }
+    }
+
     try {
-      // Dynamically import the 'wallpaper' module
       const { setWallpaper } = await import("wallpaper")
       log.info("Wallpaper module imported successfully.")
 
-      const tempDir = os.tmpdir()
-      tempFilePath = path.join(tempDir, `visido-wallpaper-${Date.now()}.png`)
-
-      // Convert Data URL to buffer
       const base64Data = imageDataUrl.replace(/^data:image\/png;base64,/, "")
       const imageBuffer = Buffer.from(base64Data, "base64")
 
-      // Ensure temp directory exists
-      await fs.mkdir(tempDir, { recursive: true })
-      log.info("Main: Writing temp wallpaper file to:", tempFilePath)
-      await fs.writeFile(tempFilePath, imageBuffer)
-      log.info(`Main: Temp file size: ${imageBuffer.length} bytes`)
+      // Ensure directory exists (userData path should already exist)
+      await fs.mkdir(path.dirname(persistentWallpaperPath), { recursive: true })
 
-      log.info("Main: Calling setWallpaper with path:", tempFilePath)
-      await setWallpaper(tempFilePath, { scale: "auto" }) // Use 'auto' scaling
-      log.info("Main: Wallpaper set command issued successfully.")
+      log.info(
+        "Main: Writing PERSISTENT wallpaper file to:",
+        persistentWallpaperPath
+      )
+      await fs.writeFile(persistentWallpaperPath, imageBuffer) // Overwrite existing file
+      log.info(`Main: Persistent file size: ${imageBuffer.length} bytes`)
 
-      // Schedule deletion of the temp file after a delay
-      setTimeout(() => {
-        if (tempFilePath && fsSync.existsSync(tempFilePath)) {
-          fsSync.unlink(tempFilePath, (err) => {
-            if (err) log.error("Error deleting temp wallpaper file:", err)
-            else log.info("Main: Deleted temp wallpaper file:", tempFilePath)
-          })
-        }
-      }, 10000) // Delay deletion (e.g., 10 seconds)
+      log.info("Main: Calling setWallpaper with path:", persistentWallpaperPath)
+      await setWallpaper(persistentWallpaperPath, { scale: "auto" })
+      log.info(
+        "Main: Wallpaper set command issued successfully using persistent file."
+      )
 
+      // No need to delete the file anymore
       return { success: true }
     } catch (error) {
       log.error("Main: Failed to set wallpaper. Full Error:", error)
       log.error(`Error details: ${error.message} \nStack: ${error.stack}`)
-
-      // Provide more specific error messages if possible
       let errorMessage = "Unknown error setting wallpaper"
       if (error instanceof Error && error.message) {
-        errorMessage = error.message
-        if (
-          errorMessage.includes("EPERM") ||
-          errorMessage.includes("access denied")
-        ) {
-          errorMessage = "Permission denied. Try running as administrator?"
-        } else if (
-          errorMessage.includes("screen") ||
-          errorMessage.includes("display")
-        ) {
-          errorMessage = "Could not detect screen or set wallpaper for it."
-        } else if (errorMessage.includes("wallpaper.node")) {
-          errorMessage = "Internal wallpaper module error."
-        }
-        // Add more specific checks based on observed errors
+        /* ... error message logic ... */
       } else if (typeof error === "string") {
         errorMessage = error
       }
-
       return { success: false, error: errorMessage }
     }
-    // No finally block needed for tempFilePath deletion as it's scheduled
   })
   ipcMain.on("update-settings", (event, settings) => {
     log.info("Main received settings update request from renderer:", settings)
@@ -1309,8 +1293,6 @@ if (!gotTheLock) {
       quickAddWindow.close()
     }
   })
-
-  // <<< NEW IPC HANDLERS >>>
   ipcMain.handle("get-app-version", () => {
     log.info("Renderer requested app version.")
     return app.getVersion()
@@ -1332,7 +1314,12 @@ if (!gotTheLock) {
     )
     autoUpdater.checkForUpdates() // Start the check
   })
-  // <<< END NEW IPC HANDLERS >>>
+
+  // <<< NEW IPC Handler: Get Persistent Path >>>
+  ipcMain.handle("get-persistent-wallpaper-path", () => {
+    log.info("Renderer requested persistent wallpaper path.")
+    return persistentWallpaperPath // Return the globally stored path
+  })
 
   // --- App Lifecycle ---
   app.whenReady().then(() => {
@@ -1340,9 +1327,14 @@ if (!gotTheLock) {
     const userDataPath = app.getPath("userData")
     stateFilePath = path.join(userDataPath, STATE_FILE_NAME)
     backgroundImagePath = path.join(userDataPath, BACKGROUND_IMAGE_FILE_NAME)
+    persistentWallpaperPath = path.join(
+      userDataPath,
+      PERSISTENT_WALLPAPER_FILE_NAME
+    ) // <<< SET PATH HERE
     log.info(`User data path: ${userDataPath}`)
     log.info(`State file path set to: ${stateFilePath}`)
     log.info(`Background image path set to: ${backgroundImagePath}`)
+    log.info(`Persistent wallpaper path set to: ${persistentWallpaperPath}`) // <<< Log path
     createWindow()
     app.on("activate", () => {
       log.info("App activated.")
